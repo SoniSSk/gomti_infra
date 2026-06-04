@@ -4,6 +4,7 @@ export const vehicleData: Vehicle = {
      _id:"3232323",
     createdAt: "03-06-2026 10:30 AM",
     updatedAt: "03-06-2026 10:30 AM",
+    tokenNo:"0001",
   sno: 1,
   dateTime: "03-06-2026 10:30 AM",
 

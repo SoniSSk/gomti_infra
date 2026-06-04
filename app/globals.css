@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@import "tailwindcss";
+
+:root {
+  --primary: #ff6b00;
+  --secondary: #ff8c00;
+}
+
+.orange-gradient {
+  background: linear-gradient(
+    135deg,
+    #ff6b00 0%,
+    #ff8c00 50%,
+    #ffb347 100%
+  );
+}
+
+.orange-hover {
+  transition: all 0.3s ease;
+}
+
+.orange-hover:hover {
+  background: linear-gradient(
+    135deg,
+    #ff6b00,
+    #ff8c00
+  );
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(255, 107, 0, 0.4);
+}

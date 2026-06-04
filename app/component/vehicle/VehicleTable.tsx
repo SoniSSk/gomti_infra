@@ -70,6 +70,10 @@ export default function VehicleTable() {
       label: "S.No",
     },
     {
+      key: "tokenNo",
+      label: "Token No",
+    },
+    {
       key: "dateTime",
       label: "Date & Time",
     },
@@ -82,6 +86,10 @@ export default function VehicleTable() {
       label: "Driver Name",
     },
     {
+      key: "driverContact",
+      label: "Mobile No",
+    },
+    {
       key: "materialName",
       label: "Material",
     },
@@ -89,6 +97,7 @@ export default function VehicleTable() {
       key: "netWeight",
       label: "Weight (MT)",
     },
+
     {
       key: "status",
       label: "Status",

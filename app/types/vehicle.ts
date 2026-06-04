@@ -1,12 +1,12 @@
 import { VehicleStatus } from "./vehicle-status";
 
 export interface Vehicle {
-    _id:string;
-    createdAt:string;
-    updatedAt:string;
+  _id: string;
+  createdAt: string;
+  updatedAt: string;
   sno: number;
   dateTime: string;
-
+  tokenNo: string;
   vehicleNo: string;
 
   driverName: string;

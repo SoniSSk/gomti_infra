@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDate } from "@/app/utils/formatDate";
 import React from "react";
 
 export interface TableColumn<T> {
@@ -23,6 +24,9 @@ export default function CommonTable<T>({
   loading = false,
   emptyMessage = "No Data Found",
 }: CommonTableProps<T>) {
+  console.log(data, "data");
+
+  // udate date by formateDate
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
       <table className="min-w-full">
@@ -74,7 +78,11 @@ export default function CommonTable<T>({
                   >
                     {column.render
                       ? column.render(row)
-                      : String(row[column.key as keyof T] ?? "")}
+                      : column.key === "dateTime"
+                        ? formatDate(String(row[column.key as keyof T]))
+                        : column.key === "sno"
+                          ? ++index
+                          : String(row[column.key as keyof T] ?? "")}
                   </td>
                 ))}
               </tr>

@@ -136,13 +136,19 @@ export default function EditVehicleModal({
           />
 
           <input
+            name="tokenNo"
+            placeholder="Token Number"
+            value={formData.tokenNo || ""}
+            onChange={handleChange}
+            className="rounded-lg border p-3"
+          />
+          <input
             name="driverName"
             placeholder="Driver Name"
             value={formData.driverName || ""}
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="driverContact"
             placeholder="Driver Contact"
@@ -150,7 +156,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="transporterName"
             placeholder="Transporter Name"
@@ -158,7 +163,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="buyerDetails"
             placeholder="Buyer Details"
@@ -166,7 +170,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="materialName"
             placeholder="Material Name"
@@ -174,7 +177,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="materialGrade"
             placeholder="Material Grade"
@@ -182,7 +184,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="destination"
             placeholder="Destination"
@@ -190,7 +191,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="invoiceNo"
             placeholder="Invoice No"
@@ -198,7 +198,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="netWeight"
             placeholder="Net Weight"
@@ -206,7 +205,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="weighmentSlip"
             placeholder="Weighment Slip"
@@ -214,7 +212,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="builtyNo"
             placeholder="Builty No"
@@ -222,7 +219,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="etp"
             placeholder="ETP"
@@ -230,7 +226,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="invoiceImage"
             placeholder="Invoice Image"
@@ -238,7 +233,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <input
             name="ewayBill"
             placeholder="E-Way Bill"
@@ -246,7 +240,6 @@ export default function EditVehicleModal({
             onChange={handleChange}
             className="rounded-lg border p-3"
           />
-
           <select
             name="status"
             value={formData.status || ""}
@@ -261,11 +254,17 @@ export default function EditVehicleModal({
           </select>
         </div>
 
-        <div className="cursor-pointer" onClick={() => handleUpload()}>
-          upload image
+        <div
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200 cursor-pointer"
+          onClick={() => handleUpload()}
+        >
+          Upload Weight Slip
         </div>
-        <div className="cursor-pointer" onClick={() => handleUploadPDF()}>
-          upload Invoice
+        <div
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200 cursor-pointer"
+          onClick={() => handleUpload()}
+        >
+          Upload Invoice
         </div>
 
         {/* Footer */}

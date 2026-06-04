@@ -20,6 +20,7 @@ export default function VehicleDetailsModal({
     { label: "S.No", value: vehicle.sno },
     { label: "Date & Time", value: formatDate(vehicle.dateTime) },
     { label: "Vehicle Number", value: vehicle.vehicleNo },
+    { label: "Token No", value: vehicle.tokenNo },
     { label: "Driver Name", value: vehicle.driverName },
     { label: "Driver Contact", value: vehicle.driverContact },
     { label: "Transporter Name", value: vehicle.transporterName },

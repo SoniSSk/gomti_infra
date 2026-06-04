@@ -9,6 +9,7 @@ interface VehicleFormProps {
 export default function VehicleForm({ onSuccess }: VehicleFormProps) {
   const [formData, setFormData] = useState({
     vehicleNo: "",
+    tokenNo: "",
     driverName: "",
     driverContact: "",
     transporterName: "",
@@ -52,6 +53,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
 
       setFormData({
         vehicleNo: "",
+        tokenNo: "",
         driverName: "",
         driverContact: "",
         transporterName: "",
@@ -84,6 +86,15 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           value={formData.vehicleNo}
           onChange={handleChange}
           placeholder="Vehicle Number"
+          className="border rounded px-3 py-2"
+          required
+        />
+
+        <input
+          name="tokenNo"
+          value={formData.tokenNo}
+          onChange={handleChange}
+          placeholder="Token Number"
           className="border rounded px-3 py-2"
           required
         />

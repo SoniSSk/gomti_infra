@@ -6,6 +6,7 @@ export interface Vehicle {
   updatedAt: string;
   sno: number;
   dateTime: string;
+  
   tokenNo: string;
   vehicleNo: string;
 

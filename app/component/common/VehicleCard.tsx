@@ -56,22 +56,18 @@ export default function VehicleCard({ data }: VehicleCardProps) {
           <Info label="Grade" value={data.materialGrade} />
           <Info label="Destination" value={data.destination} />
           <Info label="Net Weight" value={data.netWeight} />
-          <Info label="Invoice No" value={data.invoiceNo} />
-          <Info label="Builty No" value={data.builtyNo} />
+          <Info label="LR Slip" value={data.LRSlip} />
         </div>
       </div>
 
       {/* Documents */}
-      {(data.weighmentSlip ||
-        data.etp ||
-        data.invoiceImage ||
-        data.ewayBill) && (
+      {(data.weightSlip || data.etp || data.invoiceImage || data.EWayBill) && (
         <div>
           <h3 className="font-semibold text-orange-600 mb-3">Documents</h3>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {data.weighmentSlip && (
-              <DocumentCard title="Weighment Slip" url={data.weighmentSlip} />
+            {data.weightSlip && (
+              <DocumentCard title="Weight Slip" url={data.weightSlip} />
             )}
 
             {data.etp && <DocumentCard title="ETP" url={data.etp} />}
@@ -80,8 +76,8 @@ export default function VehicleCard({ data }: VehicleCardProps) {
               <DocumentCard title="Invoice" url={data.invoiceImage} />
             )}
 
-            {data.ewayBill && (
-              <DocumentCard title="E-Way Bill" url={data.ewayBill} />
+            {data.EWayBill && (
+              <DocumentCard title="E-Way Bill" url={data.EWayBill} />
             )}
           </div>
         </div>

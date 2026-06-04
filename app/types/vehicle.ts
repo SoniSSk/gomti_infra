@@ -21,14 +21,14 @@ export interface Vehicle {
 
   destination: string;
 
-  invoiceNo: string;
+  vehicleImage: string;
   netWeight: string;
 
   status: VehicleStatus;
 
-  weighmentSlip?: string;
-  builtyNo?: string;
+  weightSlip?: string;
+  LRSlip?: string;
   etp?: string;
   invoiceImage?: string;
-  ewayBill?: string;
+  EWayBill?: string;
 }

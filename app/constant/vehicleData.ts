@@ -21,15 +21,15 @@ export const vehicleData: Vehicle = {
 
   destination: "Kanpur, Uttar Pradesh",
 
-  invoiceNo: "INV-2026-001",
+  vehicleImage: "INV-2026-001",
   netWeight: "35 Ton",
 
   status: "LOADING_DONE",
 
-  weighmentSlip:
+  weightSlip:
     "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
 
-  builtyNo: "BL-101",
+  LRSlip: "BL-101",
 
   etp:
     "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
@@ -37,6 +37,6 @@ export const vehicleData: Vehicle = {
   invoiceImage:
     "https://images.unsplash.com/photo-1554224155-6726b3ff858f",
 
-  ewayBill:
+  EWayBill:
     "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
 };

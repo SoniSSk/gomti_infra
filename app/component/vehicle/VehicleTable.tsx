@@ -36,6 +36,7 @@ export default function VehicleTable() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadVehicles();
   }, []);
 
@@ -138,6 +139,16 @@ export default function VehicleTable() {
           >
             View
           </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEditVehicle(row);
+            }}
+            className="rounded-lg cursor-pointer bg-green-500 px-3 py-1 text-sm text-white transition hover:bg-green-600"
+          >
+            Edit
+          </button>
         </div>
       ),
     },
@@ -167,7 +178,7 @@ export default function VehicleTable() {
           columns={columns}
           data={filteredData}
           loading={loading}
-          onRowClick={(row) => handleEditVehicle(row)}
+          onRowClick={() => {}}
         />
       </div>
 

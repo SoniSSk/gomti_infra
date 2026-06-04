@@ -30,19 +30,22 @@ export default function VehicleDetailsModal({
     { label: "Material Grade", value: vehicle.materialGrade },
     { label: "Destination", value: vehicle.destination },
     { label: "Net Weight", value: vehicle.netWeight },
-    { label: "Invoice Number", value: vehicle.invoiceNo },
     { label: "Status", value: vehicle.status },
-    { label: "Weight Slip", value: vehicle.weighmentSlip },
+    { label: "Vehicle Image", value: vehicle.vehicleImage },
+    { label: "Weight Slip", value: vehicle.weightSlip },
     { label: "Invoice", value: vehicle.invoiceImage },
-    { label: "E Way Bill", value: vehicle.ewayBill },
+    { label: "LR Slip", value: vehicle.LRSlip },
+    { label: "E Way Bill", value: vehicle.EWayBill },
     { label: "ETP", value: vehicle.etp },
   ];
 
   const renderImage = [
-    { label: "Weight Slip", value: vehicle.weighmentSlip },
-    { label: "Invoice", value: vehicle.invoiceImage },
-    { label: "E Way Bill", value: vehicle.ewayBill },
+    { label: "Weight Slip", value: vehicle.weightSlip },
+    { label: "LR Slip", value: vehicle.LRSlip },
+    { label: "Vehicle Image", value: vehicle.vehicleImage },
     { label: "ETP", value: vehicle.etp },
+    { label: "Invoice", value: vehicle.invoiceImage },
+    { label: "E Way Bill", value: vehicle.EWayBill },
   ];
   return (
     <div className="fixed inset-0 z-50 bg-black/60">

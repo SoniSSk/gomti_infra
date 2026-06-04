@@ -6,6 +6,8 @@ import { useCloudinaryUpload } from "@/app/hooks/useCloudinaryUpload";
 import { useCloudinaryPdfUpload } from "@/app/hooks/useCloudinaryPdfUpload";
 import { UploadButton } from "../common/UploadButton";
 import { FormField } from "../common/FormField";
+import { useAppDispatch } from "@/app/redux/hooks";
+import { hideLoader, showLoader } from "@/app/redux/loaderSlice";
 
 interface EditVehicleModalProps {
   vehicle: Vehicle | null;
@@ -19,13 +21,15 @@ export default function EditVehicleModal({
   onSuccess,
 }: EditVehicleModalProps) {
   const [formData, setFormData] = useState<Partial<Vehicle>>({});
-  const [loading, setLoading] = useState(false);
+
+  const dispatch = useAppDispatch();
 
   const { openUpload } = useCloudinaryUpload();
   const { openUploads } = useCloudinaryPdfUpload();
 
   useEffect(() => {
     if (vehicle) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData(vehicle);
     }
   }, [vehicle]);
@@ -43,13 +47,17 @@ export default function EditVehicleModal({
     }));
   };
 
-  const handleImageUpload = async () => {
+  const handleImageUpload = async (
+    field: "weightSlip" | "LRSlip" | "vehicleImage",
+  ) => {
     try {
       const url = await openUpload();
 
+      if (!url) return; // user cancelled popup
+
       setFormData((prev) => ({
         ...prev,
-        weighmentSlip: url,
+        [field]: url,
       }));
     } catch (error) {
       console.error(error);
@@ -57,7 +65,7 @@ export default function EditVehicleModal({
   };
 
   const handlePdfUpload = async (
-    field: "invoiceImage" | "ewayBill" | "etp",
+    field: "invoiceImage" | "EWayBill" | "etp" | "LRSlip",
   ) => {
     try {
       const url = await openUploads();
@@ -73,7 +81,7 @@ export default function EditVehicleModal({
 
   const handleUpdate = async () => {
     try {
-      setLoading(true);
+      dispatch(showLoader());
 
       const payload = { ...formData };
 
@@ -96,14 +104,16 @@ export default function EditVehicleModal({
       }
 
       onSuccess();
+      onClose();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      alert(error.message);
+      alert(error.message || "Failed to update vehicle");
     } finally {
-      setLoading(false);
+      dispatch(hideLoader());
     }
   };
 
-  const handleDelete = async (sno: any) => {
+  const handleDelete = async (sno: number) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this vehicle?",
     );
@@ -111,7 +121,7 @@ export default function EditVehicleModal({
     if (!confirmDelete) return;
 
     try {
-      setLoading(true);
+      dispatch(showLoader());
 
       const response = await fetch(`/api/vehicles/${sno}`, {
         method: "DELETE",
@@ -127,10 +137,11 @@ export default function EditVehicleModal({
 
       onSuccess();
       onClose();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       alert(error.message || "Failed to delete vehicle");
     } finally {
-      setLoading(false);
+      dispatch(hideLoader());
     }
   };
 
@@ -155,13 +166,8 @@ export default function EditVehicleModal({
     { name: "materialName", label: "Material Name" },
     { name: "materialGrade", label: "Material Grade" },
     { name: "destination", label: "Destination" },
-    { name: "invoiceNo", label: "Invoice No" },
     { name: "netWeight", label: "Net Weight" },
-    { name: "builtyNo", label: "Builty No" },
-    // { name: "weighmentSlip", label: "Weight Slip" },
-    // { name: "etp", label: "ETP" },
-    // { name: "invoiceImage", label: "Invoice" },
-    // { name: "ewayBill", label: "E Way Bill" },
+    // { name: "LRSlip", label: "LR Slip" },
   ];
 
   return (
@@ -173,7 +179,7 @@ export default function EditVehicleModal({
 
           <button
             onClick={onClose}
-            className="rounded-lg cursor-pointer px-3 py-2 hover:bg-gray-100"
+            className="cursor-pointer rounded-lg px-3 py-2 hover:bg-gray-100"
           >
             ✕
           </button>
@@ -212,9 +218,9 @@ export default function EditVehicleModal({
         {/* Uploads */}
         <div className="grid grid-cols-1 gap-3 px-6 pb-6 md:grid-cols-2 lg:grid-cols-4">
           <UploadButton
-            url={formData.weighmentSlip}
+            url={formData.weightSlip}
             label="Weight Slip"
-            onClick={handleImageUpload}
+            onClick={() => handleImageUpload("weightSlip")}
           />
 
           <UploadButton
@@ -224,9 +230,9 @@ export default function EditVehicleModal({
           />
 
           <UploadButton
-            url={formData.ewayBill}
+            url={formData.EWayBill}
             label="E-Way Bill"
-            onClick={() => handlePdfUpload("ewayBill")}
+            onClick={() => handlePdfUpload("EWayBill")}
           />
 
           <UploadButton
@@ -234,18 +240,29 @@ export default function EditVehicleModal({
             label="ETP"
             onClick={() => handlePdfUpload("etp")}
           />
+
+          <UploadButton
+            url={formData.LRSlip}
+            label="LR Slip"
+            onClick={() => handleImageUpload("LRSlip")}
+          />
+
+          <UploadButton
+            url={formData.vehicleImage}
+            label="Vehicle Number Plate"
+            onClick={() => handleImageUpload("vehicleImage")}
+          />
         </div>
 
         {/* Footer */}
         <div className="sticky bottom-0 flex justify-between border-t bg-white p-4">
           <button
-            // onClick={() => handleDelete(formData.sno)}
-            disabled={formData.status !== "ENTRY_DONE" || loading}
-            className={`rounded-lg px-5 py-2 text-white transition cursor-pointer ${
-              formData.status === "WAITING_FOR_DETAILS"
-                ? "cursor-not-allowed bg-gray-400"
-                : // "bg-red-600 hover:bg-red-700"
-                  "cursor-not-allowed bg-gray-400"
+            onClick={() => handleDelete(Number(formData.sno))}
+            disabled={formData.status !== "ENTRY_DONE"}
+            className={`rounded-lg px-5 py-2 text-white transition ${
+              formData.status === "ENTRY_DONE"
+                ? "bg-red-600 hover:bg-red-700"
+                : "cursor-not-allowed bg-gray-400"
             }`}
           >
             Delete Vehicle
@@ -258,10 +275,9 @@ export default function EditVehicleModal({
 
             <button
               onClick={handleUpdate}
-              disabled={loading}
-              className="rounded-lg bg-orange-600 px-5 py-2 cursor-pointer text-white hover:bg-orange-700"
+              className="cursor-pointer rounded-lg bg-orange-600 px-5 py-2 text-white hover:bg-orange-700"
             >
-              {loading ? "Updating..." : "Update Vehicle"}
+              Update Vehicle
             </button>
           </div>
         </div>

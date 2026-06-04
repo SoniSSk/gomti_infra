@@ -17,12 +17,13 @@ export default function EditVehicleModal({
   onSuccess,
 }: EditVehicleModalProps) {
   const [formData, setFormData] = useState<Partial<Vehicle>>({});
-  //   const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const { openUploads, fileUrl, loadings } = useCloudinaryPdfUpload();
+  const { openUploads } = useCloudinaryPdfUpload();
+
   const handleUploadPDF = async () => {
     try {
-      const url = await openUpload();
+      const url = await openUploads();
 
       setFormData((prev) => ({
         ...prev,
@@ -33,7 +34,7 @@ export default function EditVehicleModal({
     }
   };
 
-  const { openUpload, imageUrl, loading } = useCloudinaryUpload();
+  const { openUpload } = useCloudinaryUpload();
 
   const handleUpload = async () => {
     try {
@@ -74,7 +75,7 @@ export default function EditVehicleModal({
 
   const handleUpdate = async () => {
     try {
-      //   setLoading(true);
+      setLoading(true);
 
       const response = await fetch(`/api/vehicles/${formData.sno}`, {
         method: "PUT",
@@ -94,7 +95,7 @@ export default function EditVehicleModal({
     } catch (error: any) {
       alert(error.message);
     } finally {
-      //   setLoading(false);
+      setLoading(false);
     }
   };
 

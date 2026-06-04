@@ -4,6 +4,7 @@ import React from "react";
 import { Vehicle } from "../../types/vehicle";
 import DetailItem from "../common/DetailItem";
 import { formatDate } from "@/app/utils/formatDate";
+import FilePreview from "../common/FilePreview";
 
 interface VehicleDetailsModalProps {
   vehicle: Vehicle | null;
@@ -31,8 +32,18 @@ export default function VehicleDetailsModal({
     { label: "Net Weight", value: vehicle.netWeight },
     { label: "Invoice Number", value: vehicle.invoiceNo },
     { label: "Status", value: vehicle.status },
+    { label: "Weight Slip", value: vehicle.weighmentSlip },
+    { label: "Invoice", value: vehicle.invoiceImage },
+    { label: "E Way Bill", value: vehicle.ewayBill },
+    { label: "ETP", value: vehicle.etp },
   ];
 
+  const renderImage = [
+    { label: "Weight Slip", value: vehicle.weighmentSlip },
+    { label: "Invoice", value: vehicle.invoiceImage },
+    { label: "E Way Bill", value: vehicle.ewayBill },
+    { label: "ETP", value: vehicle.etp },
+  ];
   return (
     <div className="fixed inset-0 z-50 bg-black/60">
       <div className="flex h-screen items-center justify-center p-4">
@@ -57,13 +68,23 @@ export default function VehicleDetailsModal({
           </div>
 
           {/* Scrollable Body */}
-          <div className="h-[600px] flex-1 overflow-auto">
+          <div className="flex-1 overflow-y-auto">
             <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
               {details.map((item) => (
                 <DetailItem
                   key={item.label}
                   label={item.label}
                   value={item.value}
+                />
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+              {renderImage.map((item) => (
+                <FilePreview
+                  key={item.label}
+                  url={item.value}
+                  label={item.label}
                 />
               ))}
             </div>

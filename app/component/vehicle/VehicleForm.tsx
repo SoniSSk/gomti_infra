@@ -19,7 +19,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
     destination: "",
     invoiceNo: "",
     netWeight: "",
-    status: "ENTRY_DONE",
+    status: "WAITING_FOR_DETAILS",
   });
 
   const handleChange = (
@@ -96,7 +96,6 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           onChange={handleChange}
           placeholder="Token Number"
           className="border rounded px-3 py-2"
-          required
         />
 
         <input

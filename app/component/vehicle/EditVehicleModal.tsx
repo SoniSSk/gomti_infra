@@ -4,6 +4,7 @@ import { useCloudinaryUpload } from "@/app/hooks/useCloudinaryUpload";
 import { useEffect, useState } from "react";
 import { Vehicle } from "../../types/vehicle";
 import { useCloudinaryPdfUpload } from "@/app/hooks/useCloudinaryPdfUpload";
+import UploadImage from "../common/UploadImage";
 
 interface EditVehicleModalProps {
   vehicle: Vehicle | null;
@@ -28,6 +29,31 @@ export default function EditVehicleModal({
       setFormData((prev) => ({
         ...prev,
         invoiceImage: url,
+      }));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleUploadETP = async () => {
+    try {
+      const url = await openUploads();
+
+      setFormData((prev) => ({
+        ...prev,
+        etp: url,
+      }));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const handleUploadEWayBill = async () => {
+    try {
+      const url = await openUploads();
+
+      setFormData((prev) => ({
+        ...prev,
+        ewayBill: url,
       }));
     } catch (error) {
       console.error(error);
@@ -124,7 +150,6 @@ export default function EditVehicleModal({
             ✕
           </button>
         </div>
-
         {/* Form */}
         <div className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
           <input
@@ -253,7 +278,7 @@ export default function EditVehicleModal({
             ))}
           </select>
         </div>
-
+        <UploadImage />
         <div
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200 cursor-pointer"
           onClick={() => handleUpload()}
@@ -262,20 +287,31 @@ export default function EditVehicleModal({
         </div>
         <div
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200 cursor-pointer"
-          onClick={() => handleUpload()}
+          onClick={() => handleUploadPDF()}
         >
           Upload Invoice
         </div>
-
+        <div
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200 cursor-pointer"
+          onClick={() => handleUploadEWayBill()}
+        >
+          Upload E-Way Bill
+        </div>{" "}
+        <div
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg shadow-sm hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200 cursor-pointer"
+          onClick={() => handleUploadETP()}
+        >
+          Upload ETP
+        </div>{" "}
         {/* Footer */}
         <div className="sticky bottom-0 flex justify-between border-t bg-white p-4">
-          {/* <button
-            onClick={handleDelete}
+          <button
+            onClick={() => {}}
             disabled={loading}
             className="rounded-lg bg-red-600 px-5 py-2 text-white hover:bg-red-700"
           >
             Delete Vehicle
-          </button> */}
+          </button>
 
           <div className="flex gap-3">
             <button onClick={onClose} className="rounded-lg border px-5 py-2">

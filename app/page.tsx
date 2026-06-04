@@ -12,7 +12,7 @@ import { vehicleData } from "./constant/vehicleData";
 export default function Home() {
   return (
     <>
-      {/* <TestMongo /> */}
+      <TestMongo />
       {/* <CloudinaryStatus /> */}
       {/* <PdfUpload /> */}
       {/* <ImageUpload /> */}

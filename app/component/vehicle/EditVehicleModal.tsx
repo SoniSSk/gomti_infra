@@ -260,8 +260,12 @@ export default function EditVehicleModal({
           </select>
         </div>
 
-        <div onClick={() => handleUpload()}>upload image</div>
-        <div onClick={() => handleUploadPDF()}>upload Invoice</div>
+        <div className="cursor-pointer" onClick={() => handleUpload()}>
+          upload image
+        </div>
+        <div className="cursor-pointer" onClick={() => handleUploadPDF()}>
+          upload Invoice
+        </div>
 
         {/* Footer */}
         <div className="sticky bottom-0 flex justify-between border-t bg-white p-4">

@@ -1,21 +1,19 @@
 "use client";
 
-import CloudinaryStatus from "./component/CloudinaryStatus";
-import VehicleCard from "./component/common/VehicleCard";
+import Script from "next/script";
 import Dashboard from "./component/Dashboard";
-import ImageUpload from "./component/ImageUpload";
-import PdfUpload from "./component/PdfUpload";
-import TestMongo from "./component/TestMongo";
-import VehicleTable from "./component/vehicle/VehicleTable";
-import { vehicleData } from "./constant/vehicleData";
 
 export default function Home() {
   return (
     <>
+      <Script
+        src="https://upload-widget.cloudinary.com/global/all.js"
+        strategy="beforeInteractive"
+      />
       {/* <TestMongo /> */}
-      <CloudinaryStatus />
+      {/* <CloudinaryStatus />
       <PdfUpload />
-      <ImageUpload />
+      <ImageUpload /> */}
       <Dashboard />
       {/* <VehicleCard data={vehicleData} /> */}
     </>

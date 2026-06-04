@@ -12,10 +12,10 @@ import { vehicleData } from "./constant/vehicleData";
 export default function Home() {
   return (
     <>
-      <TestMongo />
-      {/* <CloudinaryStatus /> */}
-      {/* <PdfUpload /> */}
-      {/* <ImageUpload /> */}
+      {/* <TestMongo /> */}
+      <CloudinaryStatus />
+      <PdfUpload />
+      <ImageUpload />
       <Dashboard />
       {/* <VehicleCard data={vehicleData} /> */}
     </>

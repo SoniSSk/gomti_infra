@@ -81,6 +81,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
       });
 
       onSuccess();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       alert(error.message || "Failed to save vehicle");

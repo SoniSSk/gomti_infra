@@ -6,6 +6,11 @@ import SearchInput from "../common/SearchInput";
 import { Vehicle } from "../../types/vehicle";
 import VehicleDetailsModal from "./VehicleDetailsModal";
 import EditVehicleModal from "./EditVehicleModal";
+import { useVehicleStats } from "@/app/hooks/useVehicleStats";
+import StatCard from "../common/StatCard";
+import { useLoadingSlipSentVehicles } from "@/app/hooks/useLoadingSlipSentVehicles";
+import VehicleStatusCard from "../common/VehicleStatusCard";
+import { useEtpInvoiceDoneVehicles } from "@/app/hooks/useEtpInvoiceDoneVehicles";
 
 export default function VehicleTable() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -14,6 +19,12 @@ export default function VehicleTable() {
 
   const [viewVehicle, setViewVehicle] = useState<Vehicle | null>(null);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
+
+  const loadingSlipSentVehicles = useLoadingSlipSentVehicles(vehicles);
+  const etpInvoiceDoneVehicles = useEtpInvoiceDoneVehicles(vehicles);
+
+  const { todayVehicles, todayDispatchDone, todayWaitingForDetails } =
+    useVehicleStats(vehicles);
 
   const loadVehicles = async () => {
     try {
@@ -41,8 +52,11 @@ export default function VehicleTable() {
   }, []);
 
   const filteredData = useMemo(() => {
+    const searchText = search.toLowerCase().trim();
+
     return vehicles.filter((vehicle) =>
       [
+        vehicle.tokenNo,
         vehicle.vehicleNo,
         vehicle.driverName,
         vehicle.driverContact,
@@ -50,10 +64,13 @@ export default function VehicleTable() {
         vehicle.destination,
         vehicle.transporterName,
         vehicle.buyerDetails,
+        vehicle.status,
+        vehicle.sno?.toString(),
       ]
+        .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(search.toLowerCase()),
+        .includes(searchText),
     );
   }, [vehicles, search]);
 
@@ -153,10 +170,39 @@ export default function VehicleTable() {
       ),
     },
   ];
-
+  console.log("loadingSlipSentVehicles", loadingSlipSentVehicles);
   return (
     <>
       <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-4 lg:grid-cols-3">
+          <StatCard title="Today's Vehicles" value={todayVehicles} />
+          <StatCard title="Today's Dispatch" value={todayDispatchDone} />
+          <StatCard title="Waiting" value={todayWaitingForDetails} />
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {loadingSlipSentVehicles.map((item) => (
+            <VehicleStatusCard
+              key={item.sno}
+              sno={item.sno}
+              tokenNo={item.tokenNo}
+              vehicleNo={item.vehicleNo}
+              status="LOADING_SLIP_SENT"
+              onClick={() => setViewVehicle(item)}
+            />
+          ))}
+          {etpInvoiceDoneVehicles.map((item) => (
+            <VehicleStatusCard
+              key={item.sno}
+              sno={item.sno}
+              tokenNo={item.tokenNo}
+              vehicleNo={item.vehicleNo}
+              status={item.status}
+              onClick={() => setViewVehicle(item)}
+            />
+          ))}
+        </div>
+
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <button
             onClick={loadVehicles}
@@ -173,7 +219,6 @@ export default function VehicleTable() {
             />
           </div>
         </div>
-
         <CommonTable<Vehicle>
           columns={columns}
           data={filteredData}

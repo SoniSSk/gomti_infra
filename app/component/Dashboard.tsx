@@ -15,7 +15,7 @@ export default function Dashboard() {
 
         <button
           onClick={() => setShowForm(true)}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg cursor-pointer"
         >
           Add Details
         </button>
@@ -29,7 +29,7 @@ export default function Dashboard() {
           <div className="bg-white w-full max-w-5xl rounded-xl shadow-xl p-6 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowForm(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl"
+              className="absolute top-4 right-4 text-gray-500 text-l cursor-pointer rounded-lg  px-3 py-2 hover:bg-gray-100"
             >
               ✕
             </button>

@@ -29,7 +29,7 @@ export default function CloudinaryStatus() {
 
       <button
         onClick={checkStatus}
-        className="bg-blue-600 text-white px-4 py-2 rounded"
+        className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer"
       >
         {loading ? "Checking..." : "Check Cloudinary"}
       </button>

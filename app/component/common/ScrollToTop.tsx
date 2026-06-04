@@ -30,6 +30,7 @@ export default function ScrollToTop() {
       fixed
       bottom-6
       right-6
+      cursor-pointer
       z-50
       orange-gradient
       orange-hover

@@ -21,7 +21,11 @@ export default function ImageUpload() {
           }
         }}
       >
-        {({ open }) => <button onClick={() => open()}>Upload Image</button>}
+        {({ open }) => (
+          <button onClick={() => open()} className="cursor-pointer">
+            Upload Image
+          </button>
+        )}
       </CldUploadWidget>
 
       {imageUrl && (

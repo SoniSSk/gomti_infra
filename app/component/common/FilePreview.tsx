@@ -16,7 +16,7 @@ export default function FilePreview({ label, url }: FilePreviewProps) {
   const isPdf = url.toLowerCase().includes(".pdf");
 
   return (
-    <div className="rounded-lg border p-3">
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-md">
       <h3 className="mb-3 text-center text-sm font-semibold uppercase tracking-wide text-gray-600">
         {label}
       </h3>
@@ -28,17 +28,21 @@ export default function FilePreview({ label, url }: FilePreviewProps) {
         className="block cursor-pointer"
       >
         {isPdf ? (
-          <iframe
-            src={url}
-            title={label}
-            className="h-[300px] w-full rounded-lg border pointer-events-none"
-          />
+          <div className="flex justify-center">
+            <iframe
+              src={url}
+              title={label}
+              className="h-[300px] w-[500px] rounded-lg border-rounded border border-gray-200 pointer-events-none"
+            />
+          </div>
         ) : (
-          <img
-            src={url}
-            alt={label}
-            className="h-[300px] w-full rounded-lg border object-contain transition-opacity hover:opacity-90"
-          />
+          <div className="flex justify-center">
+            <img
+              src={url}
+              alt={label}
+              className="h-[300px] w-[500px] rounded-lg border-rounded border border-gray-200 object-contain transition-opacity hover:opacity-90"
+            />
+          </div>
         )}
       </a>
     </div>

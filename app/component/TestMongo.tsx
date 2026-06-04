@@ -30,7 +30,7 @@ export default function TestMongo() {
 
       <button
         onClick={checkConnection}
-        className="px-4 py-2 bg-black text-white rounded"
+        className="px-4 py-2 bg-black cursor-pointer text-white rounded"
       >
         {loading ? "Checking..." : "Check Connection"}
       </button>

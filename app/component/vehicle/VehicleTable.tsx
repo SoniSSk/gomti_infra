@@ -134,7 +134,7 @@ export default function VehicleTable() {
               e.stopPropagation();
               handleViewDetails(row);
             }}
-            className="rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition hover:bg-blue-600"
+            className="rounded-lg cursor-pointer bg-blue-500 px-3 py-1 text-sm text-white transition hover:bg-blue-600"
           >
             View
           </button>
@@ -149,7 +149,7 @@ export default function VehicleTable() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <button
             onClick={loadVehicles}
-            className="rounded-lg bg-orange-500 px-4 py-2 text-white transition hover:bg-orange-600"
+            className="rounded-lg  cursor-pointer bg-orange-500 px-4 py-2 text-white transition hover:bg-orange-600"
           >
             Refresh
           </button>

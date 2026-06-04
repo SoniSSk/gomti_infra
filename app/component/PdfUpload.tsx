@@ -46,7 +46,7 @@ export default function PdfUpload() {
           <button
             type="button"
             onClick={() => open()}
-            className="px-5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+            className="px-5 py-2 cursor-pointer rounded-md bg-blue-600 text-white hover:bg-blue-700"
           >
             Upload PDF
           </button>
@@ -80,7 +80,7 @@ export default function PdfUpload() {
 
             <button
               onClick={() => navigator.clipboard.writeText(pdfUrl)}
-              className="px-4 py-2 rounded bg-gray-700 text-white"
+              className="px-4 py-2 cursor-pointer rounded bg-gray-700 text-white"
             >
               Copy URL
             </button>

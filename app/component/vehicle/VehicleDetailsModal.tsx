@@ -69,7 +69,7 @@ export default function VehicleDetailsModal({
 
           {/* Scrollable Body */}
           <div className="flex-1 overflow-y-auto">
-            <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2  lg:grid-cols-3">
               {details.map((item) => (
                 <DetailItem
                   key={item.label}

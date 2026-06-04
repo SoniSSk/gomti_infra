@@ -13,9 +13,9 @@ export default function Home() {
   return (
     <>
       {/* <TestMongo /> */}
-      <CloudinaryStatus />
+      {/* <CloudinaryStatus />
       <PdfUpload />
-      <ImageUpload />
+      <ImageUpload /> */}
       <Dashboard />
       {/* <VehicleCard data={vehicleData} /> */}
     </>

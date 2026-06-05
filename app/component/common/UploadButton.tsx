@@ -49,8 +49,10 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
   const isPdf = fileUrl?.toLowerCase().includes(".pdf");
 
   return (
-    <div className="space-y-4">
-      <label className="block text-sm font-medium">{label}</label>
+    <div className="w-full max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <label className="mb-2 block text-sm font-semibold text-gray-700">
+        {label}
+      </label>
 
       <input
         type="file"
@@ -59,36 +61,35 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
         onClick={(e) => {
           (e.target as HTMLInputElement).value = "";
         }}
-        className="block w-full rounded border p-2"
+        className="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-white file:hover:bg-blue-700"
       />
 
-      {loading && <p className="text-sm text-blue-600">Uploading...</p>}
+      {loading && (
+        <div className="mt-4 flex items-center gap-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+          <span className="text-sm text-blue-600">Uploading...</span>
+        </div>
+      )}
 
       {fileUrl && (
-        <div className="max-w-md space-y-3">
-          {isPdf ? (
-            <iframe
-              key={fileUrl}
-              src={fileUrl}
-              title="PDF Preview"
-              className="h-96 w-full rounded border"
-            />
-          ) : (
-            <img
-              key={fileUrl}
-              src={fileUrl}
-              alt="Uploaded File"
-              className="w-full rounded border object-cover"
-            />
-          )}
-
-          <button
-            type="button"
-            onClick={onClick}
-            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            View File
-          </button>
+        <div className="mt-6 space-y-4">
+          <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+            {isPdf ? (
+              <iframe
+                key={fileUrl}
+                src={fileUrl}
+                title="PDF Preview"
+                className="h-[500px] w-full"
+              />
+            ) : (
+              <img
+                key={fileUrl}
+                src={fileUrl}
+                alt="Uploaded File"
+                className="max-h-[500px] w-full object-contain"
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

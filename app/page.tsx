@@ -10,12 +10,8 @@ export default function Home() {
         src="https://upload-widget.cloudinary.com/global/all.js"
         strategy="beforeInteractive"
       />
-      {/* <TestMongo /> */}
-      {/* <CloudinaryStatus />
-      <PdfUpload />
-      <ImageUpload /> */}
+
       <Dashboard />
-      {/* <VehicleCard data={vehicleData} /> */}
     </>
   );
 }

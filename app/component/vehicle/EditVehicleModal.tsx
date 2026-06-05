@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Vehicle } from "../../types/vehicle";
-import { useCloudinaryUpload } from "@/app/hooks/useCloudinaryUpload";
-import { useCloudinaryPdfUpload } from "@/app/hooks/useCloudinaryPdfUpload";
-import { UploadButton } from "../common/UploadButton";
 import { FormField } from "../common/FormField";
 import { useAppDispatch } from "@/app/redux/hooks";
 import { hideLoader, showLoader } from "@/app/redux/loaderSlice";
+import FileUpload from "../common/FileUpload";
 
 interface EditVehicleModalProps {
   vehicle: Vehicle | null;
@@ -23,9 +21,6 @@ export default function EditVehicleModal({
   const [formData, setFormData] = useState<Partial<Vehicle>>({});
 
   const dispatch = useAppDispatch();
-
-  const { openUpload } = useCloudinaryUpload();
-  const { openUploads } = useCloudinaryPdfUpload();
 
   useEffect(() => {
     if (vehicle) {
@@ -47,36 +42,11 @@ export default function EditVehicleModal({
     }));
   };
 
-  const handleImageUpload = async (
-    field: "weightSlip" | "LRSlip" | "vehicleImage",
-  ) => {
-    try {
-      const url = await openUpload();
-
-      if (!url) return; // user cancelled popup
-
-      setFormData((prev) => ({
-        ...prev,
-        [field]: url,
-      }));
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handlePdfUpload = async (
-    field: "invoiceImage" | "EWayBill" | "etp" | "LRSlip",
-  ) => {
-    try {
-      const url = await openUploads();
-
-      setFormData((prev) => ({
-        ...prev,
-        [field]: url,
-      }));
-    } catch (error) {
-      console.error(error);
-    }
+  const handleFileUpload = (field: keyof Vehicle, url: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: url,
+    }));
   };
 
   const handleUpdate = async () => {
@@ -100,8 +70,10 @@ export default function EditVehicleModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message);
+        throw new Error(data.message || "Failed to update vehicle");
       }
+
+      alert("Vehicle updated successfully");
 
       onSuccess();
       onClose();
@@ -167,7 +139,6 @@ export default function EditVehicleModal({
     { name: "materialGrade", label: "Material Grade" },
     { name: "destination", label: "Destination" },
     { name: "netWeight", label: "Net Weight" },
-    // { name: "LRSlip", label: "LR Slip" },
   ];
 
   return (
@@ -185,7 +156,7 @@ export default function EditVehicleModal({
           </button>
         </div>
 
-        {/* Form */}
+        {/* Form Fields */}
         <div className="grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-3">
           {fields.map((field) => (
             <FormField
@@ -215,43 +186,72 @@ export default function EditVehicleModal({
           </div>
         </div>
 
-        {/* Uploads */}
-        <div className="grid grid-cols-1 gap-3 px-6 pb-6 md:grid-cols-2 lg:grid-cols-4">
-          <UploadButton
+        {/* File Uploads */}
+        <div className="grid grid-cols-1 gap-4 px-6 pb-6 md:grid-cols-2 lg:grid-cols-3">
+          <FileUpload
             url={formData.weightSlip}
             label="Weight Slip"
-            onClick={() => handleImageUpload("weightSlip")}
+            onUpload={(url) => handleFileUpload("weightSlip", url)}
           />
 
-          <UploadButton
+          <FileUpload
             url={formData.invoiceImage}
             label="Invoice"
-            onClick={() => handlePdfUpload("invoiceImage")}
+            onUpload={(url) => handleFileUpload("invoiceImage", url)}
           />
 
-          <UploadButton
+          <FileUpload
             url={formData.EWayBill}
             label="E-Way Bill"
-            onClick={() => handlePdfUpload("EWayBill")}
+            onUpload={(url) => handleFileUpload("EWayBill", url)}
           />
 
-          <UploadButton
+          <FileUpload
             url={formData.etp}
             label="ETP"
-            onClick={() => handlePdfUpload("etp")}
+            onUpload={(url) => handleFileUpload("etp", url)}
           />
 
-          <UploadButton
+          <FileUpload
             url={formData.LRSlip}
             label="LR Slip"
-            onClick={() => handleImageUpload("LRSlip")}
+            onUpload={(url) => handleFileUpload("LRSlip", url)}
           />
 
-          <UploadButton
+          <FileUpload
             url={formData.vehicleImage}
             label="Vehicle Number Plate"
-            onClick={() => handleImageUpload("vehicleImage")}
+            onUpload={(url) => handleFileUpload("vehicleImage", url)}
           />
+        </div>
+
+        {/* Current Uploaded URLs */}
+        <div className="px-6 pb-6">
+          <div className="rounded-lg bg-gray-50 p-4 text-sm">
+            <p>
+              <strong>Weight Slip:</strong> {formData.weightSlip}
+            </p>
+
+            <p>
+              <strong>Invoice:</strong> {formData.invoiceImage}
+            </p>
+
+            <p>
+              <strong>E-Way Bill:</strong> {formData.EWayBill}
+            </p>
+
+            <p>
+              <strong>ETP:</strong> {formData.etp}
+            </p>
+
+            <p>
+              <strong>LR Slip:</strong> {formData.LRSlip}
+            </p>
+
+            <p>
+              <strong>Vehicle Image:</strong> {formData.vehicleImage}
+            </p>
+          </div>
         </div>
 
         {/* Footer */}

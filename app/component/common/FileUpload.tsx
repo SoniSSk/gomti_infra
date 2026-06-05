@@ -5,10 +5,10 @@ import { useState } from "react";
 interface FileUploadProps {
   url?: string;
   label: string;
-  onClick: () => void;
+  onUpload: (url: string) => void;
 }
 
-export default function FileUpload({ url, label, onClick }: FileUploadProps) {
+export default function FileUpload({ url, label, onUpload }: FileUploadProps) {
   const [fileUrl, setFileUrl] = useState(url || "");
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +19,6 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
 
     try {
       setLoading(true);
-      setFileUrl("");
 
       const formData = new FormData();
       formData.append("file", file);
@@ -32,8 +31,12 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
       const data = await res.json();
 
       if (data.success) {
-        const uploadedUrl = `${data.url}?t=${Date.now()}`;
+        const uploadedUrl = data.url;
+
         setFileUrl(uploadedUrl);
+
+        // Update parent form
+        onUpload(uploadedUrl);
 
         console.log("Uploaded URL:", uploadedUrl);
       } else {
@@ -46,7 +49,7 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
     }
   };
 
-  const isPdf = fileUrl?.toLowerCase().includes(".pdf");
+  const isPdf = fileUrl.toLowerCase().includes(".pdf");
 
   return (
     <div className="space-y-4">
@@ -56,9 +59,6 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
         type="file"
         accept="image/*,.pdf"
         onChange={handleUpload}
-        onClick={(e) => {
-          (e.target as HTMLInputElement).value = "";
-        }}
         className="block w-full rounded border p-2"
       />
 
@@ -68,27 +68,17 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
         <div className="max-w-md space-y-3">
           {isPdf ? (
             <iframe
-              key={fileUrl}
               src={fileUrl}
               title="PDF Preview"
               className="h-96 w-full rounded border"
             />
           ) : (
             <img
-              key={fileUrl}
               src={fileUrl}
               alt="Uploaded File"
               className="w-full rounded border object-cover"
             />
           )}
-
-          <button
-            type="button"
-            onClick={onClick}
-            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            View File
-          </button>
         </div>
       )}
     </div>

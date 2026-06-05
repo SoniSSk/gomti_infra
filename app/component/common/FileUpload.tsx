@@ -53,30 +53,49 @@ export default function FileUpload({ url, label, onUpload }: FileUploadProps) {
 
   return (
     <div className="space-y-4">
-      <label className="block text-sm font-medium">{label}</label>
+      <label className="mb-3 block text-sm font-semibold text-gray-700">
+        {label}
+      </label>
+      <label
+        className={`
+    flex w-full cursor-pointer items-center justify-center
+    rounded-xl border-2 border-dashed p-4 text-sm font-medium
+    transition
+    ${
+      fileUrl
+        ? "border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100"
+        : "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+    }
+  `}
+      >
+        {fileUrl ? "Change File" : "Upload File"}
 
-      <input
-        type="file"
-        accept="image/*,.pdf"
-        onChange={handleUpload}
-        className="block w-full rounded border p-2"
-      />
-
+        <input
+          type="file"
+          accept="image/*,.pdf"
+          onChange={handleUpload}
+          className="hidden"
+        />
+      </label>
       {loading && <p className="text-sm text-blue-600">Uploading...</p>}
 
       {fileUrl && (
-        <div className="max-w-md space-y-3">
+        <div
+          className="max-w-md cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md"
+          onClick={() => window.open(fileUrl, "_blank")}
+        >
           {isPdf ? (
             <iframe
+              key={fileUrl}
               src={fileUrl}
               title="PDF Preview"
-              className="h-96 w-full rounded border"
+              className="h-[400px] w-full rounded-xl border-0 pointer-events-none"
             />
           ) : (
             <img
               src={fileUrl}
               alt="Uploaded File"
-              className="w-full rounded border object-cover"
+              className="h-[400px] w-full object-cover"
             />
           )}
         </div>

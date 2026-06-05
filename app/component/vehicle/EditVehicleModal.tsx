@@ -225,35 +225,6 @@ export default function EditVehicleModal({
           />
         </div>
 
-        {/* Current Uploaded URLs */}
-        <div className="px-6 pb-6">
-          <div className="rounded-lg bg-gray-50 p-4 text-sm">
-            <p>
-              <strong>Weight Slip:</strong> {formData.weightSlip}
-            </p>
-
-            <p>
-              <strong>Invoice:</strong> {formData.invoiceImage}
-            </p>
-
-            <p>
-              <strong>E-Way Bill:</strong> {formData.EWayBill}
-            </p>
-
-            <p>
-              <strong>ETP:</strong> {formData.etp}
-            </p>
-
-            <p>
-              <strong>LR Slip:</strong> {formData.LRSlip}
-            </p>
-
-            <p>
-              <strong>Vehicle Image:</strong> {formData.vehicleImage}
-            </p>
-          </div>
-        </div>
-
         {/* Footer */}
         <div className="sticky bottom-0 flex justify-between border-t bg-white p-4">
           <button

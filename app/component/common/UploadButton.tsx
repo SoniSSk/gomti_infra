@@ -5,11 +5,10 @@ import { useState } from "react";
 interface FileUploadProps {
   url?: string;
   label: string;
-  onClick: () => void;
 }
 
-export default function FileUpload({ url, label, onClick }: FileUploadProps) {
-  const [fileUrl, setFileUrl] = useState(url || "");
+export default function FileUpload({ url = "", label }: FileUploadProps) {
+  const [fileUrl, setFileUrl] = useState(url);
   const [loading, setLoading] = useState(false);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -19,7 +18,6 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
 
     try {
       setLoading(true);
-      setFileUrl("");
 
       const formData = new FormData();
       formData.append("file", file);
@@ -32,10 +30,7 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
       const data = await res.json();
 
       if (data.success) {
-        const uploadedUrl = `${data.url}?t=${Date.now()}`;
-        setFileUrl(uploadedUrl);
-
-        console.log("Uploaded URL:", uploadedUrl);
+        setFileUrl(`${data.url}?t=${Date.now()}`);
       } else {
         console.error(data.error || "Upload failed");
       }
@@ -50,20 +45,40 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
 
   return (
     <div className="w-full max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <label className="mb-2 block text-sm font-semibold text-gray-700">
+      {/* Label */}
+      <label className="mb-3 block text-sm font-semibold text-gray-700">
         {label}
       </label>
 
-      <input
-        type="file"
-        accept="image/*,.pdf"
-        onChange={handleUpload}
-        onClick={(e) => {
-          (e.target as HTMLInputElement).value = "";
-        }}
-        className="block w-full cursor-pointer rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-white file:hover:bg-blue-700"
-      />
+      {/* Upload / Change Button */}
+      <label
+        className={`inline-flex cursor-pointer items-center rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
+          fileUrl
+            ? "bg-orange-600 hover:bg-orange-700"
+            : "bg-blue-600 hover:bg-blue-700"
+        }`}
+      >
+        {fileUrl ? "Change Slip" : "Upload File"}
 
+        <input
+          type="file"
+          accept="image/*,.pdf"
+          onChange={handleUpload}
+          onClick={(e) => {
+            (e.target as HTMLInputElement).value = "";
+          }}
+          className="hidden"
+        />
+      </label>
+
+      {/* File Name */}
+      {fileUrl && (
+        <p className="mt-2 break-all text-sm text-gray-500">
+          {fileUrl.split("/").pop()?.split("?")[0]}
+        </p>
+      )}
+
+      {/* Loader */}
       {loading && (
         <div className="mt-4 flex items-center gap-2">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
@@ -71,8 +86,21 @@ export default function FileUpload({ url, label, onClick }: FileUploadProps) {
         </div>
       )}
 
+      {/* Preview */}
       {fileUrl && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-700">Preview</h3>
+
+            <button
+              type="button"
+              onClick={() => window.open(fileUrl, "_blank")}
+              className="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700"
+            >
+              Open Full File
+            </button>
+          </div>
+
           <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
             {isPdf ? (
               <iframe

@@ -3,6 +3,7 @@
 import { useAppDispatch } from "@/app/redux/hooks";
 import { hideLoader, showLoader } from "@/app/redux/loaderSlice";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 interface VehicleFormProps {
   onSuccess: () => void;
@@ -84,7 +85,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
-      alert(error.message || "Failed to save vehicle");
+      toast.error(error.message || "Failed to save vehicle");
     } finally {
       setSubmitting(false);
       dispatch(hideLoader());

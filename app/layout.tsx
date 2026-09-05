@@ -5,6 +5,7 @@ import GlobalLoader from "./component/common/GlobalLoader";
 import ReduxProvider from "./redux/ReduxProvider";
 import "./globals.css";
 import Routes from "./component/Routes";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "Gomti Infra Mining",
@@ -24,7 +25,7 @@ export default function RootLayout({
           <GlobalLoader />
           {children}
         </ReduxProvider>
-
+        <Toaster position="top-right" />
         <ScrollToTop />
       </body>
     </html>

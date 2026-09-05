@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 interface FileUploadProps {
   url?: string;
@@ -27,7 +28,7 @@ export default function FileUpload({
     const maxSize = 100 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      alert("Video/file size must be less than 100 MB");
+      toast.error("Video/file size must be less than 100 MB");
       e.target.value = "";
       return;
     }
@@ -56,11 +57,11 @@ export default function FileUpload({
         console.log("Uploaded URL:", uploadedUrl);
       } else {
         console.error(data.error || "Upload failed");
-        alert(data.error || "Upload failed");
+        toast.error(data.error || "Upload failed");
       }
     } catch (error) {
       console.error("Upload failed:", error);
-      alert("Upload failed");
+      toast.error("Upload failed");
     } finally {
       setLoading(false);
     }

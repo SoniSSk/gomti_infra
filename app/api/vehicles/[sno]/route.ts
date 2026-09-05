@@ -1,10 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import clientPromise from "../../../lib/mongodb";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ sno: string }> }
+  { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
     const { sno } = await params;
@@ -22,92 +22,89 @@ export async function PUT(
           ...body,
           updatedAt: new Date(),
         },
-      }
+      },
     );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Vehicle not found",
+        },
+        { status: 404 },
+      );
+    }
 
     return NextResponse.json({
       success: true,
+      message: "Vehicle updated successfully",
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
     });
   } catch (error: any) {
+    console.error("PUT vehicle error:", error);
+
     return NextResponse.json(
       {
         success: false,
-        message: error.message,
+        message: error.message || "Failed to update vehicle",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// export async function PUT(
-//   req: NextRequest,
-//   { params }: { params: Promise<{ sno: string }> }
-// ) {
-//   try {
-//     const { sno } = await params;
-//     const body = await req.json();
-
-//     const client = await clientPromise;
-//     const db = client.db("gomti_infra");
-
-//     const result = await db.collection("vehicles").updateOne(
-//       { sno: Number(sno) },
-//       {
-//         $set: {
-//           ...body,
-//           updatedAt: new Date(),
-//         },
-//       }
-//     );
-
-//     if (result.matchedCount === 0) {
-//       return NextResponse.json(
-//         { success: false, message: "Vehicle not found" },
-//         { status: 404 }
-//       );
-//     }
-
-//     return NextResponse.json({
-//       success: true,
-//       message: "Vehicle updated successfully",
-//     });
-//   } catch (error: any) {
-//     return NextResponse.json(
-//       {
-//         success: false,
-//         message: error.message,
-//       },
-//       { status: 500 }
-//     );
-//   }
-// }
 // DELETE VEHICLE
-export async function DELETE(req: NextRequest) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ sno: string }> },
+) {
   try {
-    const { sno } = await req.json();
+    const { sno } = await params;
+
+    const vehicleSno = Number(sno);
+
+    if (Number.isNaN(vehicleSno)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid vehicle sno",
+        },
+        { status: 400 },
+      );
+    }
 
     const client = await clientPromise;
     const db = client.db("gomti_infra");
 
     const result = await db.collection("vehicles").deleteOne({
-      sno: Number(sno),
+      sno: vehicleSno,
     });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Vehicle not found",
+        },
+        { status: 404 },
+      );
+    }
 
     return NextResponse.json({
       success: true,
+      message: "Vehicle deleted successfully",
       deletedCount: result.deletedCount,
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("DELETE vehicle error:", error);
+
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to delete vehicle",
+        message: error.message || "Failed to delete vehicle",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }

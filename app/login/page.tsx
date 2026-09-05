@@ -37,7 +37,7 @@ export default function LoginPage() {
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userRole", "employee");
 
-      router.push("/employee");
+      router.push("/");
       return;
     }
 

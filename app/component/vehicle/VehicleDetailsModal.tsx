@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -16,32 +15,20 @@ interface VehicleDetailsModalProps {
 // FILE URL COMPONENT
 // =========================
 
-function FileUrl({
-  label,
-  url,
-}: {
-  label: string;
-  url?: string;
-}) {
+function FileUrl({ label, url }: { label: string; url?: string }) {
   if (!url) {
     return (
       <div className="mt-2 rounded-lg bg-gray-50 p-3">
-        <p className="text-xs font-medium text-gray-500">
-          {label} URL
-        </p>
+        <p className="text-xs font-medium text-gray-500">{label} URL</p>
 
-        <p className="mt-1 text-sm text-gray-400">
-          Not available
-        </p>
+        <p className="mt-1 text-sm text-gray-400">Not available</p>
       </div>
     );
   }
 
   return (
     <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-      <p className="text-xs font-semibold text-gray-600">
-        {label} URL
-      </p>
+      <p className="text-xs font-semibold text-gray-600">{label} URL</p>
 
       <a
         href={url}
@@ -277,7 +264,7 @@ export default function VehicleDetailsModal({
                 transition
                 hover:bg-red-600
                 active:scale-95
-
+cursor-pointer
                 sm:px-4
                 sm:text-base
               "
@@ -355,10 +342,7 @@ export default function VehicleDetailsModal({
                   />
 
                   {/* URL */}
-                  <FileUrl
-                    label={item.label}
-                    url={item.value}
-                  />
+                  <FileUrl label={item.label} url={item.value} />
                 </div>
               ))}
             </div>

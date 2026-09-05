@@ -822,7 +822,7 @@ export default function EditVehicleModal({
                 formData.status !==
                 "WAITING_FOR_DETAILS"
               }
-              className={`rounded-lg px-5 py-2 text-white transition ${isEmployee ||
+              className={`cursor-pointer rounded-lg px-5 py-2 text-white transition ${isEmployee ||
                 formData.status !==
                 "WAITING_FOR_DETAILS"
                 ? "cursor-not-allowed bg-gray-400"
@@ -838,7 +838,7 @@ export default function EditVehicleModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border px-5 py-2 hover:bg-gray-100"
+                className="cursor-pointer rounded-lg border px-5 py-2 hover:bg-gray-100"
               >
                 Cancel
               </button>
@@ -903,7 +903,7 @@ export default function EditVehicleModal({
                   )
                 }
                 disabled={deleteLoading}
-                className="rounded-lg border border-gray-300 px-6 py-2.5 font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                className="cursor-pointer rounded-lg border border-gray-300 px-6 py-2.5 font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -916,7 +916,7 @@ export default function EditVehicleModal({
                   )
                 }
                 disabled={deleteLoading}
-                className="rounded-lg bg-red-600 px-6 py-2.5 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-lg bg-red-600 px-6 py-2.5 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {deleteLoading
                   ? "Deleting..."

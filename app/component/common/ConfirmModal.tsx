@@ -32,7 +32,7 @@ export default function ConfirmModal({
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="rounded-lg border border-gray-300 px-5 py-2.5 font-medium text-gray-700 transition hover:bg-gray-100"
+                        className="cursor-pointer rounded-lg border border-gray-300 px-5 py-2.5 font-medium text-gray-700 transition hover:bg-gray-100"
                     >
                         Cancel
                     </button>
@@ -40,7 +40,7 @@ export default function ConfirmModal({
                     <button
                         type="button"
                         onClick={onConfirm}
-                        className="rounded-lg bg-red-600 px-5 py-2.5 font-medium text-white transition hover:bg-red-700"
+                        className="rounded-lg cursor-pointer bg-red-600 px-5 py-2.5 font-medium text-white transition hover:bg-red-700"
                     >
                         Delete
                     </button>

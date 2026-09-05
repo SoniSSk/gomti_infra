@@ -79,7 +79,7 @@ export default function VehicleStatusCard({
             Vehicle No
           </p>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 justify-between">
             <p className="text-lg font-bold text-orange-600 transition-transform duration-300 group-hover:scale-105">
               {vehicleNo || "-"}
             </p>
@@ -91,11 +91,11 @@ export default function VehicleStatusCard({
                   e.stopPropagation();
                   copyVehicleNo();
                 }}
-                className="rounded-md p-1.5 text-gray-500 transition hover:bg-orange-50 hover:text-orange-600"
+                className="cursor-pointer rounded-md pl-1.5 pr-1.5 text-gray-500 transition hover:bg-orange-50 hover:text-orange-600"
                 title="Copy Vehicle No"
               >
                 {copied ? (
-                  <span className="text-xs font-semibold text-green-600">
+                  <span className="text-[11px] font-semibold text-green-600">
                     ✓ Copied
                   </span>
                 ) : (

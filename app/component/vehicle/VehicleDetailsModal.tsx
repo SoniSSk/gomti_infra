@@ -318,6 +318,7 @@ export default function VehicleDetailsModal({
             >
               {details.map((item) => (
                 <DetailItem
+                  copyValue={item.value}
                   key={item.label}
                   label={item.label}
                   value={item.value}

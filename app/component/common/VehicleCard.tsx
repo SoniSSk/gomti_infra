@@ -26,9 +26,8 @@ export default function VehicleCard({ data }: VehicleCardProps) {
         </div>
 
         <span
-          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            statusColors[data.status]
-          }`}
+          className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[data.status]
+            }`}
         >
           {data.status.replaceAll("_", " ")}
         </span>

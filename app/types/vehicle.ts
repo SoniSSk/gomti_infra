@@ -6,7 +6,7 @@ export interface Vehicle {
   updatedAt: string;
   sno: number;
   dateTime: string;
-  
+
   tokenNo: string;
   vehicleNo: string;
 
@@ -23,6 +23,8 @@ export interface Vehicle {
 
   vehicleImage: string;
   netWeight: string;
+
+  loadingVideo?: string;
 
   status: VehicleStatus;
 

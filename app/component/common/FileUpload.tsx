@@ -8,14 +8,29 @@ interface FileUploadProps {
   onUpload: (url: string) => void;
 }
 
-export default function FileUpload({ url, label, onUpload }: FileUploadProps) {
+export default function FileUpload({
+  url,
+  label,
+  onUpload,
+}: FileUploadProps) {
   const [fileUrl, setFileUrl] = useState(url || "");
   const [loading, setLoading] = useState(false);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
+
+    // Optional: 100 MB limit
+    const maxSize = 100 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      alert("Video/file size must be less than 100 MB");
+      e.target.value = "";
+      return;
+    }
 
     try {
       setLoading(true);
@@ -41,55 +56,81 @@ export default function FileUpload({ url, label, onUpload }: FileUploadProps) {
         console.log("Uploaded URL:", uploadedUrl);
       } else {
         console.error(data.error || "Upload failed");
+        alert(data.error || "Upload failed");
       }
     } catch (error) {
       console.error("Upload failed:", error);
+      alert("Upload failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const isPdf = fileUrl.toLowerCase().includes(".pdf");
+  const lowerUrl = fileUrl.toLowerCase();
+
+  const isPdf = lowerUrl.includes(".pdf");
+
+  const isVideo =
+    lowerUrl.includes(".mp4") ||
+    lowerUrl.includes(".webm") ||
+    lowerUrl.includes(".mov") ||
+    lowerUrl.includes(".avi");
 
   return (
     <div className="space-y-4">
       <label className="mb-3 block text-sm font-semibold text-gray-700">
         {label}
       </label>
+
       <label
         className={`
-    flex w-full cursor-pointer items-center justify-center
-    rounded-xl border-2 border-dashed p-4 text-sm font-medium
-    transition
-    ${
-      fileUrl
-        ? "border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100"
-        : "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
-    }
-  `}
+          flex w-full cursor-pointer items-center justify-center
+          rounded-xl border-2 border-dashed p-4 text-sm font-medium
+          transition
+          ${fileUrl
+            ? "border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100"
+            : "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+          }
+        `}
       >
-        {fileUrl ? "Change File" : "Upload File"}
+        {loading
+          ? "Uploading..."
+          : fileUrl
+            ? "Change File"
+            : "Upload File"}
 
         <input
           type="file"
-          accept="image/*,.pdf"
+          accept="image/*,.pdf,video/*"
           onChange={handleUpload}
           className="hidden"
         />
       </label>
-      {loading && <p className="text-sm text-blue-600">Uploading...</p>}
+
+      {loading && (
+        <p className="text-sm text-blue-600">
+          Uploading file...
+        </p>
+      )}
 
       {fileUrl && (
         <div
           className="max-w-md cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md"
           onClick={() => window.open(fileUrl, "_blank")}
         >
-          {isPdf ? (
+          {isVideo ? (
+            <video
+              src={fileUrl}
+              controls
+              className="h-[400px] w-full rounded-xl object-cover"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : isPdf ? (
             <iframe
               key={fileUrl}
               src={fileUrl}
               title="PDF Preview"
-              className="h-[400px] w-full rounded-xl border-0 pointer-events-none"
+              className="pointer-events-none h-[400px] w-full rounded-xl border-0"
             />
           ) : (
             <img

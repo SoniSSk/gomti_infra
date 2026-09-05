@@ -1,10 +1,10 @@
 import { Vehicle } from "../types/vehicle";
 
 export const vehicleData: Vehicle = {
-     _id:"3232323",
-    createdAt: "03-06-2026 10:30 AM",
-    updatedAt: "03-06-2026 10:30 AM",
-    tokenNo:"0001",
+  _id: "3232323",
+  createdAt: "03-06-2026 10:30 AM",
+  updatedAt: "03-06-2026 10:30 AM",
+  tokenNo: "0001",
   sno: 1,
   dateTime: "03-06-2026 10:30 AM",
 
@@ -31,12 +31,12 @@ export const vehicleData: Vehicle = {
 
   LRSlip: "BL-101",
 
-  etp:
-    "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+  etp: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
 
-  invoiceImage:
-    "https://images.unsplash.com/photo-1554224155-6726b3ff858f",
+  invoiceImage: "https://images.unsplash.com/photo-1554224155-6726b3ff858f",
 
   EWayBill:
     "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+
+  loadingVideo: "",
 };

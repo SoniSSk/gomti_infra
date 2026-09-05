@@ -46,6 +46,7 @@ export default function VehicleDetailsModal({
     { label: "ETP", value: vehicle.etp },
     { label: "Invoice", value: vehicle.invoiceImage },
     { label: "E Way Bill", value: vehicle.EWayBill },
+    { label: "Loading Video", value: vehicle.loadingVideo },
   ];
   return (
     <div className="fixed inset-0 z-50 bg-black/60">

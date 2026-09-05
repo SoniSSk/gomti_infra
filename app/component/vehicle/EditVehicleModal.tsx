@@ -280,6 +280,11 @@ export default function EditVehicleModal({
             label="Vehicle Number Plate"
             onUpload={(url) => handleFileUpload("vehicleImage", url)}
           />
+          <FileUpload
+            url={formData.loadingVideo}
+            label="Loading Video"
+            onUpload={(url) => handleFileUpload("loadingVideo", url)}
+          />
         </div>
 
         {/* Footer */}
@@ -287,11 +292,10 @@ export default function EditVehicleModal({
           <button
             onClick={() => handleDelete(Number(formData.sno))}
             disabled={formData.status !== "ENTRY_DONE"}
-            className={`rounded-lg px-5 py-2 text-white transition ${
-              formData.status === "ENTRY_DONE"
-                ? "bg-red-600 hover:bg-red-700"
-                : "cursor-not-allowed bg-gray-400"
-            }`}
+            className={`rounded-lg px-5 py-2 text-white transition ${formData.status === "ENTRY_DONE"
+              ? "bg-red-600 hover:bg-red-700"
+              : "cursor-not-allowed bg-gray-400"
+              }`}
           >
             Delete Vehicle
           </button>

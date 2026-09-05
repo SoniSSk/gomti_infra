@@ -53,9 +53,10 @@ const DetailItem: React.FC<DetailItemProps> = ({
 
         {copyValue && (
           <button
+
             type="button"
             onClick={handleCopy}
-            className="rounded-lg  text-black-600 transition hover:bg-green-50"
+            className="cursor-pointer rounded-lg text-gray-600 transition hover:bg-green-50 hover:text-green-600"
             title={copied ? "Copied" : "Copy"}
           >
             {copied ? (

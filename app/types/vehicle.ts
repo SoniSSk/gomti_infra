@@ -33,4 +33,11 @@ export interface Vehicle {
   etp?: string;
   invoiceImage?: string;
   EWayBill?: string;
+
+  driverLicenseImage?: string;
+  vehicleRegistrationImage?: string;
+  tyre?: string;
+  route?: string;
+  inTime?: string;
+  outTime?: string;
 }

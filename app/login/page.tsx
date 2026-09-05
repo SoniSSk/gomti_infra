@@ -15,7 +15,7 @@ export default function LoginPage() {
     setError("");
 
     // Temporary login
-    if (email === "Gomti_Infra" && password === "Gomti@1234") {
+    if (email === "gomti@gomtimining.com" && password === "Gomti@1234") {
       localStorage.setItem("isLoggedIn", "true");
       router.push("/");
       return;

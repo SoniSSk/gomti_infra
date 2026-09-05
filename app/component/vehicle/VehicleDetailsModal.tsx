@@ -50,8 +50,8 @@ export default function VehicleDetailsModal({
   ];
   return (
     <div className="fixed inset-0 z-50 bg-black/60">
-      <div className="flex h-screen items-center justify-center p-4">
-        <div className="flex h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="flex h-[95vh] items-center justify-center p-4">
+        <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl pb-4">
           {/* Header */}
           <div className="sticky top-0 z-20 flex items-center justify-between border-b bg-white p-5">
             <div>

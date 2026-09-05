@@ -26,7 +26,19 @@ export default function EditVehicleModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [isEmployee, setIsEmployee] = useState(false);
+
   const dispatch = useAppDispatch();
+
+  // =========================
+  // CHECK USER ROLE
+  // =========================
+
+  useEffect(() => {
+    const role = localStorage.getItem("userRole");
+
+    setIsEmployee(role === "employee");
+  }, []);
 
   // =========================
   // SET VEHICLE DATA
@@ -74,9 +86,7 @@ export default function EditVehicleModal({
 
     // Already datetime-local format
     if (
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(
-        value,
-      )
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
     ) {
       return value;
     }
@@ -133,11 +143,9 @@ export default function EditVehicleModal({
 
     if (!date || !time) return value;
 
-    const [year, month, day] =
-      date.split("-");
+    const [year, month, day] = date.split("-");
 
-    let [hour, minute] =
-      time.split(":");
+    let [hour, minute] = time.split(":");
 
     let hourNumber = Number(hour);
 
@@ -236,6 +244,14 @@ export default function EditVehicleModal({
   const handleDelete = async (
     sno: number,
   ) => {
+    // Employee cannot delete
+    if (isEmployee) {
+      toast.error(
+        "Employees are not allowed to delete vehicles",
+      );
+      return;
+    }
+
     try {
       setDeleteLoading(true);
       dispatch(showLoader());
@@ -390,9 +406,17 @@ export default function EditVehicleModal({
           ===================================== */}
 
           <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b bg-white p-4">
-            <h2 className="text-xl font-bold">
-              Edit Vehicle #{vehicle.vehicleNo}
-            </h2>
+            <div>
+              <h2 className="text-xl font-bold">
+                Edit Vehicle #{vehicle.vehicleNo}
+              </h2>
+
+              {isEmployee && (
+                <p className="mt-1 text-xs font-medium text-orange-600">
+                  Employee Access — Restricted Fields
+                </p>
+              )}
+            </div>
 
             <button
               type="button"
@@ -417,19 +441,31 @@ export default function EditVehicleModal({
 
               {/* FORM FIELDS */}
 
-              {fields.map((field) => (
-                <FormField
-                  key={field.name}
-                  label={field.label}
-                  name={field.name}
-                  value={String(
-                    formData[
-                    field.name as keyof Vehicle
-                    ] || "",
-                  )}
-                  onChange={handleChange}
-                />
-              ))}
+              {fields.map((field) => {
+                const disabledForEmployee =
+                  isEmployee &&
+                  [
+                    "vehicleNo",
+                    "destination",
+                  ].includes(field.name);
+
+                return (
+                  <FormField
+                    key={field.name}
+                    label={field.label}
+                    name={field.name}
+                    value={String(
+                      formData[
+                      field.name as keyof Vehicle
+                      ] || "",
+                    )}
+                    onChange={handleChange}
+                    disabled={
+                      disabledForEmployee
+                    }
+                  />
+                );
+              })}
 
               {/* =====================================
                   TYRE
@@ -479,7 +515,11 @@ export default function EditVehicleModal({
                     ""
                   }
                   onChange={handleChange}
-                  className="rounded-lg border border-gray-300 p-3 outline-none focus:border-orange-500"
+                  disabled={isEmployee}
+                  className={`rounded-lg border border-gray-300 p-3 outline-none focus:border-orange-500 ${isEmployee
+                    ? "cursor-not-allowed bg-gray-100 text-gray-500"
+                    : ""
+                    }`}
                 >
                   <option value="">
                     Select Buyer
@@ -514,7 +554,11 @@ export default function EditVehicleModal({
                     ""
                   }
                   onChange={handleChange}
-                  className="rounded-lg border border-gray-300 p-3 outline-none focus:border-orange-500"
+                  disabled={isEmployee}
+                  className={`rounded-lg border border-gray-300 p-3 outline-none focus:border-orange-500 ${isEmployee
+                    ? "cursor-not-allowed bg-gray-100 text-gray-500"
+                    : ""
+                    }`}
                 >
                   <option value="">
                     Select Transporter
@@ -683,11 +727,14 @@ export default function EditVehicleModal({
                 }
               />
 
-              {/* Invoice */}
+              {/* =====================================
+                  INVOICE
+              ===================================== */}
 
               <FileUpload
                 url={formData.invoiceImage}
                 label="Invoice"
+                disabled={isEmployee}
                 onUpload={(url) =>
                   handleFileUpload(
                     "invoiceImage",
@@ -696,11 +743,14 @@ export default function EditVehicleModal({
                 }
               />
 
-              {/* E-Way Bill */}
+              {/* =====================================
+                  E-WAY BILL
+              ===================================== */}
 
               <FileUpload
                 url={formData.EWayBill}
                 label="E-Way Bill"
+                disabled={isEmployee}
                 onUpload={(url) =>
                   handleFileUpload(
                     "EWayBill",
@@ -709,11 +759,14 @@ export default function EditVehicleModal({
                 }
               />
 
-              {/* ETP */}
+              {/* =====================================
+                  ETP
+              ===================================== */}
 
               <FileUpload
                 url={formData.etp}
                 label="ETP"
+                disabled={isEmployee}
                 onUpload={(url) =>
                   handleFileUpload(
                     "etp",
@@ -764,13 +817,15 @@ export default function EditVehicleModal({
                 setShowDeleteConfirm(true)
               }
               disabled={
+                isEmployee ||
                 formData.status !==
                 "WAITING_FOR_DETAILS"
               }
-              className={`rounded-lg px-5 py-2 text-white transition ${formData.status ===
+              className={`rounded-lg px-5 py-2 text-white transition ${isEmployee ||
+                formData.status !==
                 "WAITING_FOR_DETAILS"
-                ? "bg-red-600 hover:bg-red-700"
-                : "cursor-not-allowed bg-gray-400"
+                ? "cursor-not-allowed bg-gray-400"
+                : "bg-red-600 hover:bg-red-700"
                 }`}
             >
               Delete Vehicle
@@ -779,7 +834,6 @@ export default function EditVehicleModal({
             {/* RIGHT BUTTONS */}
 
             <div className="flex gap-3">
-
               <button
                 type="button"
                 onClick={onClose}
@@ -795,7 +849,6 @@ export default function EditVehicleModal({
               >
                 Update Vehicle
               </button>
-
             </div>
           </div>
         </div>
@@ -805,7 +858,7 @@ export default function EditVehicleModal({
           DELETE CONFIRMATION MODAL
       ===================================== */}
 
-      {showDeleteConfirm && (
+      {showDeleteConfirm && !isEmployee && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
 
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">

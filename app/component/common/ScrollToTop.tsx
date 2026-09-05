@@ -27,16 +27,18 @@ export default function ScrollToTop() {
         })
       }
       className="
-      fixed
-      bottom-6
-      right-6
-      cursor-pointer
-      z-50
-      orange-gradient
-      orange-hover
-      p-4
-      rounded-full
-      text-white"
+        fixed
+        bottom-6
+        left-1/2
+        -translate-x-1/2
+        cursor-pointer
+        z-50
+        orange-gradient
+        orange-hover
+        p-4
+        rounded-full
+        text-white
+      "
     >
       <ChevronUp />
     </button>

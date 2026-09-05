@@ -35,9 +35,7 @@ export default function FileUpload({
     const maxSize = 100 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      toast.error(
-        "Video/file size must be less than 100 MB",
-      );
+      toast.error("Video/file size must be less than 100 MB");
       e.target.value = "";
       return;
     }
@@ -59,29 +57,15 @@ export default function FileUpload({
         const uploadedUrl = data.url;
 
         setFileUrl(uploadedUrl);
-
-        // Update parent form
         onUpload(uploadedUrl);
 
-        console.log(
-          "Uploaded URL:",
-          uploadedUrl,
-        );
+        console.log("Uploaded URL:", uploadedUrl);
       } else {
-        console.error(
-          data.error || "Upload failed",
-        );
-
-        toast.error(
-          data.error || "Upload failed",
-        );
+        console.error(data.error || "Upload failed");
+        toast.error(data.error || "Upload failed");
       }
     } catch (error) {
-      console.error(
-        "Upload failed:",
-        error,
-      );
-
+      console.error("Upload failed:", error);
       toast.error("Upload failed");
     } finally {
       setLoading(false);
@@ -132,6 +116,7 @@ export default function FileUpload({
         <input
           type="file"
           accept="image/*,.pdf,video/*"
+          capture="environment"
           onChange={handleUpload}
           disabled={disabled || loading}
           className="hidden"
@@ -166,10 +151,7 @@ export default function FileUpload({
           `}
           onClick={() => {
             if (!disabled) {
-              window.open(
-                fileUrl,
-                "_blank",
-              );
+              window.open(fileUrl, "_blank");
             }
           }}
         >
@@ -179,9 +161,7 @@ export default function FileUpload({
               src={fileUrl}
               controls
               className="h-[400px] w-full rounded-xl object-cover"
-              onClick={(e) =>
-                e.stopPropagation()
-              }
+              onClick={(e) => e.stopPropagation()}
             />
           ) : isPdf ? (
             /* PDF */

@@ -28,7 +28,7 @@ export default function CommonTable<T>({
 
   // udate date by formateDate
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-x-auto text-nowrap rounded-xl border border-gray-200 bg-white shadow-sm">
       <table className="min-w-full">
         <thead>
           <tr className="bg-orange-500 text-white">

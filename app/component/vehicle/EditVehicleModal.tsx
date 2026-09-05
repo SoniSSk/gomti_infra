@@ -127,14 +127,32 @@ export default function EditVehicleModal({
     "ETP_INVOICE_DONE",
     "DISPATCH_DONE",
   ];
+  const Transporteres = [
+    "CLEAN AND GREEN ",
+    "VINAYAK ENTERPRISES",
+    "SHRI GHANSHYAM LOGISTIC",
+    "SHREE SARASWATI",
+    "KRISHNA ROAD LINES",
+    "VEER LOGISTICS",
+  ];
+
+  const Buyeres = [
+    "WELSPUN CORPORATION LIMITED",
+    "SHREE CEMENT LIMITED",
+    "VISHAL METAL & MINING LIMITED",
+    "JSW",
+    "NAVKAR MINERALS",
+    "XYLE INDUSTRIES",
+    "EVONITH",
+  ];
 
   const fields = [
     { name: "vehicleNo", label: "Vehicle Number" },
     { name: "tokenNo", label: "Token Number" },
     { name: "driverName", label: "Driver Name" },
     { name: "driverContact", label: "Driver Contact" },
-    { name: "transporterName", label: "Transporter Name" },
-    { name: "buyerDetails", label: "Buyer Details" },
+    // { name: "transporterName", label: "Transporter Name" },
+    // { name: "buyerDetails", label: "Buyer Details" },
     { name: "materialName", label: "Material Name" },
     { name: "materialGrade", label: "Material Grade" },
     { name: "destination", label: "Destination" },
@@ -146,7 +164,9 @@ export default function EditVehicleModal({
       <div className="max-h-[90vh] w-full max-w-7xl overflow-y-auto rounded-xl bg-white shadow-2xl">
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between border-b bg-white p-4">
-          <h2 className="text-xl font-bold">Edit Vehicle #{vehicle.sno}</h2>
+          <h2 className="text-xl font-bold">
+            Edit Vehicle #{vehicle.vehicleNo}
+          </h2>
 
           <button
             onClick={onClose}
@@ -169,6 +189,24 @@ export default function EditVehicleModal({
           ))}
 
           <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
+              Buyer Name{" "}
+            </label>
+
+            <select
+              name="buyerDetails"
+              value={formData.buyerDetails || ""}
+              onChange={handleChange}
+              className="rounded-lg border border-gray-300 p-3"
+            >
+              {Buyeres.map((status) => (
+                <option key={status} value={status}>
+                  {status.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">Status</label>
 
             <select
@@ -178,6 +216,25 @@ export default function EditVehicleModal({
               className="rounded-lg border border-gray-300 p-3"
             >
               {statuses.map((status) => (
+                <option key={status} value={status}>
+                  {status.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
+              Transporter Name{" "}
+            </label>
+
+            <select
+              name="transporterName"
+              value={formData.transporterName || ""}
+              onChange={handleChange}
+              className="rounded-lg border border-gray-300 p-3"
+            >
+              {Transporteres.map((status) => (
                 <option key={status} value={status}>
                   {status.replaceAll("_", " ")}
                 </option>

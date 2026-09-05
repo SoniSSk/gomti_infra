@@ -99,17 +99,21 @@ export default function VehicleTable() {
       key: "vehicleNo",
       label: "Vehicle No",
     },
+    // {
+    //   key: "driverName",
+    //   label: "Driver Name",
+    // },
+    // {
+    //   key: "driverContact",
+    //   label: "Mobile No",
+    // },
     {
-      key: "driverName",
-      label: "Driver Name",
+      key: "transporterName",
+      label: "Transporter Name ",
     },
     {
-      key: "driverContact",
-      label: "Mobile No",
-    },
-    {
-      key: "materialName",
-      label: "Material",
+      key: "buyerDetails",
+      label: "Buyer Name ",
     },
     {
       key: "netWeight",

@@ -26,9 +26,9 @@ const Transporteres = [
 // BUYERS
 // =========================
 const Buyeres = [
-  "WELSPUN CORPORATION LIMITED",
-  "SHREE CEMENT LIMITED",
-  "VISHAL METAL & MINING LIMITED",
+  "WELSPUN",
+  "SHREE CEMENT",
+  "VISHAL",
   "JSW",
   "NAVKAR MINERALS",
   "XYLE INDUSTRIES",

@@ -306,9 +306,9 @@ export default function EditVehicleModal({
   // =========================
 
   const Buyeres = [
-    "WELSPUN CORPORATION LIMITED",
-    "SHREE CEMENT LIMITED",
-    "VISHAL METAL & MINING LIMITED",
+    "WELSPUN",
+    "SHREE CEMENT",
+    "VISHAL",
     "JSW",
     "NAVKAR MINERALS",
     "XYLE INDUSTRIES",
@@ -766,9 +766,9 @@ export default function EditVehicleModal({
                 "WAITING_FOR_DETAILS"
               }
               className={`rounded-lg px-5 py-2 text-white transition ${formData.status ===
-                  "WAITING_FOR_DETAILS"
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "cursor-not-allowed bg-gray-400"
+                "WAITING_FOR_DETAILS"
+                ? "bg-red-600 hover:bg-red-700"
+                : "cursor-not-allowed bg-gray-400"
                 }`}
             >
               Delete Vehicle

@@ -28,7 +28,7 @@ export const vehicleData: Vehicle = {
   transporterName: "CLEAN AND GREEN",
 
   // Buyer
-  buyerDetails: "WELSPUN CORPORATION LIMITED",
+  buyerDetails: "WELSPUN",
 
   // Material
   materialName: "Iron Ore",

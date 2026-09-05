@@ -97,6 +97,7 @@ export default function EditVehicleModal({
 
       onSuccess();
       onClose();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.error(
         error.message || "Failed to update vehicle",
@@ -135,6 +136,7 @@ export default function EditVehicleModal({
 
       onSuccess();
       onClose();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       toast.error(
         error.message || "Failed to delete vehicle",
@@ -445,9 +447,9 @@ export default function EditVehicleModal({
                 "WAITING_FOR_DETAILS"
               }
               className={`rounded-lg px-5 py-2 text-white transition ${formData.status ===
-                  "WAITING_FOR_DETAILS"
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "cursor-not-allowed bg-gray-400"
+                "WAITING_FOR_DETAILS"
+                ? "bg-red-600 hover:bg-red-700"
+                : "cursor-not-allowed bg-gray-400"
                 }`}
             >
               Delete Vehicle

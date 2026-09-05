@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useAppDispatch } from "@/app/redux/hooks";
@@ -9,8 +10,33 @@ interface VehicleFormProps {
   onSuccess: () => void;
 }
 
+// =========================
+// TRANSPORTERS
+// =========================
+const Transporteres = [
+  "CLEAN AND GREEN",
+  "VINAYAK ENTERPRISES",
+  "SHRI GHANSHYAM LOGISTIC",
+  "SHREE SARASWATI",
+  "KRISHNA ROAD LINES",
+  "VEER LOGISTICS",
+];
+
+// =========================
+// BUYERS
+// =========================
+const Buyeres = [
+  "WELSPUN CORPORATION LIMITED",
+  "SHREE CEMENT LIMITED",
+  "VISHAL METAL & MINING LIMITED",
+  "JSW",
+  "NAVKAR MINERALS",
+  "XYLE INDUSTRIES",
+  "EVONITH",
+];
+
 const inputClass =
-  "w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-200";
+  "w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-200";
 
 export default function VehicleForm({ onSuccess }: VehicleFormProps) {
   const dispatch = useAppDispatch();
@@ -19,15 +45,15 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
 
   const [formData, setFormData] = useState({
     vehicleNo: "",
-    tokenNo: "",
-    driverName: "",
-    driverContact: "",
+    // tokenNo: "",
+    // driverName: "",
+    // driverContact: "",
     transporterName: "",
     buyerDetails: "",
     materialName: "",
     materialGrade: "",
     destination: "",
-    vehicleImage: "",
+    // vehicleImage: "",
     netWeight: "",
     status: "WAITING_FOR_DETAILS",
   });
@@ -68,21 +94,21 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
 
       setFormData({
         vehicleNo: "",
-        tokenNo: "",
-        driverName: "",
-        driverContact: "",
+        // tokenNo: "",
+        // driverName: "",
+        // driverContact: "",
         transporterName: "",
         buyerDetails: "",
         materialName: "",
         materialGrade: "",
         destination: "",
-        vehicleImage: "",
+        // vehicleImage: "",
         netWeight: "",
         status: "WAITING_FOR_DETAILS",
       });
 
+      toast.success("Vehicle saved successfully");
       onSuccess();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Failed to save vehicle");
@@ -96,7 +122,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
     <form onSubmit={handleSubmit} className="mb-6 rounded-2xl">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between border-b pb-4">
-        <h2 className="text-2xl font-bold text-gray-800">Vehicle Entry Form</h2>
+        <h2 className="text-2xl font-bold text-gray-800">
+          Vehicle Entry Form
+        </h2>
       </div>
 
       {/* Form Fields */}
@@ -112,78 +140,62 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             value={formData.vehicleNo}
             onChange={handleChange}
             className={inputClass}
+            placeholder="Enter vehicle number"
             required
           />
         </div>
 
-        {/* Token Number */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700">
-            Token Number
-          </label>
 
-          <input
-            name="tokenNo"
-            value={formData.tokenNo}
-            onChange={handleChange}
-            className={inputClass}
-          />
-        </div>
 
-        {/* Driver Name */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700">
-            Driver Name
-          </label>
 
-          <input
-            name="driverName"
-            value={formData.driverName}
-            onChange={handleChange}
-            className={inputClass}
-          />
-        </div>
 
-        {/* Driver Contact */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700">
-            Driver Contact
-          </label>
 
-          <input
-            name="driverContact"
-            value={formData.driverContact}
-            onChange={handleChange}
-            className={inputClass}
-          />
-        </div>
-
-        {/* Transporter Name */}
+        {/* ========================= */}
+        {/* Transporter Dropdown */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Transporter Name
           </label>
 
-          <input
+          <select
             name="transporterName"
             value={formData.transporterName}
             onChange={handleChange}
             className={inputClass}
-          />
+          >
+            <option value="">Select Transporter</option>
+
+            {Transporteres.map((transporter) => (
+              <option key={transporter} value={transporter}>
+                {transporter}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Buyer Details */}
+        {/* ========================= */}
+        {/* Buyer Dropdown */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Buyer Details
           </label>
 
-          <input
+          <select
             name="buyerDetails"
             value={formData.buyerDetails}
             onChange={handleChange}
             className={inputClass}
-          />
+          >
+            <option value="">Select Buyer</option>
+
+            {Buyeres.map((buyer) => (
+              <option key={buyer} value={buyer}>
+                {buyer}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Material Name */}
@@ -197,6 +209,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             value={formData.materialName}
             onChange={handleChange}
             className={inputClass}
+            placeholder="Enter material name"
           />
         </div>
 
@@ -211,6 +224,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             value={formData.materialGrade}
             onChange={handleChange}
             className={inputClass}
+            placeholder="Enter material grade"
           />
         </div>
 
@@ -225,6 +239,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             value={formData.destination}
             onChange={handleChange}
             className={inputClass}
+            placeholder="Enter destination"
           />
         </div>
 
@@ -236,10 +251,12 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
 
           <input
             type="number"
+            step="0.01"
             name="netWeight"
             value={formData.netWeight}
             onChange={handleChange}
             className={inputClass}
+            placeholder="Enter net weight"
           />
         </div>
 
@@ -255,20 +272,15 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             onChange={handleChange}
             className={inputClass}
           >
-            <option value="WAITING_FOR_DETAILS">Waiting For Details</option>
-
+            <option value="WAITING_FOR_DETAILS">
+              Waiting For Details
+            </option>
             <option value="ENTRY_DONE">Entry Done</option>
-
             <option value="WAITING_FOR_TOKEN">Waiting For Token</option>
-
             <option value="LOADING_STARTED">Loading Started</option>
-
             <option value="LOADING_DONE">Loading Done</option>
-
             <option value="LOADING_SLIP_SENT">Loading Slip Sent</option>
-
             <option value="ETP_INVOICE_DONE">ETP Invoice Done</option>
-
             <option value="DISPATCH_DONE">Dispatch Done</option>
           </select>
         </div>

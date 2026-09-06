@@ -20,6 +20,7 @@ const Transporteres = [
   "SHREE SARASWATI",
   "KRISHNA ROAD LINES",
   "VEER LOGISTICS",
+  "VINAYAK ROADWAYS",
 ];
 
 // =========================

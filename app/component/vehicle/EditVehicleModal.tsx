@@ -318,6 +318,7 @@ export default function EditVehicleModal({
     "SHREE SARASWATI",
     "KRISHNA ROAD LINES",
     "VEER LOGISTICS",
+    "VINAYAK ROADWAYS"
   ];
 
   // =========================

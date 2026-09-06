@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Vehicle } from "../../types/vehicle";
 import DetailItem from "../common/DetailItem";
 import { formatDate } from "@/app/utils/formatDate";
@@ -16,11 +17,27 @@ interface VehicleDetailsModalProps {
 // =========================
 
 function FileUrl({ label, url }: { label: string; url?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (!url) return;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+
+      setTimeout(() => {
+        setCopied(false);
+      }, 1500);
+    } catch (error) {
+      console.error("Failed to copy URL:", error);
+    }
+  };
+
   if (!url) {
     return (
       <div className="mt-2 rounded-lg bg-gray-50 p-3">
         <p className="text-xs font-medium text-gray-500">{label} URL</p>
-
         <p className="mt-1 text-sm text-gray-400">Not available</p>
       </div>
     );
@@ -28,21 +45,29 @@ function FileUrl({ label, url }: { label: string; url?: string }) {
 
   return (
     <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-      <p className="text-xs font-semibold text-gray-600">{label} URL</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-gray-600">
+          {label} URL
+        </p>
+
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="cursor-pointer rounded-md px-2 py-1 text-xs font-semibold text-gray-700 transition hover:bg-green-50 hover:text-green-600"
+        >
+          {copied ? (
+            <span className="text-green-600">✓ Copied</span>
+          ) : (
+            "Copy"
+          )}
+        </button>
+      </div>
 
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="
-          mt-1
-          block
-          break-all
-          text-xs
-          text-blue-600
-          underline
-          hover:text-blue-800
-        "
+        className="mt-1 block break-all text-xs text-blue-600 underline hover:text-blue-800"
       >
         {url}
       </a>
@@ -50,10 +75,42 @@ function FileUrl({ label, url }: { label: string; url?: string }) {
   );
 }
 
+// =========================
+// MAIN MODAL
+// =========================
+
 export default function VehicleDetailsModal({
   vehicle,
   onClose,
 }: VehicleDetailsModalProps) {
+  /*
+   * This changes whenever a different vehicle is opened.
+   * It helps React correctly refresh the preview section.
+   */
+  const vehicleKey = useMemo(() => {
+    if (!vehicle) return "empty";
+
+    return [
+      vehicle._id,
+      vehicle.vehicleNo,
+      vehicle.updatedAt,
+      vehicle.vehicleImage,
+      vehicle.loadingVideo,
+    ]
+      .filter(Boolean)
+      .join("-");
+  }, [vehicle]);
+
+  /*
+   * Force preview state to reset when a different vehicle/file
+   * is opened.
+   */
+  const [previewKey, setPreviewKey] = useState(vehicleKey);
+
+  useEffect(() => {
+    setPreviewKey(vehicleKey);
+  }, [vehicleKey]);
+
   if (!vehicle) return null;
 
   // =========================
@@ -218,7 +275,6 @@ export default function VehicleDetailsModal({
             overflow-hidden
             bg-white
             shadow-2xl
-
             sm:h-[90vh]
             sm:max-w-6xl
             sm:rounded-2xl
@@ -237,7 +293,6 @@ export default function VehicleDetailsModal({
               border-b
               bg-white
               p-4
-
               sm:p-5
             "
           >
@@ -255,6 +310,7 @@ export default function VehicleDetailsModal({
               type="button"
               onClick={onClose}
               className="
+                cursor-pointer
                 rounded-lg
                 bg-red-500
                 px-3
@@ -264,7 +320,6 @@ export default function VehicleDetailsModal({
                 transition
                 hover:bg-red-600
                 active:scale-95
-cursor-pointer
                 sm:px-4
                 sm:text-base
               "
@@ -295,26 +350,24 @@ cursor-pointer
                 grid-cols-1
                 gap-3
                 p-4
-
                 sm:grid-cols-2
                 sm:gap-4
                 sm:p-6
-
                 lg:grid-cols-3
               "
             >
               {details.map((item) => (
                 <DetailItem
-                  copyValue={item.value}
                   key={item.label}
                   label={item.label}
                   value={item.value}
+                  copyValue={item.value}
                 />
               ))}
             </div>
 
             {/* ========================= */}
-            {/* FILE PREVIEWS + URL */}
+            {/* FILE PREVIEWS */}
             {/* ========================= */}
 
             <div
@@ -324,27 +377,37 @@ cursor-pointer
                 gap-5
                 px-4
                 pb-8
-
                 sm:grid-cols-2
                 sm:px-6
               "
             >
-              {renderImage.map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-xl border border-gray-200 p-3"
-                >
-                  {/* Preview */}
-                  <FilePreview
-                    key={item.label}
-                    url={item.value}
-                    label={item.label}
-                  />
+              {renderImage.map((item) => {
+                /*
+                 * Important:
+                 * The URL is part of the key.
+                 * When the URL changes, FilePreview gets a fresh instance.
+                 */
+                const fileKey = `${previewKey}-${item.label}-${item.value || "empty"}`;
 
-                  {/* URL */}
-                  <FileUrl label={item.label} url={item.value} />
-                </div>
-              ))}
+                return (
+                  <div
+                    key={fileKey}
+                    className="rounded-xl border border-gray-200 p-3"
+                  >
+                    {/* Preview */}
+                    <FilePreview
+                      url={item.value}
+                      label={item.label}
+                    />
+
+                    {/* URL */}
+                    <FileUrl
+                      label={item.label}
+                      url={item.value}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             {/* Bottom spacing */}

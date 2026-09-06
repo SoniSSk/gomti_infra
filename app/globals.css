@@ -29,3 +29,5 @@
   transform: translateY(-3px);
   box-shadow: 0 10px 25px rgba(255, 107, 0, 0.4);
 }
+
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } } .animate-ticker { animation: ticker linear infinite; }

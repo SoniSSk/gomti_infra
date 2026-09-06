@@ -3,13 +3,18 @@
 import { useState } from "react";
 import VehicleTable from "./vehicle/VehicleTable";
 import VehicleForm from "./vehicle/VehicleForm";
+import Ticker from "./common/Ticker";
 // import EditVehicleModal from "./vehicle/EditVehicleModal";
 
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
 
+
   return (
     <div className="p-6">
+
+      {/* <Ticker items={[]} speed={20} /> */}
+
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold">Dispatch List</h1>
 

@@ -612,7 +612,7 @@ export default function VehicleTable() {
             <span
               className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[
                 row.status
-                ] ||
+              ] ||
                 "bg-gray-100 text-gray-700"
                 }`}
             >
@@ -674,7 +674,7 @@ export default function VehicleTable() {
 
               <span className="font-semibold">
                 {
-                  roleFilteredVehicles.length
+                  filteredData.length
                 }
               </span>{" "}
 

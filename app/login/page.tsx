@@ -8,31 +8,31 @@ const loginUsers = [
     email: "gomti@gomtimining.com",
     password: "Gomti@1234",
     role: "admin",
-    name: "ADMIN",
+    name: "Admin",
   },
   {
     email: "employee@gomtimining.com",
     password: "Employee@1234",
     role: "employee",
-    name: "EMPLOYEE",
+    name: "Employee",
   },
   {
     email: "welspun@gomtimining.com",
     password: "Welspun@1234",
     role: "welspun",
-    name: "WELSPUN",
+    name: "Welspun",
   },
   {
     email: "shreecement@gomtimining.com",
     password: "ShreeCement@1234",
     role: "shreecement",
-    name: "SHREE CEMENT",
+    name: "Shree Cement",
   },
   {
     email: "evonith@gomtimining.com",
     password: "Evonith@1234",
     role: "evonith",
-    name: "EVONITH",
+    name: "Evonith",
   },
 ];
 

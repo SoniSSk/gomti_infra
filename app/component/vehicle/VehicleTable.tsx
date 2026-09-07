@@ -15,8 +15,21 @@ import SearchInput from "../common/SearchInput";
 
 import { Vehicle } from "../../types/vehicle";
 
+import VehicleDetailsModal from "./VehicleDetailsModal";
+import EditVehicleModal from "./EditVehicleModal";
+
 import { useVehicleStats } from "@/app/hooks/useVehicleStats";
 import StatCard from "../common/StatCard";
+
+import {
+  useLoadingSlipSentVehicles,
+} from "@/app/hooks/useLoadingSlipSentVehicles";
+
+import VehicleStatusCard from "../common/VehicleStatusCard";
+
+import {
+  useEtpInvoiceDoneVehicles,
+} from "@/app/hooks/useEtpInvoiceDoneVehicles";
 
 type DateFilter =
   | "all"
@@ -41,6 +54,16 @@ export default function VehicleTable() {
     useState("");
 
   // =====================================
+  // VIEW / EDIT VEHICLE
+  // =====================================
+
+  const [viewVehicle, setViewVehicle] =
+    useState<Vehicle | null>(null);
+
+  const [editVehicle, setEditVehicle] =
+    useState<Vehicle | null>(null);
+
+  // =====================================
   // USER ROLE
   // =====================================
 
@@ -55,7 +78,9 @@ export default function VehicleTable() {
     const role =
       localStorage.getItem("userRole");
 
-    setUserRole(role);
+    setUserRole(
+      role?.trim().toLowerCase() || null,
+    );
   }, []);
 
   // =====================================
@@ -94,16 +119,14 @@ export default function VehicleTable() {
         Number(hour);
 
       if (
-        ampm.toUpperCase() ===
-        "PM" &&
+        ampm.toUpperCase() === "PM" &&
         hours !== 12
       ) {
         hours += 12;
       }
 
       if (
-        ampm.toUpperCase() ===
-        "AM" &&
+        ampm.toUpperCase() === "AM" &&
         hours === 12
       ) {
         hours = 0;
@@ -325,8 +348,7 @@ export default function VehicleTable() {
         );
 
       sevenDaysAgo.setDate(
-        todayStart.getDate() -
-        6,
+        todayStart.getDate() - 6,
       );
 
       const tomorrowStart =
@@ -358,6 +380,26 @@ export default function VehicleTable() {
     }, [
       roleFilteredVehicles,
     ]);
+
+  // =====================================
+  // LOADING SLIP SENT
+  // ADMIN + EMPLOYEE ONLY
+  // =====================================
+
+  const loadingSlipSentVehicles =
+    useLoadingSlipSentVehicles(
+      last7DaysVehicles,
+    );
+
+  // =====================================
+  // ETP / INVOICE DONE
+  // ADMIN + EMPLOYEE ONLY
+  // =====================================
+
+  const etpInvoiceDoneVehicles =
+    useEtpInvoiceDoneVehicles(
+      last7DaysVehicles,
+    );
 
   // =====================================
   // TODAY STATS
@@ -398,8 +440,7 @@ export default function VehicleTable() {
         );
 
       sevenDaysAgo.setDate(
-        todayStart.getDate() -
-        6,
+        todayStart.getDate() - 6,
       );
 
       const tomorrowStart =
@@ -530,6 +571,48 @@ export default function VehicleTable() {
     ]);
 
   // =====================================
+  // VIEW VEHICLE
+  // ADMIN + EMPLOYEE ONLY
+  // =====================================
+
+  const handleViewDetails = (
+    vehicle: Vehicle,
+  ) => {
+    if (!canManageVehicles) {
+      return;
+    }
+
+    setViewVehicle(
+      vehicle,
+    );
+  };
+
+  // =====================================
+  // EDIT VEHICLE
+  // ADMIN + EMPLOYEE ONLY
+  // =====================================
+
+  const handleEditVehicle = (
+    vehicle: Vehicle,
+  ) => {
+    if (!canManageVehicles) {
+      return;
+    }
+
+    setEditVehicle(
+      vehicle,
+    );
+  };
+
+  // =====================================
+  // ADMIN + EMPLOYEE ONLY
+  // =====================================
+
+  const canManageVehicles =
+    userRole === "admin" ||
+    userRole === "employee";
+
+  // =====================================
   // TABLE COLUMNS
   // =====================================
 
@@ -612,7 +695,7 @@ export default function VehicleTable() {
             <span
               className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[
                 row.status
-              ] ||
+                ] ||
                 "bg-gray-100 text-gray-700"
                 }`}
             >
@@ -626,6 +709,56 @@ export default function VehicleTable() {
           );
         },
       },
+
+      // =====================================
+      // ACTIONS
+      // ADMIN + EMPLOYEE ONLY
+      // =====================================
+
+      ...(canManageVehicles
+        ? [
+          {
+            key: "actions",
+            label: "Actions",
+
+            render: (
+              row: Vehicle,
+            ) => (
+              <div className="flex gap-2">
+
+                {/* VIEW */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+
+                    handleViewDetails(
+                      row,
+                    );
+                  }}
+                  className="cursor-pointer rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition hover:bg-blue-600"
+                >
+                  View
+                </button>
+
+                {/* EDIT */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+
+                    handleEditVehicle(
+                      row,
+                    );
+                  }}
+                  className="cursor-pointer rounded-lg bg-green-500 px-3 py-1 text-sm text-white transition hover:bg-green-600"
+                >
+                  Edit
+                </button>
+
+              </div>
+            ),
+          },
+        ]
+        : []),
     ];
 
   // =====================================
@@ -673,9 +806,7 @@ export default function VehicleTable() {
               Showing{" "}
 
               <span className="font-semibold">
-                {
-                  filteredData.length
-                }
+                {filteredData.length}
               </span>{" "}
 
               vehicles
@@ -712,6 +843,65 @@ export default function VehicleTable() {
           />
 
         </div>
+
+        {/* =================================
+            STATUS CARDS
+            ADMIN + EMPLOYEE ONLY
+        ================================= */}
+
+        {canManageVehicles && (
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+
+            {loadingSlipSentVehicles.map(
+              (item) => (
+                <VehicleStatusCard
+                  key={`loading-slip-${item.sno}`}
+                  sno={
+                    item.sno
+                  }
+                  tokenNo={
+                    item.tokenNo
+                  }
+                  vehicleNo={
+                    item.vehicleNo
+                  }
+                  status="LOADING_SLIP_SENT"
+                  onClick={() =>
+                    setViewVehicle(
+                      item,
+                    )
+                  }
+                />
+              ),
+            )}
+
+            {etpInvoiceDoneVehicles.map(
+              (item) => (
+                <VehicleStatusCard
+                  key={`etp-invoice-${item.sno}`}
+                  sno={
+                    item.sno
+                  }
+                  tokenNo={
+                    item.tokenNo
+                  }
+                  vehicleNo={
+                    item.vehicleNo
+                  }
+                  status={
+                    item.status
+                  }
+                  onClick={() =>
+                    setViewVehicle(
+                      item,
+                    )
+                  }
+                />
+              ),
+            )}
+
+          </div>
+        )}
 
         {/* =================================
             FILTER SECTION
@@ -843,6 +1033,52 @@ export default function VehicleTable() {
         />
 
       </div>
+
+      {/* =================================
+          VIEW MODAL
+          ADMIN + EMPLOYEE ONLY
+      ================================= */}
+
+      {canManageVehicles &&
+        viewVehicle && (
+          <VehicleDetailsModal
+            vehicle={
+              viewVehicle
+            }
+            onClose={() =>
+              setViewVehicle(
+                null,
+              )
+            }
+          />
+        )}
+
+      {/* =================================
+          EDIT MODAL
+          ADMIN + EMPLOYEE ONLY
+      ================================= */}
+
+      {canManageVehicles &&
+        editVehicle && (
+          <EditVehicleModal
+            vehicle={
+              editVehicle
+            }
+            onClose={() =>
+              setEditVehicle(
+                null,
+              )
+            }
+            onSuccess={() => {
+              setEditVehicle(
+                null,
+              );
+
+              loadVehicles();
+            }}
+          />
+        )}
+
     </>
   );
 }

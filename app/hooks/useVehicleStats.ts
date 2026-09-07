@@ -40,9 +40,7 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
         vehicle.status &&
         vehicle.status in todayStatus
       ) {
-        todayStatus[
-          vehicle.status as keyof typeof todayStatus
-        ]++;
+        todayStatus[vehicle.status as keyof typeof todayStatus]++;
       }
     });
 
@@ -50,28 +48,21 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
       totalVehicles,
       todayVehicles,
 
-      todayWaitingForDetails:
-        todayStatus.WAITING_FOR_DETAILS,
+      todayWaitingForDetails: todayStatus.WAITING_FOR_DETAILS,
 
       todayEntryDone: todayStatus.ENTRY_DONE,
 
-      todayWaitingForToken:
-        todayStatus.WAITING_FOR_TOKEN,
+      todayWaitingForToken: todayStatus.WAITING_FOR_TOKEN,
 
-      todayLoadingStarted:
-        todayStatus.LOADING_STARTED,
+      todayLoadingStarted: todayStatus.LOADING_STARTED,
 
-      todayLoadingDone:
-        todayStatus.LOADING_DONE,
+      todayLoadingDone: todayStatus.LOADING_DONE,
 
-      todayLoadingSlipSent:
-        todayStatus.LOADING_SLIP_SENT,
+      todayLoadingSlipSent: todayStatus.LOADING_SLIP_SENT,
 
-      todayEtpInvoiceDone:
-        todayStatus.ETP_INVOICE_DONE,
+      todayEtpInvoiceDone: todayStatus.ETP_INVOICE_DONE,
 
-      todayDispatchDone:
-        todayStatus.DISPATCH_DONE,
+      todayDispatchDone: todayStatus.DISPATCH_DONE,
 
       todayStatus,
     };

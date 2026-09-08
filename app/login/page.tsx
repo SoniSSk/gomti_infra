@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 const loginUsers = [
   {
     email: "gomti@gomtimining.com",
-    password: "Gomti@1234",
+    password: "Asdf@1234",
     role: "admin",
     name: "Admin",
   },

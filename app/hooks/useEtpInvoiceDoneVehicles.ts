@@ -1,30 +1,8 @@
-// hooks/useEtpInvoiceDoneVehicles.ts
-
 import { useMemo } from "react";
 import { Vehicle } from "@/app/types/vehicle";
 
-export const useEtpInvoiceDoneVehicles = (
-  vehicles: Vehicle[],
-): Vehicle[] => {
+export const useEtpInvoiceDoneVehicles = (vehicles: Vehicle[]): Vehicle[] => {
   return useMemo(() => {
-    const today = new Date();
-
-    const isToday = (dateString?: string) => {
-      if (!dateString) return false;
-
-      const date = new Date(dateString);
-
-      return (
-        date.getDate() === today.getDate() &&
-        date.getMonth() === today.getMonth() &&
-        date.getFullYear() === today.getFullYear()
-      );
-    };
-
-    return vehicles.filter(
-      (vehicle) =>
-        isToday(vehicle.dateTime) &&
-        vehicle.status === "ETP_INVOICE_DONE",
-    );
+    return vehicles.filter((vehicle) => vehicle.status === "ETP_INVOICE_DONE");
   }, [vehicles]);
 };

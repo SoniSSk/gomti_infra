@@ -277,7 +277,6 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
               Waiting For Details
             </option>
             <option value="ENTRY_DONE">Entry Done</option>
-            <option value="WAITING_FOR_TOKEN">Waiting For Token</option>
             <option value="LOADING_STARTED">Loading Started</option>
             <option value="LOADING_DONE">Loading Done</option>
             <option value="LOADING_SLIP_SENT">Loading Slip Sent</option>

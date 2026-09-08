@@ -22,7 +22,6 @@ export default function VehicleStatusCard({
   const statusStyles: Record<string, string> = {
     WAITING_FOR_DETAILS: "bg-gray-100 text-gray-700",
     ENTRY_DONE: "bg-blue-100 text-blue-700",
-    WAITING_FOR_TOKEN: "bg-yellow-100 text-yellow-700",
     LOADING_STARTED: "bg-orange-100 text-orange-700",
     LOADING_DONE: "bg-purple-100 text-purple-700",
     LOADING_SLIP_SENT: "bg-indigo-100 text-indigo-700",

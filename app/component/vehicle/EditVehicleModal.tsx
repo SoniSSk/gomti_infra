@@ -173,6 +173,28 @@ export default function EditVehicleModal({
   // =========================
 
   const handleUpdate = async () => {
+    // ENTRY DONE → IN TIME REQUIRED
+    if (
+      formData.status === "ENTRY_DONE" &&
+      !formData.inTime?.trim()
+    ) {
+      toast.error(
+        "In Time is mandatory when status is Entry Done",
+      );
+      return;
+    }
+
+    // DISPATCH DONE → OUT TIME REQUIRED
+    if (
+      formData.status === "DISPATCH_DONE" &&
+      !formData.outTime?.trim()
+    ) {
+      toast.error(
+        "Out Time is mandatory when status is Dispatch Done",
+      );
+      return;
+    }
+
     try {
       dispatch(showLoader());
 
@@ -193,11 +215,27 @@ export default function EditVehicleModal({
         },
       );
 
-      const data = await response.json();
+      // Read response safely
+      const contentType =
+        response.headers.get("content-type") || "";
+
+      let data: any;
+
+      if (contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+
+        console.error("API returned non-JSON:", text);
+
+        throw new Error(
+          `Server returned ${response.status} ${response.statusText}`,
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to update vehicle",
+          data?.message || "Failed to update vehicle",
         );
       }
 
@@ -206,14 +244,15 @@ export default function EditVehicleModal({
       onSuccess();
       onClose();
     } catch (error: any) {
+      console.error("Update vehicle error:", error);
+
       toast.error(
-        error.message || "Failed to update vehicle",
+        error?.message || "Failed to update vehicle",
       );
     } finally {
       dispatch(hideLoader());
     }
   };
-
   // =========================
   // DELETE VEHICLE
   // =========================
@@ -268,7 +307,6 @@ export default function EditVehicleModal({
   const statuses = [
     "WAITING_FOR_DETAILS",
     "ENTRY_DONE",
-    "WAITING_FOR_TOKEN",
     "LOADING_STARTED",
     "LOADING_DONE",
     "LOADING_SLIP_SENT",
@@ -443,7 +481,9 @@ export default function EditVehicleModal({
                   )}
                   onChange={handleChange}
                   disabled={disabledForEmployee}
+                // errorMessage="In Time is required for Entry Done."
                 />
+
               );
             })}
 

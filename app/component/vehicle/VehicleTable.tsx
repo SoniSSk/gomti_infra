@@ -407,12 +407,16 @@ export default function VehicleTable() {
 
   const {
     todayVehicles,
-    todayDispatchDone,
-    todayWaitingForDetails,
+    dispatchDone,
+    waitingForDetails,
+    previousPendingVehicles
   } = useVehicleStats(
     roleFilteredVehicles,
   );
 
+  console.log(todayVehicles,
+    dispatchDone,
+    waitingForDetails, previousPendingVehicles, "ssssss")
   // =====================================
   // TABLE FILTER
   // =====================================
@@ -672,8 +676,7 @@ export default function VehicleTable() {
             ENTRY_DONE:
               "bg-blue-100 text-blue-700",
 
-            WAITING_FOR_TOKEN:
-              "bg-yellow-100 text-yellow-700",
+
 
             LOADING_STARTED:
               "bg-orange-100 text-orange-700",
@@ -695,7 +698,7 @@ export default function VehicleTable() {
             <span
               className={`rounded-full px-3 py-1 text-xs font-medium ${statusStyles[
                 row.status
-                ] ||
+              ] ||
                 "bg-gray-100 text-gray-700"
                 }`}
             >
@@ -831,14 +834,14 @@ export default function VehicleTable() {
           <StatCard
             title="Today's Dispatch"
             value={
-              todayDispatchDone
+              dispatchDone
             }
           />
 
           <StatCard
             title="Waiting"
             value={
-              todayWaitingForDetails
+              waitingForDetails
             }
           />
 

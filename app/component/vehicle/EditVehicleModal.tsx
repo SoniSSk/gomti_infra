@@ -173,26 +173,31 @@ export default function EditVehicleModal({
   // =========================
 
   const handleUpdate = async () => {
-    // ENTRY DONE → IN TIME REQUIRED
-    if (
-      formData.status === "ENTRY_DONE" &&
-      !formData.inTime?.trim()
-    ) {
-      toast.error(
-        "In Time is mandatory when status is Entry Done",
-      );
-      return;
+    // =========================
+    // ENTRY DONE VALIDATION
+    // =========================
+    if (formData.status === "ENTRY_DONE") {
+      if (!formData.tokenNo?.trim()) {
+        toast.error("Token Number is mandatory when status is Entry Done");
+        return;
+      }
+
+      if (!formData.inTime?.trim()) {
+        toast.error("In Time is mandatory when status is Entry Done");
+        return;
+      }
     }
 
-    // DISPATCH DONE → OUT TIME REQUIRED
-    if (
-      formData.status === "DISPATCH_DONE" &&
-      !formData.outTime?.trim()
-    ) {
-      toast.error(
-        "Out Time is mandatory when status is Dispatch Done",
-      );
-      return;
+    // =========================
+    // DISPATCH DONE VALIDATION
+    // =========================
+    if (formData.status === "DISPATCH_DONE") {
+      if (!formData.outTime?.trim()) {
+        toast.error(
+          "Out Time is mandatory when status is Dispatch Done",
+        );
+        return;
+      }
     }
 
     try {
@@ -215,7 +220,6 @@ export default function EditVehicleModal({
         },
       );
 
-      // Read response safely
       const contentType =
         response.headers.get("content-type") || "";
 
@@ -253,6 +257,7 @@ export default function EditVehicleModal({
       dispatch(hideLoader());
     }
   };
+
   // =========================
   // DELETE VEHICLE
   // =========================

@@ -424,284 +424,281 @@ export default function VehicleTable() {
   // TABLE FILTER
   // =====================================
 
-  const filteredData =
-    useMemo(() => {
-      const searchText =
-        search
-          .toLowerCase()
-          .trim();
+  // ==========================================
+  // PREVIOUS DAY VEHICLES
+  //
+  // 1. dateTime is NOT today
+  //    AND
+  //    status is NOT DISPATCH_DONE
+  //
+  // OR
+  //
+  // 2. dateTime is NOT today
+  //    AND
+  //    outTime is today
+  //    AND
+  //    status is DISPATCH_DONE
+  //
+  // This includes:
+  // - Older pending vehicles
+  // - Older vehicles dispatched today
+  // ==========================================
 
-      const now =
-        new Date();
+  const filteredData = useMemo(() => {
+    const searchText = search.toLowerCase().trim();
 
-      const todayStart =
-        new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-        );
+    const now = new Date();
 
-      const sevenDaysAgo =
-        new Date(
-          todayStart,
-        );
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
 
-      sevenDaysAgo.setDate(
-        todayStart.getDate() - 6,
+    const sevenDaysAgo = new Date(todayStart);
+    sevenDaysAgo.setDate(todayStart.getDate() - 6);
+
+    const tomorrowStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    );
+
+    return roleFilteredVehicles.filter((vehicle) => {
+      const vehicleDate = parseVehicleDate(
+        vehicle.dateTime,
       );
 
-      const tomorrowStart =
-        new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() + 1,
+      let matchesDate = true;
+
+      // ============================================
+      // COMMON VALUES
+      // ============================================
+
+      const status = String(vehicle.status || "")
+        .trim()
+        .toUpperCase();
+
+      const isDispatchDone =
+        status === "DISPATCH_DONE";
+
+      const hasOutTime =
+        Boolean(
+          vehicle.outTime &&
+          String(vehicle.outTime).trim() !== "",
         );
 
-      return roleFilteredVehicles.filter(
-        (vehicle) => {
-          const vehicleDate =
-            parseVehicleDate(
-              vehicle.dateTime,
-            );
+      const isOutTimeEmpty = !hasOutTime;
 
-          let matchesDate =
-            true;
+      // ============================================
+      // TODAY
+      // ============================================
+      //
+      // SHOW:
+      //
+      // 1. ALL vehicles whose dateTime is TODAY
+      //
+      // OR
+      //
+      // 2. Older vehicles where:
+      //    - outTime is EMPTY
+      //    - status !== DISPATCH_DONE
+      //
+      // OR
+      //
+      // 3. Older vehicles where:
+      //    - outTime is TODAY
+      //    - status === DISPATCH_DONE
+      //
+      // This means Today includes:
+      // - All today's vehicles
+      // - Previous pending vehicles
+      // - Previous vehicles dispatched today
+      // ============================================
 
-          // =================================
-          // TODAY
-          // =================================
+      if (dateFilter === "today") {
+        const isTodayVehicle =
+          vehicleDate
+            ? isSameDay(vehicleDate, now)
+            : false;
+
+        const isOlderVehicle =
+          vehicleDate
+            ? vehicleDate < todayStart
+            : false;
+
+        const isPreviousPendingVehicle =
+          isOlderVehicle &&
+          isOutTimeEmpty &&
+          !isDispatchDone;
+
+        const isPreviousDispatchedToday =
+          isOlderVehicle &&
+          hasOutTime &&
+          isSameDay(
+            parseVehicleDate(vehicle.outTime),
+            now,
+          ) &&
+          isDispatchDone;
+
+        matchesDate =
+          isTodayVehicle ||
+          isPreviousPendingVehicle ||
+          isPreviousDispatchedToday;
+      }
+
+      // ============================================
+      // LAST 7 DAYS
+      // ============================================
+
+      if (dateFilter === "7days") {
+        matchesDate =
+          vehicleDate
+            ? vehicleDate >= sevenDaysAgo &&
+            vehicleDate < tomorrowStart
+            : false;
+      }
+
+      // ============================================
+      // CUSTOM DATE
+      // ============================================
+
+      if (dateFilter === "custom") {
+        if (!customDate) {
+          matchesDate = false;
+        } else {
+          const selectedDate = new Date(
+            `${customDate}T00:00:00`,
+          );
+
+          const isSelectedDateToday =
+            isSameDay(selectedDate, now);
+
+          // ========================================
+          // CUSTOM DATE = TODAY
+          // ========================================
           //
-          // Show:
-          // 1. All vehicles whose dateTime is today
-          // 2. PLUS older vehicles where:
+          // SAME LOGIC AS TODAY FILTER:
+          //
+          // 1. All today's vehicles
+          //
+          // 2. Previous pending vehicles:
+          //    - dateTime is older
           //    - outTime is empty
           //    - status !== DISPATCH_DONE
-          // =================================
+          //
+          // 3. Previous vehicles dispatched today:
+          //    - dateTime is older
+          //    - outTime is today
+          //    - status === DISPATCH_DONE
+          // ========================================
 
-          if (
-            dateFilter ===
-            "today"
-          ) {
+          if (isSelectedDateToday) {
             const isTodayVehicle =
               vehicleDate
-                ? isSameDay(
-                  vehicleDate,
-                  now,
-                )
+                ? isSameDay(vehicleDate, now)
                 : false;
 
             const isOlderVehicle =
               vehicleDate
-                ? vehicleDate <
-                todayStart
+                ? vehicleDate < todayStart
                 : false;
 
-            const isOutTimeEmpty =
-              !vehicle.outTime ||
-              String(
-                vehicle.outTime,
-              ).trim() === "";
-
-            const isNotDispatchDone =
-              String(
-                vehicle.status ||
-                "",
-              )
-                .trim()
-                .toUpperCase() !==
-              "DISPATCH_DONE";
-
-            const isPendingOlderVehicle =
+            const isPreviousPendingVehicle =
               isOlderVehicle &&
               isOutTimeEmpty &&
-              isNotDispatchDone;
+              !isDispatchDone;
+
+            const outDate =
+              parseVehicleDate(vehicle.outTime);
+
+            const isPreviousDispatchedToday =
+              isOlderVehicle &&
+                hasOutTime &&
+                outDate
+                ? isSameDay(outDate, now) &&
+                isDispatchDone
+                : false;
 
             matchesDate =
               isTodayVehicle ||
-              isPendingOlderVehicle;
+              isPreviousPendingVehicle ||
+              isPreviousDispatchedToday;
           }
 
-          // =================================
-          // LAST 7 DAYS
-          // =================================
+          // ========================================
+          // CUSTOM DATE = PREVIOUS DATE
+          // ========================================
+          //
+          // ONLY SHOW:
+          //
+          // - status === DISPATCH_DONE
+          // - outTime exists
+          // - outTime date === selected date
+          // ========================================
 
-          if (
-            dateFilter ===
-            "7days"
-          ) {
-            matchesDate =
-              vehicleDate
-                ? vehicleDate >=
-                sevenDaysAgo &&
-                vehicleDate <
-                tomorrowStart
+          else {
+            const outDate =
+              parseVehicleDate(vehicle.outTime);
+
+            const isOutDateSelectedDate =
+              outDate
+                ? isSameDay(
+                  outDate,
+                  selectedDate,
+                )
                 : false;
-          }
 
-          // =================================
-          // CUSTOM DATE
-          // =================================
-          //
-          // IMPORTANT:
-          // Custom date checks OUT TIME,
-          // NOT dateTime.
-          //
-          // Only show:
-          // 1. status === DISPATCH_DONE
-          // 2. outTime exists
-          // 3. outTime date === selected date
-          // =================================
-
-          // =================================
-          // CUSTOM DATE
-          // =================================
-          //
-          // If selected custom date is TODAY:
-          // 1. Show ALL today's vehicles
-          // 2. PLUS previous vehicles where:
-          //    - outTime is empty
-          //    - status !== DISPATCH_DONE
-          //
-          // If selected custom date is NOT TODAY:
-          // 1. status === DISPATCH_DONE
-          // 2. outTime exists
-          // 3. outTime date === selected date
-          // =================================
-
-          if (dateFilter === "custom") {
-            if (!customDate) {
-              matchesDate = false;
-            } else {
-              const selectedDate = new Date(
-                `${customDate}T00:00:00`,
-              );
-
-              // Check whether selected custom date is TODAY
-              const isSelectedDateToday = isSameDay(
-                selectedDate,
-                now,
-              );
-
-              // =================================
-              // CUSTOM DATE = TODAY
-              // =================================
-
-              if (isSelectedDateToday) {
-                const isTodayVehicle =
-                  vehicleDate
-                    ? isSameDay(vehicleDate, now)
-                    : false;
-
-                const isOlderVehicle =
-                  vehicleDate
-                    ? vehicleDate < todayStart
-                    : false;
-
-                const isOutTimeEmpty =
-                  !vehicle.outTime ||
-                  String(vehicle.outTime).trim() === "";
-
-                const isNotDispatchDone =
-                  String(vehicle.status || "")
-                    .trim()
-                    .toUpperCase() !== "DISPATCH_DONE";
-
-                const isPreviousPendingVehicle =
-                  isOlderVehicle &&
-                  isOutTimeEmpty &&
-                  isNotDispatchDone;
-
-                matchesDate =
-                  isTodayVehicle ||
-                  isPreviousPendingVehicle;
-              }
-
-              // =================================
-              // CUSTOM DATE = PREVIOUS DATE
-              // =================================
-
-              else {
-                const outDate = parseVehicleDate(
-                  vehicle.outTime,
-                );
-
-                const isDispatchDone =
-                  String(vehicle.status || "")
-                    .trim()
-                    .toUpperCase() === "DISPATCH_DONE";
-
-                const hasOutTime =
-                  Boolean(
-                    vehicle.outTime &&
-                    String(vehicle.outTime).trim() !== "",
-                  );
-
-                const isOutDateSelectedDate =
-                  outDate
-                    ? isSameDay(
-                      outDate,
-                      selectedDate,
-                    )
-                    : false;
-
-                matchesDate =
-                  isDispatchDone &&
-                  hasOutTime &&
-                  isOutDateSelectedDate;
-              }
-            }
-          }
-          // =================================
-          // ALL
-          // =================================
-
-          if (
-            dateFilter ===
-            "all"
-          ) {
             matchesDate =
-              true;
+              isDispatchDone &&
+              hasOutTime &&
+              isOutDateSelectedDate;
           }
+        }
+      }
 
-          // =================================
-          // SEARCH
-          // =================================
+      // ============================================
+      // ALL
+      // ============================================
 
-          const searchableText =
-            [
-              vehicle.tokenNo,
-              vehicle.vehicleNo,
-              vehicle.driverName,
-              vehicle.driverContact,
-              vehicle.materialName,
-              vehicle.destination,
-              vehicle.transporterName,
-              vehicle.buyerDetails,
-              vehicle.status,
-              vehicle.sno?.toString(),
-            ]
-              .filter(Boolean)
-              .join(" ")
-              .toLowerCase();
+      if (dateFilter === "all") {
+        matchesDate = true;
+      }
 
-          const matchesSearch =
-            searchableText.includes(
-              searchText,
-            );
+      // ============================================
+      // SEARCH
+      // ============================================
 
-          return (
-            matchesDate &&
-            matchesSearch
-          );
-        },
+      const searchableText = [
+        vehicle.tokenNo,
+        vehicle.vehicleNo,
+        vehicle.driverName,
+        vehicle.driverContact,
+        vehicle.materialName,
+        vehicle.destination,
+        vehicle.transporterName,
+        vehicle.buyerDetails,
+        vehicle.status,
+        vehicle.sno?.toString(),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch =
+        searchableText.includes(searchText);
+
+      return (
+        matchesDate &&
+        matchesSearch
       );
-    }, [
-      roleFilteredVehicles,
-      search,
-      dateFilter,
-      customDate,
-    ]);
-
+    });
+  }, [
+    roleFilteredVehicles,
+    search,
+    dateFilter,
+    customDate,
+  ]);
   // =====================================
   // VIEW VEHICLE
   // ADMIN + EMPLOYEE ONLY
@@ -766,6 +763,14 @@ export default function VehicleTable() {
         label: "Date & Time",
       },
 
+      {
+        key: "inTime",
+        label: "In Date & Time",
+      },
+      {
+        key: "outTime",
+        label: "Out Date & Time",
+      },
       {
         key: "vehicleNo",
         label: "Vehicle No",
@@ -952,7 +957,7 @@ export default function VehicleTable() {
           />
 
           <StatCard
-            title="Previous Days Vehicles"
+            title="Previous Day's Vehicles"
             value={
               previousPendingVehicles
             }

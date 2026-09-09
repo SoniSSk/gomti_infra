@@ -77,16 +77,31 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
     ).length;
 
     // ==========================================
-    // PREVIOUS DAY PENDING VEHICLES
+    // PREVIOUS DAY VEHICLES
     //
-    // dateTime is NOT today
-    // AND
-    // status is NOT DISPATCH_DONE
+    // 1. dateTime is NOT today
+    //    AND
+    //    status is NOT DISPATCH_DONE
+    //
+    // OR
+    //
+    // 2. dateTime is NOT today
+    //    AND
+    //    outTime is today
+    //    AND
+    //    status is DISPATCH_DONE
+    //
+    // This includes:
+    // - Older pending vehicles
+    // - Older vehicles dispatched today
     // ==========================================
 
     const previousPendingVehicles = vehicles.filter(
       (vehicle) =>
-        !isToday(vehicle.dateTime) && vehicle.status !== "DISPATCH_DONE",
+        (!isToday(vehicle.dateTime) && vehicle.status !== "DISPATCH_DONE") ||
+        (!isToday(vehicle.dateTime) &&
+          isToday(vehicle.outTime) &&
+          vehicle.status === "DISPATCH_DONE"),
     ).length;
 
     // ==========================================

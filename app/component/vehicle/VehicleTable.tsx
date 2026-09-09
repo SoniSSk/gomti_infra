@@ -50,9 +50,15 @@ export default function VehicleTable() {
   const [dateFilter, setDateFilter] =
     useState<DateFilter>("7days");
 
-  const [customDate, setCustomDate] =
-    useState("");
+  const [customDate, setCustomDate] = useState(() => {
+    const today = new Date();
 
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  });
   // =====================================
   // VIEW / EDIT VEHICLE
   // =====================================
@@ -409,14 +415,11 @@ export default function VehicleTable() {
     todayVehicles,
     dispatchDone,
     waitingForDetails,
-    previousPendingVehicles
+    previousPendingVehicles,
   } = useVehicleStats(
     roleFilteredVehicles,
   );
 
-  console.log(todayVehicles,
-    dispatchDone,
-    waitingForDetails, previousPendingVehicles, "ssssss")
   // =====================================
   // TABLE FILTER
   // =====================================
@@ -467,18 +470,55 @@ export default function VehicleTable() {
           // =================================
           // TODAY
           // =================================
+          //
+          // Show:
+          // 1. All vehicles whose dateTime is today
+          // 2. PLUS older vehicles where:
+          //    - outTime is empty
+          //    - status !== DISPATCH_DONE
+          // =================================
 
           if (
             dateFilter ===
             "today"
           ) {
-            matchesDate =
+            const isTodayVehicle =
               vehicleDate
                 ? isSameDay(
                   vehicleDate,
                   now,
                 )
                 : false;
+
+            const isOlderVehicle =
+              vehicleDate
+                ? vehicleDate <
+                todayStart
+                : false;
+
+            const isOutTimeEmpty =
+              !vehicle.outTime ||
+              String(
+                vehicle.outTime,
+              ).trim() === "";
+
+            const isNotDispatchDone =
+              String(
+                vehicle.status ||
+                "",
+              )
+                .trim()
+                .toUpperCase() !==
+              "DISPATCH_DONE";
+
+            const isPendingOlderVehicle =
+              isOlderVehicle &&
+              isOutTimeEmpty &&
+              isNotDispatchDone;
+
+            matchesDate =
+              isTodayVehicle ||
+              isPendingOlderVehicle;
           }
 
           // =================================
@@ -501,29 +541,116 @@ export default function VehicleTable() {
           // =================================
           // CUSTOM DATE
           // =================================
+          //
+          // IMPORTANT:
+          // Custom date checks OUT TIME,
+          // NOT dateTime.
+          //
+          // Only show:
+          // 1. status === DISPATCH_DONE
+          // 2. outTime exists
+          // 3. outTime date === selected date
+          // =================================
 
-          if (
-            dateFilter ===
-            "custom"
-          ) {
+          // =================================
+          // CUSTOM DATE
+          // =================================
+          //
+          // If selected custom date is TODAY:
+          // 1. Show ALL today's vehicles
+          // 2. PLUS previous vehicles where:
+          //    - outTime is empty
+          //    - status !== DISPATCH_DONE
+          //
+          // If selected custom date is NOT TODAY:
+          // 1. status === DISPATCH_DONE
+          // 2. outTime exists
+          // 3. outTime date === selected date
+          // =================================
+
+          if (dateFilter === "custom") {
             if (!customDate) {
-              matchesDate = true;
+              matchesDate = false;
             } else {
-              const selectedDate =
-                new Date(
-                  `${customDate}T00:00:00`,
+              const selectedDate = new Date(
+                `${customDate}T00:00:00`,
+              );
+
+              // Check whether selected custom date is TODAY
+              const isSelectedDateToday = isSameDay(
+                selectedDate,
+                now,
+              );
+
+              // =================================
+              // CUSTOM DATE = TODAY
+              // =================================
+
+              if (isSelectedDateToday) {
+                const isTodayVehicle =
+                  vehicleDate
+                    ? isSameDay(vehicleDate, now)
+                    : false;
+
+                const isOlderVehicle =
+                  vehicleDate
+                    ? vehicleDate < todayStart
+                    : false;
+
+                const isOutTimeEmpty =
+                  !vehicle.outTime ||
+                  String(vehicle.outTime).trim() === "";
+
+                const isNotDispatchDone =
+                  String(vehicle.status || "")
+                    .trim()
+                    .toUpperCase() !== "DISPATCH_DONE";
+
+                const isPreviousPendingVehicle =
+                  isOlderVehicle &&
+                  isOutTimeEmpty &&
+                  isNotDispatchDone;
+
+                matchesDate =
+                  isTodayVehicle ||
+                  isPreviousPendingVehicle;
+              }
+
+              // =================================
+              // CUSTOM DATE = PREVIOUS DATE
+              // =================================
+
+              else {
+                const outDate = parseVehicleDate(
+                  vehicle.outTime,
                 );
 
-              matchesDate =
-                vehicleDate
-                  ? isSameDay(
-                    vehicleDate,
-                    selectedDate,
-                  )
-                  : false;
+                const isDispatchDone =
+                  String(vehicle.status || "")
+                    .trim()
+                    .toUpperCase() === "DISPATCH_DONE";
+
+                const hasOutTime =
+                  Boolean(
+                    vehicle.outTime &&
+                    String(vehicle.outTime).trim() !== "",
+                  );
+
+                const isOutDateSelectedDate =
+                  outDate
+                    ? isSameDay(
+                      outDate,
+                      selectedDate,
+                    )
+                    : false;
+
+                matchesDate =
+                  isDispatchDone &&
+                  hasOutTime &&
+                  isOutDateSelectedDate;
+              }
             }
           }
-
           // =================================
           // ALL
           // =================================
@@ -532,7 +659,8 @@ export default function VehicleTable() {
             dateFilter ===
             "all"
           ) {
-            matchesDate = true;
+            matchesDate =
+              true;
           }
 
           // =================================
@@ -676,8 +804,6 @@ export default function VehicleTable() {
             ENTRY_DONE:
               "bg-blue-100 text-blue-700",
 
-
-
             LOADING_STARTED:
               "bg-orange-100 text-orange-700",
 
@@ -728,7 +854,6 @@ export default function VehicleTable() {
               row: Vehicle,
             ) => (
               <div className="flex gap-2">
-
                 {/* VIEW */}
                 <button
                   onClick={(e) => {
@@ -756,7 +881,6 @@ export default function VehicleTable() {
                 >
                   Edit
                 </button>
-
               </div>
             ),
           },
@@ -789,14 +913,12 @@ export default function VehicleTable() {
   return (
     <>
       <div className="space-y-4">
-
         {/* =================================
             ROLE INFORMATION
         ================================= */}
 
         {userRole && (
           <div className="flex items-center justify-between rounded-lg bg-blue-50 px-4 py-2">
-
             <div className="text-sm text-gray-600">
               Logged in as:
 
@@ -814,7 +936,6 @@ export default function VehicleTable() {
 
               vehicles
             </div>
-
           </div>
         )}
 
@@ -822,12 +943,18 @@ export default function VehicleTable() {
             STAT CARDS
         ================================= */}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           <StatCard
             title="Today's Vehicles"
             value={
               todayVehicles
+            }
+          />
+
+          <StatCard
+            title="Previous Days Vehicles"
+            value={
+              previousPendingVehicles
             }
           />
 
@@ -844,7 +971,6 @@ export default function VehicleTable() {
               waitingForDetails
             }
           />
-
         </div>
 
         {/* =================================
@@ -854,7 +980,6 @@ export default function VehicleTable() {
 
         {canManageVehicles && (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-
             {loadingSlipSentVehicles.map(
               (item) => (
                 <VehicleStatusCard
@@ -902,7 +1027,6 @@ export default function VehicleTable() {
                 />
               ),
             )}
-
           </div>
         )}
 
@@ -911,9 +1035,7 @@ export default function VehicleTable() {
         ================================= */}
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-
           <div className="flex flex-wrap items-center gap-2">
-
             {/* REFRESH */}
 
             <button
@@ -928,7 +1050,6 @@ export default function VehicleTable() {
             {/* DATE FILTER */}
 
             <div className="relative">
-
               <select
                 value={
                   dateFilter
@@ -953,7 +1074,6 @@ export default function VehicleTable() {
                 }}
                 className="h-10 min-w-[160px] cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 pr-10 text-sm font-medium text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               >
-
                 <option value="today">
                   Today
                 </option>
@@ -969,7 +1089,6 @@ export default function VehicleTable() {
                 <option value="all">
                   All Dates
                 </option>
-
               </select>
 
               {/* CUSTOM ARROW */}
@@ -977,7 +1096,6 @@ export default function VehicleTable() {
               <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
                 ▼
               </div>
-
             </div>
 
             {/* CUSTOM DATE */}
@@ -997,13 +1115,11 @@ export default function VehicleTable() {
                   className="h-10 cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 />
               )}
-
           </div>
 
           {/* SEARCH */}
 
           <div className="w-full md:w-80">
-
             <SearchInput
               value={
                 search
@@ -1013,9 +1129,7 @@ export default function VehicleTable() {
               }
               placeholder="Search Vehicle..."
             />
-
           </div>
-
         </div>
 
         {/* =================================
@@ -1034,13 +1148,12 @@ export default function VehicleTable() {
           }
           onRowClick={() => { }}
         />
-
       </div>
 
-      {/* =================================
+      {/* =====================================
           VIEW MODAL
           ADMIN + EMPLOYEE ONLY
-      ================================= */}
+      ===================================== */}
 
       {canManageVehicles &&
         viewVehicle && (
@@ -1056,10 +1169,10 @@ export default function VehicleTable() {
           />
         )}
 
-      {/* =================================
+      {/* =====================================
           EDIT MODAL
           ADMIN + EMPLOYEE ONLY
-      ================================= */}
+      ===================================== */}
 
       {canManageVehicles &&
         editVehicle && (
@@ -1081,7 +1194,6 @@ export default function VehicleTable() {
             }}
           />
         )}
-
     </>
   );
 }

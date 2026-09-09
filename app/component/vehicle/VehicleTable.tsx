@@ -469,6 +469,11 @@ export default function VehicleTable() {
         vehicle.dateTime,
       );
 
+      // Parse outTime only once
+      const outDate = parseVehicleDate(
+        vehicle.outTime,
+      );
+
       let matchesDate = true;
 
       // ============================================
@@ -510,7 +515,7 @@ export default function VehicleTable() {
       //    - outTime is TODAY
       //    - status === DISPATCH_DONE
       //
-      // This means Today includes:
+      // This includes:
       // - All today's vehicles
       // - Previous pending vehicles
       // - Previous vehicles dispatched today
@@ -518,14 +523,12 @@ export default function VehicleTable() {
 
       if (dateFilter === "today") {
         const isTodayVehicle =
-          vehicleDate
-            ? isSameDay(vehicleDate, now)
-            : false;
+          vehicleDate !== null &&
+          isSameDay(vehicleDate, now);
 
         const isOlderVehicle =
-          vehicleDate
-            ? vehicleDate < todayStart
-            : false;
+          vehicleDate !== null &&
+          vehicleDate < todayStart;
 
         const isPreviousPendingVehicle =
           isOlderVehicle &&
@@ -535,10 +538,8 @@ export default function VehicleTable() {
         const isPreviousDispatchedToday =
           isOlderVehicle &&
           hasOutTime &&
-          isSameDay(
-            parseVehicleDate(vehicle.outTime),
-            now,
-          ) &&
+          outDate !== null &&
+          isSameDay(outDate, now) &&
           isDispatchDone;
 
         matchesDate =
@@ -553,10 +554,9 @@ export default function VehicleTable() {
 
       if (dateFilter === "7days") {
         matchesDate =
-          vehicleDate
-            ? vehicleDate >= sevenDaysAgo &&
-            vehicleDate < tomorrowStart
-            : false;
+          vehicleDate !== null &&
+          vehicleDate >= sevenDaysAgo &&
+          vehicleDate < tomorrowStart;
       }
 
       // ============================================
@@ -578,47 +578,35 @@ export default function VehicleTable() {
           // CUSTOM DATE = TODAY
           // ========================================
           //
-          // SAME LOGIC AS TODAY FILTER:
+          // SAME LOGIC AS TODAY:
           //
           // 1. All today's vehicles
           //
-          // 2. Previous pending vehicles:
-          //    - dateTime is older
-          //    - outTime is empty
-          //    - status !== DISPATCH_DONE
+          // 2. Previous pending vehicles
           //
-          // 3. Previous vehicles dispatched today:
-          //    - dateTime is older
-          //    - outTime is today
-          //    - status === DISPATCH_DONE
+          // 3. Previous vehicles dispatched today
           // ========================================
 
           if (isSelectedDateToday) {
             const isTodayVehicle =
-              vehicleDate
-                ? isSameDay(vehicleDate, now)
-                : false;
+              vehicleDate !== null &&
+              isSameDay(vehicleDate, now);
 
             const isOlderVehicle =
-              vehicleDate
-                ? vehicleDate < todayStart
-                : false;
+              vehicleDate !== null &&
+              vehicleDate < todayStart;
 
             const isPreviousPendingVehicle =
               isOlderVehicle &&
               isOutTimeEmpty &&
               !isDispatchDone;
 
-            const outDate =
-              parseVehicleDate(vehicle.outTime);
-
             const isPreviousDispatchedToday =
               isOlderVehicle &&
-                hasOutTime &&
-                outDate
-                ? isSameDay(outDate, now) &&
-                isDispatchDone
-                : false;
+              hasOutTime &&
+              outDate !== null &&
+              isSameDay(outDate, now) &&
+              isDispatchDone;
 
             matchesDate =
               isTodayVehicle ||
@@ -638,16 +626,12 @@ export default function VehicleTable() {
           // ========================================
 
           else {
-            const outDate =
-              parseVehicleDate(vehicle.outTime);
-
             const isOutDateSelectedDate =
-              outDate
-                ? isSameDay(
-                  outDate,
-                  selectedDate,
-                )
-                : false;
+              outDate !== null &&
+              isSameDay(
+                outDate,
+                selectedDate,
+              );
 
             matchesDate =
               isDispatchDone &&

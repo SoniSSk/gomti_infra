@@ -998,6 +998,7 @@ export default function VehicleTable() {
                   vehicleNo={
                     item.vehicleNo
                   }
+                  vehicle={item}
                   status="LOADING_SLIP_SENT"
                   onClick={() =>
                     setViewVehicle(
@@ -1024,6 +1025,7 @@ export default function VehicleTable() {
                   status={
                     item.status
                   }
+                  vehicle={item}
                   onClick={() =>
                     setViewVehicle(
                       item,
@@ -1048,6 +1050,7 @@ export default function VehicleTable() {
                   status={
                     item.status
                   }
+                  vehicle={item}
                   onClick={() =>
                     setViewVehicle(
                       item,

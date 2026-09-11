@@ -30,6 +30,7 @@ import VehicleStatusCard from "../common/VehicleStatusCard";
 import {
   useEtpInvoiceDoneVehicles,
 } from "@/app/hooks/useEtpInvoiceDoneVehicles";
+import { useEtpDoneVehicles } from "@/app/hooks/useEtpInvoiceDoneVechiles";
 
 type DateFilter =
   | "all"
@@ -406,6 +407,18 @@ export default function VehicleTable() {
     useEtpInvoiceDoneVehicles(
       last7DaysVehicles,
     );
+
+  // =====================================
+  // ETP DONE
+  // ADMIN + EMPLOYEE ONLY
+  // =====================================
+
+  const etpDoneVehicles =
+    useEtpDoneVehicles(
+      last7DaysVehicles,
+    );
+
+
 
   // =====================================
   // TODAY STATS
@@ -995,6 +1008,30 @@ export default function VehicleTable() {
               ),
             )}
 
+            {etpDoneVehicles.map(
+              (item) => (
+                <VehicleStatusCard
+                  key={`etp-invoice-${item.sno}`}
+                  sno={
+                    item.sno
+                  }
+                  tokenNo={
+                    item.tokenNo
+                  }
+                  vehicleNo={
+                    item.vehicleNo
+                  }
+                  status={
+                    item.status
+                  }
+                  onClick={() =>
+                    setViewVehicle(
+                      item,
+                    )
+                  }
+                />
+              ),
+            )}
             {etpInvoiceDoneVehicles.map(
               (item) => (
                 <VehicleStatusCard

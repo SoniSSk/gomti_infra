@@ -280,6 +280,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             <option value="LOADING_STARTED">Loading Started</option>
             <option value="LOADING_DONE">Loading Done</option>
             <option value="LOADING_SLIP_SENT">Loading Slip Sent</option>
+            <option value="ETP_DONE">ETP Done</option>
             <option value="ETP_INVOICE_DONE">ETP Invoice Done</option>
             <option value="DISPATCH_DONE">Dispatch Done</option>
           </select>

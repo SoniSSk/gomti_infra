@@ -315,6 +315,7 @@ export default function EditVehicleModal({
     "LOADING_STARTED",
     "LOADING_DONE",
     "LOADING_SLIP_SENT",
+    "ETP_DONE",
     "ETP_INVOICE_DONE",
     "DISPATCH_DONE",
   ];

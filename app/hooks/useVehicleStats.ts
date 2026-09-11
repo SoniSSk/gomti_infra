@@ -114,6 +114,7 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
       LOADING_STARTED: 0,
       LOADING_DONE: 0,
       LOADING_SLIP_SENT: 0,
+      ETP_DONE: 0,
       ETP_INVOICE_DONE: 0,
       DISPATCH_DONE: 0,
     };
@@ -142,6 +143,11 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
       // LOADING_SLIP_SENT
       if (vehicle.status === "LOADING_SLIP_SENT") {
         status.LOADING_SLIP_SENT++;
+      }
+
+      //ETP_DONE
+      if (vehicle.status === "ETP_DONE") {
+        status.ETP_DONE++;
       }
 
       // ETP_INVOICE_DONE
@@ -191,6 +197,8 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
       loadingDone: status.LOADING_DONE,
 
       loadingSlipSent: status.LOADING_SLIP_SENT,
+
+      etpDone: status.ETP_DONE,
 
       etpInvoiceDone: status.ETP_INVOICE_DONE,
 

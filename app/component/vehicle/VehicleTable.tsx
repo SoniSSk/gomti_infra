@@ -802,6 +802,9 @@ export default function VehicleTable() {
             LOADING_SLIP_SENT:
               "bg-indigo-100 text-indigo-700",
 
+            ETP_DONE:
+              "bg-yellow-100 text-yellow-700",
+
             ETP_INVOICE_DONE:
               "bg-cyan-100 text-cyan-700",
 
@@ -941,7 +944,7 @@ export default function VehicleTable() {
           />
 
           <StatCard
-            title="Previous Day's Vehicles"
+            title="Waiting Previous Day's Vehicles"
             value={
               previousPendingVehicles
             }

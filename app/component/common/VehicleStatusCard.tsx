@@ -20,11 +20,12 @@ export default function VehicleStatusCard({
   const [copied, setCopied] = useState(false);
 
   const statusStyles: Record<string, string> = {
-    WAITING_FOR_DETAILS: "bg-gray-100 text-gray-700",
+    WAITING_FOR_DETAILS: "bg-red-100 text-red-700",
     ENTRY_DONE: "bg-blue-100 text-blue-700",
     LOADING_STARTED: "bg-orange-100 text-orange-700",
     LOADING_DONE: "bg-purple-100 text-purple-700",
     LOADING_SLIP_SENT: "bg-indigo-100 text-indigo-700",
+    ETP_DONE: "bg-yellow-100 text-yellow-700",
     ETP_INVOICE_DONE: "bg-cyan-100 text-cyan-700",
     DISPATCH_DONE: "bg-green-100 text-green-700",
   };

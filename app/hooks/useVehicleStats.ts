@@ -168,12 +168,12 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
       }
     });
 
-    console.log("Vehicle Stats:", {
-      totalVehicles,
-      todayVehicles,
-      previousPendingVehicles,
-      status,
-    });
+    // console.log("Vehicle Stats:", {
+    //   totalVehicles,
+    //   todayVehicles,
+    //   previousPendingVehicles,
+    //   status,
+    // });
 
     return {
       // ALL vehicles

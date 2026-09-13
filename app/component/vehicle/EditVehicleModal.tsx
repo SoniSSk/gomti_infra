@@ -31,6 +31,7 @@ export default function EditVehicleModal({
 
   const dispatch = useAppDispatch();
 
+
   // =========================
   // CHECK USER ROLE
   // =========================
@@ -985,62 +986,64 @@ export default function EditVehicleModal({
           DELETE CONFIRMATION
       ===================================== */}
 
-      {showDeleteConfirm && !isEmployee && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      {
+        showDeleteConfirm && !isEmployee && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-              <span className="text-2xl">
-                ⚠️
-              </span>
-            </div>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                <span className="text-2xl">
+                  ⚠️
+                </span>
+              </div>
 
-            <h3 className="text-center text-xl font-bold text-gray-800">
-              Delete Vehicle?
-            </h3>
+              <h3 className="text-center text-xl font-bold text-gray-800">
+                Delete Vehicle?
+              </h3>
 
-            <p className="mt-2 text-center text-sm text-gray-500">
-              Are you sure you want to delete
-              vehicle{" "}
-              <span className="font-semibold text-gray-700">
-                {vehicle.vehicleNo}
-              </span>
-              ?
-              <br />
-              This action cannot be undone.
-            </p>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                Are you sure you want to delete
+                vehicle{" "}
+                <span className="font-semibold text-gray-700">
+                  {vehicle.vehicleNo}
+                </span>
+                ?
+                <br />
+                This action cannot be undone.
+              </p>
 
-            <div className="mt-6 flex justify-center gap-3">
+              <div className="mt-6 flex justify-center gap-3">
 
-              <button
-                type="button"
-                onClick={() =>
-                  setShowDeleteConfirm(false)
-                }
-                disabled={deleteLoading}
-                className="cursor-pointer rounded-lg border border-gray-300 px-6 py-2.5 font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
-              >
-                Cancel
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowDeleteConfirm(false)
+                  }
+                  disabled={deleteLoading}
+                  className="cursor-pointer rounded-lg border border-gray-300 px-6 py-2.5 font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  handleDelete(
-                    Number(formData.sno),
-                  )
-                }
-                disabled={deleteLoading}
-                className="cursor-pointer rounded-lg bg-red-600 px-6 py-2.5 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {deleteLoading
-                  ? "Deleting..."
-                  : "Yes, Delete"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDelete(
+                      Number(formData.sno),
+                    )
+                  }
+                  disabled={deleteLoading}
+                  className="cursor-pointer rounded-lg bg-red-600 px-6 py-2.5 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {deleteLoading
+                    ? "Deleting..."
+                    : "Yes, Delete"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

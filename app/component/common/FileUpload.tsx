@@ -59,7 +59,7 @@ export default function FileUpload({
         setFileUrl(uploadedUrl);
         onUpload(uploadedUrl);
 
-        console.log("Uploaded URL:", uploadedUrl);
+        // console.log("Uploaded URL:", uploadedUrl);
       } else {
         console.error(data.error || "Upload failed");
         toast.error(data.error || "Upload failed");

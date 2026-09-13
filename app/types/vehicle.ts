@@ -1,5 +1,4 @@
-import { VehicleStatus } from "./vehicle-status";
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Vehicle {
   _id: string;
   createdAt: string;
@@ -26,7 +25,7 @@ export interface Vehicle {
 
   loadingVideo?: string;
 
-  status: VehicleStatus;
+  status: any;
 
   weightSlip?: string;
   LRSlip?: string;

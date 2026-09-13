@@ -1,8 +1,7 @@
-import { VehicleStatus } from "@/app/types/vehicle-status";
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface VehicleNotificationData {
   vehicleNumber: string;
-  status: VehicleStatus;
+  status: any;
   transporter?: string;
   driverName?: string;
   driverMobile?: string;

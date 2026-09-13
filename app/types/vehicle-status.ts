@@ -9,5 +9,5 @@ export const VEHICLE_STATUS = [
   "INVOICE_GENERATING",
   "ETP_INVOICE_DONE",
   "DISPATCH_DONE",
-  "NOT_REGISTERD",
+  "NOT_REGISTERED",
 ] as const;

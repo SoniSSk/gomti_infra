@@ -933,8 +933,8 @@ export default function EditVehicleModal({
 
           <button
             type="button"
-            onClick={() =>
-              setShowDeleteConfirm(true)
+            onClick={() => { }
+              // setShowDeleteConfirm(true)
             }
             disabled={
               isEmployee ||

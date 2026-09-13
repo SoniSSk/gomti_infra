@@ -30,7 +30,9 @@ import VehicleStatusCard from "../common/VehicleStatusCard";
 import {
   useEtpInvoiceDoneVehicles,
 } from "@/app/hooks/useEtpInvoiceDoneVehicles";
-import { useEtpDoneVehicles } from "@/app/hooks/useEtpInvoiceDoneVechiles";
+import { useEtpDoneVehicles } from "@/app/hooks/useEtpDoneVechiles";
+import { useEtpGeneratingVehicles } from "@/app/hooks/useEtpGeneratingVechiles";
+import { useInvoiceGeneratingVehicle } from "../../hooks/useInvoiceGeneratingVechile";
 
 type DateFilter =
   | "all"
@@ -415,6 +417,15 @@ export default function VehicleTable() {
 
   const etpDoneVehicles =
     useEtpDoneVehicles(
+      last7DaysVehicles,
+    );
+
+  const etpGeneratingVehicles =
+    useEtpGeneratingVehicles(
+      last7DaysVehicles,
+    );
+  const invoiceGeneratingVehicles =
+    useInvoiceGeneratingVehicle(
       last7DaysVehicles,
     );
 
@@ -1023,6 +1034,58 @@ export default function VehicleTable() {
               ),
             )}
             {etpInvoiceDoneVehicles.map(
+              (item) => (
+                <VehicleStatusCard
+                  key={`etp-invoice-${item.sno}`}
+                  sno={
+                    item.sno
+                  }
+                  tokenNo={
+                    item.tokenNo
+                  }
+                  vehicleNo={
+                    item.vehicleNo
+                  }
+                  status={
+                    item.status
+                  }
+                  vehicle={item}
+                  onClick={() =>
+                    setViewVehicle(
+                      item,
+                    )
+                  }
+                />
+              ),
+            )}
+
+            {etpGeneratingVehicles.map(
+              (item) => (
+                <VehicleStatusCard
+                  key={`etp-invoice-${item.sno}`}
+                  sno={
+                    item.sno
+                  }
+                  tokenNo={
+                    item.tokenNo
+                  }
+                  vehicleNo={
+                    item.vehicleNo
+                  }
+                  status={
+                    item.status
+                  }
+                  vehicle={item}
+                  onClick={() =>
+                    setViewVehicle(
+                      item,
+                    )
+                  }
+                />
+              ),
+            )}
+
+            {invoiceGeneratingVehicles.map(
               (item) => (
                 <VehicleStatusCard
                   key={`etp-invoice-${item.sno}`}

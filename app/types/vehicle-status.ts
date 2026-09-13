@@ -1,4 +1,4 @@
-export const VEHICLE_STATUS = [
+export const VehicleStatus = [
   "WAITING_FOR_DETAILS",
   "ENTRY_DONE",
   "LOADING_STARTED",

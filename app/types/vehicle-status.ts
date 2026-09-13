@@ -4,9 +4,10 @@ export const VEHICLE_STATUS = [
   "LOADING_STARTED",
   "LOADING_DONE",
   "LOADING_SLIP_SENT",
+  "ETP_GENERATING",
   "ETP_DONE",
+  "INVOICE_GENERATING",
   "ETP_INVOICE_DONE",
   "DISPATCH_DONE",
+  "NOT_REGISTERD",
 ] as const;
-
-export type VehicleStatus = (typeof VEHICLE_STATUS)[number];

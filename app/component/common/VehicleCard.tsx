@@ -10,9 +10,12 @@ const statusColors: Record<string, string> = {
   LOADING_STARTED: "bg-orange-100 text-orange-700",
   LOADING_DONE: "bg-purple-100 text-purple-700",
   LOADING_SLIP_SENT: "bg-indigo-100 text-indigo-700",
+  ETP_GENERATING: "bg-amber-100 text-amber-700",
   ETP_DONE: "bg-yellow-100 text-yellow-700",
   ETP_INVOICE_DONE: "bg-cyan-100 text-cyan-700",
+  INVOICE_GENERATING: "bg-sky-100 text-sky-700",
   DISPATCH_DONE: "bg-green-100 text-green-700",
+  NOT_REGISTERD: "bg-gray-100 text-gray-700",
 };
 
 export default function VehicleCard({ data }: VehicleCardProps) {

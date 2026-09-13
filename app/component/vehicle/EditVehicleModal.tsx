@@ -26,6 +26,8 @@ export default function EditVehicleModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [isEmployee, setIsEmployee] = useState(false);
+  const [sendingChat, setSendingChat] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   const dispatch = useAppDispatch();
 
@@ -53,7 +55,6 @@ export default function EditVehicleModal({
       ...vehicle,
     });
 
-    // Reset confirmation popup whenever another vehicle opens
     setShowDeleteConfirm(false);
   }, [vehicle]);
 
@@ -125,7 +126,6 @@ export default function EditVehicleModal({
     if (!date || !time) return value;
 
     const [year, month, day] = date.split("-");
-
     const [hour, minute] = time.split(":");
 
     let hourNumber = Number(hour);
@@ -169,38 +169,107 @@ export default function EditVehicleModal({
   };
 
   // =========================
+  // SEND GOOGLE CHAT
+  // =========================
+
+  const sendToGoogleChat = async () => {
+    if (!formData.vehicleNo) {
+      toast.error("Vehicle number is missing");
+      return false;
+    }
+
+    if (!formData.status) {
+      toast.error("Vehicle status is missing");
+      return false;
+    }
+
+    try {
+      setSendingChat(true);
+
+      const response = await fetch("/api/google-chat/vehicle", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          vehicleNumber: formData.vehicleNo,
+          status: formData.status,
+          transporter: formData.transporterName,
+          driverName: formData.driverName,
+          driverMobile: formData.driverContact,
+          location: formData.destination,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message || "Failed to send Google Chat message",
+        );
+      }
+
+      toast.success("Vehicle update sent to Google Chat");
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Google Chat notification error:",
+        error,
+      );
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to send Google Chat message",
+      );
+
+      return false;
+    } finally {
+      setSendingChat(false);
+    }
+  };
+
+  // =========================
   // UPDATE VEHICLE
   // =========================
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (): Promise<boolean> => {
     // =========================
     // ENTRY DONE VALIDATION
     // =========================
+
     if (formData.status === "ENTRY_DONE") {
       if (!formData.tokenNo?.trim()) {
-        toast.error("Token Number is mandatory when status is Entry Done");
-        return;
+        toast.error(
+          "Token Number is mandatory when status is Entry Done",
+        );
+        return false;
       }
 
       if (!formData.inTime?.trim()) {
-        toast.error("In Time is mandatory when status is Entry Done");
-        return;
+        toast.error(
+          "In Time is mandatory when status is Entry Done",
+        );
+        return false;
       }
     }
 
     // =========================
     // DISPATCH DONE VALIDATION
     // =========================
+
     if (formData.status === "DISPATCH_DONE") {
       if (!formData.outTime?.trim()) {
         toast.error(
           "Out Time is mandatory when status is Dispatch Done",
         );
-        return;
+        return false;
       }
     }
 
     try {
+      setUpdating(true);
       dispatch(showLoader());
 
       const payload = { ...formData };
@@ -230,7 +299,10 @@ export default function EditVehicleModal({
       } else {
         const text = await response.text();
 
-        console.error("API returned non-JSON:", text);
+        console.error(
+          "API returned non-JSON:",
+          text,
+        );
 
         throw new Error(
           `Server returned ${response.status} ${response.statusText}`,
@@ -243,19 +315,54 @@ export default function EditVehicleModal({
         );
       }
 
-      toast.success("Vehicle updated successfully");
-
-      onSuccess();
-      onClose();
+      return true;
     } catch (error: any) {
-      console.error("Update vehicle error:", error);
+      console.error(
+        "Update vehicle error:",
+        error,
+      );
 
       toast.error(
-        error?.message || "Failed to update vehicle",
+        error?.message ||
+        "Failed to update vehicle",
       );
+
+      return false;
     } finally {
+      setUpdating(false);
       dispatch(hideLoader());
     }
+  };
+
+  // =========================
+  // UPDATE + GOOGLE CHAT
+  // =========================
+
+  const handleUpdateAndNotify = async () => {
+    if (updating || sendingChat) return;
+
+    // 1. Update vehicle
+    const updated = await handleUpdate();
+
+    if (!updated) {
+      return;
+    }
+
+    // 2. Send updated data to Google Chat
+    const chatSent = await sendToGoogleChat();
+
+    if (!chatSent) {
+      // Vehicle was updated even if chat failed
+      toast.error(
+        "Vehicle updated, but Google Chat notification failed",
+      );
+    }
+
+    // 3. Refresh parent data
+    onSuccess();
+
+    // 4. Close modal
+    onClose();
   };
 
   // =========================
@@ -289,7 +396,9 @@ export default function EditVehicleModal({
         );
       }
 
-      toast.success("Vehicle deleted successfully");
+      toast.success(
+        "Vehicle deleted successfully",
+      );
 
       setShowDeleteConfirm(false);
 
@@ -297,7 +406,8 @@ export default function EditVehicleModal({
       onClose();
     } catch (error: any) {
       toast.error(
-        error.message || "Failed to delete vehicle",
+        error.message ||
+        "Failed to delete vehicle",
       );
     } finally {
       setDeleteLoading(false);
@@ -315,9 +425,12 @@ export default function EditVehicleModal({
     "LOADING_STARTED",
     "LOADING_DONE",
     "LOADING_SLIP_SENT",
+    "ETP_GENERATING",
     "ETP_DONE",
+    "INVOICE_GENERATING",
     "ETP_INVOICE_DONE",
     "DISPATCH_DONE",
+    "NOT_REGISTERD",
   ];
 
   // =========================
@@ -407,6 +520,10 @@ export default function EditVehicleModal({
     },
   ];
 
+  // =========================
+  // NO VEHICLE
+  // =========================
+
   if (!vehicle) return null;
 
   /*
@@ -415,6 +532,7 @@ export default function EditVehicleModal({
    * This key changes when another vehicle is opened.
    * It prevents React from reusing the previous modal tree.
    */
+
   const modalKey =
     vehicle._id ||
     `${vehicle.sno}-${vehicle.vehicleNo}-${vehicle.updatedAt || ""}`;
@@ -487,9 +605,7 @@ export default function EditVehicleModal({
                   )}
                   onChange={handleChange}
                   disabled={disabledForEmployee}
-                // errorMessage="In Time is required for Entry Done."
                 />
-
               );
             })}
 
@@ -508,10 +624,15 @@ export default function EditVehicleModal({
                 onChange={handleChange}
                 className="rounded-lg border border-gray-300 p-3 outline-none focus:border-orange-500"
               >
-                <option value="">Select Tyre</option>
+                <option value="">
+                  Select Tyre
+                </option>
 
                 {tyreOptions.map((tyre) => (
-                  <option key={tyre} value={tyre}>
+                  <option
+                    key={tyre}
+                    value={tyre}
+                  >
                     {tyre}
                   </option>
                 ))}
@@ -537,10 +658,15 @@ export default function EditVehicleModal({
                   : ""
                   }`}
               >
-                <option value="">Select Buyer</option>
+                <option value="">
+                  Select Buyer
+                </option>
 
                 {Buyeres.map((buyer) => (
-                  <option key={buyer} value={buyer}>
+                  <option
+                    key={buyer}
+                    value={buyer}
+                  >
                     {buyer}
                   </option>
                 ))}
@@ -570,14 +696,16 @@ export default function EditVehicleModal({
                   Select Transporter
                 </option>
 
-                {Transporteres.map((transporter) => (
-                  <option
-                    key={transporter}
-                    value={transporter}
-                  >
-                    {transporter}
-                  </option>
-                ))}
+                {Transporteres.map(
+                  (transporter) => (
+                    <option
+                      key={transporter}
+                      value={transporter}
+                    >
+                      {transporter}
+                    </option>
+                  ),
+                )}
               </select>
             </div>
 
@@ -596,10 +724,15 @@ export default function EditVehicleModal({
                 onChange={handleChange}
                 className="rounded-lg border border-gray-300 p-3 outline-none focus:border-orange-500"
               >
-                <option value="">Select Status</option>
+                <option value="">
+                  Select Status
+                </option>
 
                 {statuses.map((status) => (
-                  <option key={status} value={status}>
+                  <option
+                    key={status}
+                    value={status}
+                  >
                     {status.replaceAll("_", " ")}
                   </option>
                 ))}
@@ -666,7 +799,10 @@ export default function EditVehicleModal({
               url={formData.vehicleImage}
               label="Vehicle Number Plate"
               onUpload={(url) =>
-                handleFileUpload("vehicleImage", url)
+                handleFileUpload(
+                  "vehicleImage",
+                  url,
+                )
               }
             />
 
@@ -705,7 +841,10 @@ export default function EditVehicleModal({
               url={formData.weightSlip}
               label="Weight Slip"
               onUpload={(url) =>
-                handleFileUpload("weightSlip", url)
+                handleFileUpload(
+                  "weightSlip",
+                  url,
+                )
               }
             />
 
@@ -732,7 +871,10 @@ export default function EditVehicleModal({
               label="E-Way Bill"
               disabled={isEmployee}
               onUpload={(url) =>
-                handleFileUpload("EWayBill", url)
+                handleFileUpload(
+                  "EWayBill",
+                  url,
+                )
               }
             />
 
@@ -744,7 +886,10 @@ export default function EditVehicleModal({
               label="ETP"
               disabled={isEmployee}
               onUpload={(url) =>
-                handleFileUpload("etp", url)
+                handleFileUpload(
+                  "etp",
+                  url,
+                )
               }
             />
 
@@ -755,7 +900,10 @@ export default function EditVehicleModal({
               url={formData.LRSlip}
               label="LR Slip"
               onUpload={(url) =>
-                handleFileUpload("LRSlip", url)
+                handleFileUpload(
+                  "LRSlip",
+                  url,
+                )
               }
             />
 
@@ -785,13 +933,19 @@ export default function EditVehicleModal({
 
           <button
             type="button"
-            onClick={() => setShowDeleteConfirm(true)}
+            onClick={() =>
+              setShowDeleteConfirm(true)
+            }
             disabled={
               isEmployee ||
-              formData.status !== "WAITING_FOR_DETAILS"
+              formData.status !==
+              "WAITING_FOR_DETAILS" ||
+              updating ||
+              sendingChat
             }
             className={`cursor-pointer rounded-lg px-5 py-2 text-white transition ${isEmployee ||
-              formData.status !== "WAITING_FOR_DETAILS"
+              formData.status !==
+              "WAITING_FOR_DETAILS"
               ? "cursor-not-allowed bg-gray-400"
               : "bg-red-600 hover:bg-red-700"
               }`}
@@ -805,17 +959,23 @@ export default function EditVehicleModal({
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer rounded-lg border px-5 py-2 hover:bg-gray-100"
+              disabled={updating || sendingChat}
+              className="cursor-pointer rounded-lg border px-5 py-2 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>
 
             <button
               type="button"
-              onClick={handleUpdate}
-              className="cursor-pointer rounded-lg bg-orange-600 px-5 py-2 text-white hover:bg-orange-700"
+              onClick={handleUpdateAndNotify}
+              disabled={updating || sendingChat}
+              className="cursor-pointer rounded-lg bg-orange-600 px-5 py-2 text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Update Vehicle
+              {updating
+                ? "Updating..."
+                : sendingChat
+                  ? "Sending..."
+                  : "Update Vehicle"}
             </button>
           </div>
         </div>
@@ -830,7 +990,9 @@ export default function EditVehicleModal({
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-              <span className="text-2xl">⚠️</span>
+              <span className="text-2xl">
+                ⚠️
+              </span>
             </div>
 
             <h3 className="text-center text-xl font-bold text-gray-800">
@@ -838,7 +1000,8 @@ export default function EditVehicleModal({
             </h3>
 
             <p className="mt-2 text-center text-sm text-gray-500">
-              Are you sure you want to delete vehicle{" "}
+              Are you sure you want to delete
+              vehicle{" "}
               <span className="font-semibold text-gray-700">
                 {vehicle.vehicleNo}
               </span>
@@ -848,9 +1011,12 @@ export default function EditVehicleModal({
             </p>
 
             <div className="mt-6 flex justify-center gap-3">
+
               <button
                 type="button"
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() =>
+                  setShowDeleteConfirm(false)
+                }
                 disabled={deleteLoading}
                 className="cursor-pointer rounded-lg border border-gray-300 px-6 py-2.5 font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
               >
@@ -860,7 +1026,9 @@ export default function EditVehicleModal({
               <button
                 type="button"
                 onClick={() =>
-                  handleDelete(Number(formData.sno))
+                  handleDelete(
+                    Number(formData.sno),
+                  )
                 }
                 disabled={deleteLoading}
                 className="cursor-pointer rounded-lg bg-red-600 px-6 py-2.5 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"

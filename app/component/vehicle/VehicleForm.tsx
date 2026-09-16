@@ -175,6 +175,24 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
         </h2>
       </div>
 
+
+      {/* ========================= */}
+      {/* DRIVER / TRANSPORTER NOTICE */}
+      {/* ========================= */}
+      <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+        <p className="text-sm font-medium text-orange-800">
+          ⚠️ Driver se boliye ki{" "}
+          <span className="font-bold">
+            transporter se WhatsApp group par vehicle number update karwayein.
+          </span>
+        </p>
+
+        <p className="mt-1 text-sm font-bold text-red-700">
+          Bina transporter details ke kisi bhi vehicle ko load nahi kiya jayega.
+        </p>
+      </div>
+
+
       {/* ========================= */}
       {/* FORM FIELDS */}
       {/* ========================= */}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
@@ -30,9 +31,10 @@ import VehicleStatusCard from "../common/VehicleStatusCard";
 import {
   useEtpInvoiceDoneVehicles,
 } from "@/app/hooks/useEtpInvoiceDoneVehicles";
-import { useEtpDoneVehicles } from "@/app/hooks/useEtpDoneVechiles";
 import { useEtpGeneratingVehicles } from "@/app/hooks/useEtpGeneratingVechiles";
-import { useInvoiceGeneratingVehicle } from "../../hooks/useInvoiceGeneratingVechile";
+import { useEtpDoneVehicles } from "@/app/hooks/useEtpDoneVechiles";
+import { useInvoiceGeneratingVehicle } from "@/app/hooks/useInvoiceGeneratingVechile";
+
 
 type DateFilter =
   | "all"
@@ -41,14 +43,26 @@ type DateFilter =
   | "custom";
 
 export default function VehicleTable() {
+  // =====================================
+  // VEHICLES
+  // =====================================
+
   const [vehicles, setVehicles] =
     useState<Vehicle[]>([]);
 
   const [loading, setLoading] =
     useState(true);
 
+  // =====================================
+  // SEARCH
+  // =====================================
+
   const [search, setSearch] =
     useState("");
+
+  // =====================================
+  // DATE FILTER
+  // =====================================
 
   const [dateFilter, setDateFilter] =
     useState<DateFilter>("7days");
@@ -57,11 +71,18 @@ export default function VehicleTable() {
     const today = new Date();
 
     const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
+
+    const month = String(
+      today.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+      today.getDate()
+    ).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
   });
+
   // =====================================
   // VIEW / EDIT VEHICLE
   // =====================================
@@ -80,7 +101,7 @@ export default function VehicleTable() {
     useState<string | null>(null);
 
   // =====================================
-  // GET USER ROLE FROM LOCAL STORAGE
+  // GET USER ROLE
   // =====================================
 
   useEffect(() => {
@@ -88,131 +109,79 @@ export default function VehicleTable() {
       localStorage.getItem("userRole");
 
     setUserRole(
-      role?.trim().toLowerCase() || null,
+      role?.trim().toLowerCase() || null
     );
   }, []);
 
   // =====================================
-  // PARSE VEHICLE DATE
+  // LOAD VEHICLES FROM API
   // =====================================
 
-  const parseVehicleDate = (
-    dateTime: unknown,
-  ): Date | null => {
-    if (!dateTime) {
-      return null;
-    }
-
-    const value =
-      String(dateTime).trim();
-
-    // DD-MM-YYYY HH:mm AM/PM
-    const customFormat =
-      /^(\d{2})-(\d{2})-(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
-
-    const match =
-      value.match(customFormat);
-
-    if (match) {
-      const [
-        ,
-        day,
-        month,
-        year,
-        hour,
-        minute,
-        ampm,
-      ] = match;
-
-      let hours =
-        Number(hour);
-
-      if (
-        ampm.toUpperCase() === "PM" &&
-        hours !== 12
-      ) {
-        hours += 12;
-      }
-
-      if (
-        ampm.toUpperCase() === "AM" &&
-        hours === 12
-      ) {
-        hours = 0;
-      }
-
-      return new Date(
-        Number(year),
-        Number(month) - 1,
-        Number(day),
-        hours,
-        Number(minute),
-      );
-    }
-
-    const date =
-      new Date(value);
-
-    if (
-      Number.isNaN(
-        date.getTime(),
-      )
-    ) {
-      return null;
-    }
-
-    return date;
-  };
-
-  // =====================================
-  // CHECK SAME DAY
-  // =====================================
-
-  const isSameDay = (
-    date1: Date,
-    date2: Date,
+  const loadVehicles = async (
+    filter: DateFilter = dateFilter,
+    selectedDate: string = customDate
   ) => {
-    return (
-      date1.getFullYear() ===
-      date2.getFullYear() &&
-      date1.getMonth() ===
-      date2.getMonth() &&
-      date1.getDate() ===
-      date2.getDate()
-    );
-  };
-
-  // =====================================
-  // LOAD VEHICLES
-  // =====================================
-
-  const loadVehicles = async () => {
     try {
       setLoading(true);
 
-      const response =
-        await fetch(
-          "/api/vehicles",
-          {
-            cache: "no-store",
-          },
-        );
+      const params = new URLSearchParams();
 
-      if (!response.ok) {
-        throw new Error(
-          "Failed to fetch vehicles",
+      // Frontend uses "7days"
+      // API uses "last7days"
+      const apiFilter =
+        filter === "7days"
+          ? "last7days"
+          : filter;
+
+      params.set(
+        "dateFilter",
+        apiFilter
+      );
+
+      // Custom date
+      if (
+        apiFilter === "custom" &&
+        selectedDate
+      ) {
+        params.set(
+          "date",
+          selectedDate
         );
       }
 
-      const data: Vehicle[] =
+      const response = await fetch(
+        `/api/vehicles?${params.toString()}`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to fetch vehicles"
+        );
+      }
+
+      const data =
         await response.json();
 
-      setVehicles(data);
+      // API response:
+      // {
+      //   success: true,
+      //   count: number,
+      //   vehicles: []
+      // }
+
+      setVehicles(
+        data.vehicles || []
+      );
     } catch (error) {
       console.error(
         "Vehicle Fetch Error:",
-        error,
+        error
       );
+
+      setVehicles([]);
     } finally {
       setLoading(false);
     }
@@ -223,8 +192,44 @@ export default function VehicleTable() {
   // =====================================
 
   useEffect(() => {
-    loadVehicles();
+    loadVehicles(
+      dateFilter,
+      customDate
+    );
+
+    // Only initial load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // =====================================
+  // API CALL WHEN FILTER CHANGES
+  // =====================================
+
+  useEffect(() => {
+    // Custom date
+    if (dateFilter === "custom") {
+      if (!customDate) {
+        return;
+      }
+
+      loadVehicles(
+        "custom",
+        customDate
+      );
+
+      return;
+    }
+
+    // Today / Last 7 Days / All
+    loadVehicles(
+      dateFilter
+    );
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    dateFilter,
+    customDate,
+  ]);
 
   // =====================================
   // ROLE BASED VEHICLE FILTER
@@ -269,15 +274,15 @@ export default function VehicleTable() {
             const buyer =
               String(
                 vehicle.buyerDetails ??
-                "",
+                ""
               )
                 .trim()
                 .toUpperCase();
 
             return buyer.includes(
-              "SHREE CEMENT",
+              "SHREE CEMENT"
             );
-          },
+          }
         );
       }
 
@@ -293,15 +298,15 @@ export default function VehicleTable() {
             const buyer =
               String(
                 vehicle.buyerDetails ??
-                "",
+                ""
               )
                 .trim()
                 .toUpperCase();
 
             return buyer.includes(
-              "WELSPUN",
+              "WELSPUN"
             );
-          },
+          }
         );
       }
 
@@ -317,15 +322,15 @@ export default function VehicleTable() {
             const buyer =
               String(
                 vehicle.buyerDetails ??
-                "",
+                ""
               )
                 .trim()
                 .toUpperCase();
 
             return buyer.includes(
-              "EVONITH",
+              "EVONITH"
             );
-          },
+          }
         );
       }
 
@@ -336,68 +341,13 @@ export default function VehicleTable() {
     ]);
 
   // =====================================
-  // LAST 7 DAYS
-  // =====================================
-
-  const last7DaysVehicles =
-    useMemo(() => {
-      const now =
-        new Date();
-
-      const todayStart =
-        new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-        );
-
-      const sevenDaysAgo =
-        new Date(
-          todayStart,
-        );
-
-      sevenDaysAgo.setDate(
-        todayStart.getDate() - 6,
-      );
-
-      const tomorrowStart =
-        new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() + 1,
-        );
-
-      return roleFilteredVehicles.filter(
-        (vehicle) => {
-          const vehicleDate =
-            parseVehicleDate(
-              vehicle.dateTime,
-            );
-
-          if (!vehicleDate) {
-            return false;
-          }
-
-          return (
-            vehicleDate >=
-            sevenDaysAgo &&
-            vehicleDate <
-            tomorrowStart
-          );
-        },
-      );
-    }, [
-      roleFilteredVehicles,
-    ]);
-
-  // =====================================
   // LOADING SLIP SENT
   // ADMIN + EMPLOYEE ONLY
   // =====================================
 
   const loadingSlipSentVehicles =
     useLoadingSlipSentVehicles(
-      last7DaysVehicles,
+      vehicles
     );
 
   // =====================================
@@ -407,7 +357,7 @@ export default function VehicleTable() {
 
   const etpInvoiceDoneVehicles =
     useEtpInvoiceDoneVehicles(
-      last7DaysVehicles,
+      vehicles
     );
 
   // =====================================
@@ -417,19 +367,26 @@ export default function VehicleTable() {
 
   const etpDoneVehicles =
     useEtpDoneVehicles(
-      last7DaysVehicles,
+      vehicles
     );
+
+  // =====================================
+  // ETP GENERATING
+  // =====================================
 
   const etpGeneratingVehicles =
     useEtpGeneratingVehicles(
-      last7DaysVehicles,
+      vehicles
     );
+
+  // =====================================
+  // INVOICE GENERATING
+  // =====================================
+
   const invoiceGeneratingVehicles =
     useInvoiceGeneratingVehicle(
-      last7DaysVehicles,
+      vehicles
     );
-
-
 
   // =====================================
   // TODAY STATS
@@ -441,286 +398,69 @@ export default function VehicleTable() {
     waitingForDetails,
     previousPendingVehicles,
   } = useVehicleStats(
-    roleFilteredVehicles,
+    roleFilteredVehicles
   );
 
   // =====================================
-  // TABLE FILTER
+  // TABLE SEARCH
+  //
+  // DATE FILTER IS NOW HANDLED BY API
   // =====================================
 
-  // ==========================================
-  // PREVIOUS DAY VEHICLES
-  //
-  // 1. dateTime is NOT today
-  //    AND
-  //    status is NOT DISPATCH_DONE
-  //
-  // OR
-  //
-  // 2. dateTime is NOT today
-  //    AND
-  //    outTime is today
-  //    AND
-  //    status is DISPATCH_DONE
-  //
-  // This includes:
-  // - Older pending vehicles
-  // - Older vehicles dispatched today
-  // ==========================================
+  const filteredData =
+    useMemo(() => {
+      const searchText =
+        search
+          .toLowerCase()
+          .trim();
 
-  const filteredData = useMemo(() => {
-    const searchText = search.toLowerCase().trim();
-
-    const now = new Date();
-
-    const todayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-
-    const sevenDaysAgo = new Date(todayStart);
-    sevenDaysAgo.setDate(todayStart.getDate() - 6);
-
-    const tomorrowStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + 1,
-    );
-
-    return roleFilteredVehicles.filter((vehicle) => {
-      const vehicleDate = parseVehicleDate(
-        vehicle.dateTime,
-      );
-
-      // Parse outTime only once
-      const outDate = parseVehicleDate(
-        vehicle.outTime,
-      );
-
-      let matchesDate = true;
-
-      // ============================================
-      // COMMON VALUES
-      // ============================================
-
-      const status = String(vehicle.status || "")
-        .trim()
-        .toUpperCase();
-
-      const isDispatchDone =
-        status === "DISPATCH_DONE";
-
-      const hasOutTime =
-        Boolean(
-          vehicle.outTime &&
-          String(vehicle.outTime).trim() !== "",
-        );
-
-      const isOutTimeEmpty = !hasOutTime;
-
-      // ============================================
-      // TODAY
-      // ============================================
-      //
-      // SHOW:
-      //
-      // 1. ALL vehicles whose dateTime is TODAY
-      //
-      // OR
-      //
-      // 2. Older vehicles where:
-      //    - outTime is EMPTY
-      //    - status !== DISPATCH_DONE
-      //
-      // OR
-      //
-      // 3. Older vehicles where:
-      //    - outTime is TODAY
-      //    - status === DISPATCH_DONE
-      //
-      // This includes:
-      // - All today's vehicles
-      // - Previous pending vehicles
-      // - Previous vehicles dispatched today
-      // ============================================
-
-      if (dateFilter === "today") {
-        const isTodayVehicle =
-          vehicleDate !== null &&
-          isSameDay(vehicleDate, now);
-
-        const isOlderVehicle =
-          vehicleDate !== null &&
-          vehicleDate < todayStart;
-
-        const isPreviousPendingVehicle =
-          isOlderVehicle &&
-          isOutTimeEmpty &&
-          !isDispatchDone;
-
-        const isPreviousDispatchedToday =
-          isOlderVehicle &&
-          hasOutTime &&
-          outDate !== null &&
-          isSameDay(outDate, now) &&
-          isDispatchDone;
-
-        matchesDate =
-          isTodayVehicle ||
-          isPreviousPendingVehicle ||
-          isPreviousDispatchedToday;
+      // No search
+      if (!searchText) {
+        return roleFilteredVehicles;
       }
 
-      // ============================================
-      // LAST 7 DAYS
-      // ============================================
+      return roleFilteredVehicles.filter(
+        (vehicle) => {
+          const searchableText = [
+            vehicle.tokenNo,
+            vehicle.vehicleNo,
+            vehicle.driverName,
+            vehicle.driverContact,
+            vehicle.materialName,
+            vehicle.destination,
+            vehicle.transporterName,
+            vehicle.buyerDetails,
+            vehicle.status,
+            vehicle.sno?.toString(),
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
 
-      if (dateFilter === "7days") {
-        matchesDate =
-          vehicleDate !== null &&
-          vehicleDate >= sevenDaysAgo &&
-          vehicleDate < tomorrowStart;
-      }
-
-      // ============================================
-      // CUSTOM DATE
-      // ============================================
-
-      if (dateFilter === "custom") {
-        if (!customDate) {
-          matchesDate = false;
-        } else {
-          const selectedDate = new Date(
-            `${customDate}T00:00:00`,
+          return searchableText.includes(
+            searchText
           );
-
-          const isSelectedDateToday =
-            isSameDay(selectedDate, now);
-
-          // ========================================
-          // CUSTOM DATE = TODAY
-          // ========================================
-          //
-          // SAME LOGIC AS TODAY:
-          //
-          // 1. All today's vehicles
-          //
-          // 2. Previous pending vehicles
-          //
-          // 3. Previous vehicles dispatched today
-          // ========================================
-
-          if (isSelectedDateToday) {
-            const isTodayVehicle =
-              vehicleDate !== null &&
-              isSameDay(vehicleDate, now);
-
-            const isOlderVehicle =
-              vehicleDate !== null &&
-              vehicleDate < todayStart;
-
-            const isPreviousPendingVehicle =
-              isOlderVehicle &&
-              isOutTimeEmpty &&
-              !isDispatchDone;
-
-            const isPreviousDispatchedToday =
-              isOlderVehicle &&
-              hasOutTime &&
-              outDate !== null &&
-              isSameDay(outDate, now) &&
-              isDispatchDone;
-
-            matchesDate =
-              isTodayVehicle ||
-              isPreviousPendingVehicle ||
-              isPreviousDispatchedToday;
-          }
-
-          // ========================================
-          // CUSTOM DATE = PREVIOUS DATE
-          // ========================================
-          //
-          // ONLY SHOW:
-          //
-          // - status === DISPATCH_DONE
-          // - outTime exists
-          // - outTime date === selected date
-          // ========================================
-
-          else {
-            const isOutDateSelectedDate =
-              outDate !== null &&
-              isSameDay(
-                outDate,
-                selectedDate,
-              );
-
-            matchesDate =
-              isDispatchDone &&
-              hasOutTime &&
-              isOutDateSelectedDate;
-          }
         }
-      }
-
-      // ============================================
-      // ALL
-      // ============================================
-
-      if (dateFilter === "all") {
-        matchesDate = true;
-      }
-
-      // ============================================
-      // SEARCH
-      // ============================================
-
-      const searchableText = [
-        vehicle.tokenNo,
-        vehicle.vehicleNo,
-        vehicle.driverName,
-        vehicle.driverContact,
-        vehicle.materialName,
-        vehicle.destination,
-        vehicle.transporterName,
-        vehicle.buyerDetails,
-        vehicle.status,
-        vehicle.sno?.toString(),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch =
-        searchableText.includes(searchText);
-
-      return (
-        matchesDate &&
-        matchesSearch
       );
-    });
-  }, [
-    roleFilteredVehicles,
-    search,
-    dateFilter,
-    customDate,
-  ]);
+    }, [
+      roleFilteredVehicles,
+      search,
+    ]);
+
   // =====================================
   // VIEW VEHICLE
   // ADMIN + EMPLOYEE ONLY
   // =====================================
 
   const handleViewDetails = (
-    vehicle: Vehicle,
+    vehicle: Vehicle
   ) => {
     if (!canManageVehicles) {
       return;
     }
 
     setViewVehicle(
-      vehicle,
+      vehicle
     );
   };
 
@@ -730,14 +470,14 @@ export default function VehicleTable() {
   // =====================================
 
   const handleEditVehicle = (
-    vehicle: Vehicle,
+    vehicle: Vehicle
   ) => {
     if (!canManageVehicles) {
       return;
     }
 
     setEditVehicle(
-      vehicle,
+      vehicle
     );
   };
 
@@ -775,10 +515,12 @@ export default function VehicleTable() {
         key: "inTime",
         label: "In Date & Time",
       },
+
       {
         key: "outTime",
         label: "Out Date & Time",
       },
+
       {
         key: "vehicleNo",
         label: "Vehicle No",
@@ -811,17 +553,38 @@ export default function VehicleTable() {
               string,
               string
             > = {
-            WAITING_FOR_DETAILS: "bg-red-100 text-red-700",
-            ENTRY_DONE: "bg-blue-100 text-blue-700",
-            LOADING_STARTED: "bg-orange-100 text-orange-700",
-            LOADING_DONE: "bg-purple-100 text-purple-700",
-            LOADING_SLIP_SENT: "bg-indigo-100 text-indigo-700",
-            ETP_GENERATING: "bg-amber-100 text-amber-700",
-            ETP_DONE: "bg-yellow-100 text-yellow-700",
-            ETP_INVOICE_DONE: "bg-cyan-100 text-cyan-700",
-            INVOICE_GENERATING: "bg-sky-100 text-sky-700",
-            DISPATCH_DONE: "bg-green-100 text-green-700",
-            NOT_REGISTERD: "bg-gray-100 text-gray-700",
+            WAITING_FOR_DETAILS:
+              "bg-red-100 text-red-700",
+
+            ENTRY_DONE:
+              "bg-blue-100 text-blue-700",
+
+            LOADING_STARTED:
+              "bg-orange-100 text-orange-700",
+
+            LOADING_DONE:
+              "bg-purple-100 text-purple-700",
+
+            LOADING_SLIP_SENT:
+              "bg-indigo-100 text-indigo-700",
+
+            ETP_GENERATING:
+              "bg-amber-100 text-amber-700",
+
+            ETP_DONE:
+              "bg-yellow-100 text-yellow-700",
+
+            ETP_INVOICE_DONE:
+              "bg-cyan-100 text-cyan-700",
+
+            INVOICE_GENERATING:
+              "bg-sky-100 text-sky-700",
+
+            DISPATCH_DONE:
+              "bg-green-100 text-green-700",
+
+            NOT_REGISTERD:
+              "bg-gray-100 text-gray-700",
           };
 
           return (
@@ -833,10 +596,10 @@ export default function VehicleTable() {
                 }`}
             >
               {String(
-                row.status || "",
+                row.status || ""
               ).replaceAll(
                 "_",
-                " ",
+                " "
               )}
             </span>
           );
@@ -855,16 +618,17 @@ export default function VehicleTable() {
             label: "Actions",
 
             render: (
-              row: Vehicle,
+              row: Vehicle
             ) => (
               <div className="flex gap-2">
                 {/* VIEW */}
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
 
                     handleViewDetails(
-                      row,
+                      row
                     );
                   }}
                   className="cursor-pointer rounded-lg bg-blue-500 px-3 py-1 text-sm text-white transition hover:bg-blue-600"
@@ -873,12 +637,13 @@ export default function VehicleTable() {
                 </button>
 
                 {/* EDIT */}
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
 
                     handleEditVehicle(
-                      row,
+                      row
                     );
                   }}
                   className="cursor-pointer rounded-lg bg-green-500 px-3 py-1 text-sm text-white transition hover:bg-green-600"
@@ -917,6 +682,7 @@ export default function VehicleTable() {
   return (
     <>
       <div className="space-y-4">
+
         {/* =================================
             ROLE INFORMATION
         ================================= */}
@@ -948,6 +714,7 @@ export default function VehicleTable() {
         ================================= */}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+
           <StatCard
             title="Today's Vehicles"
             value={
@@ -975,6 +742,7 @@ export default function VehicleTable() {
               waitingForDetails
             }
           />
+
         </div>
 
         {/* =================================
@@ -984,6 +752,9 @@ export default function VehicleTable() {
 
         {canManageVehicles && (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+
+            {/* LOADING SLIP SENT */}
+
             {loadingSlipSentVehicles.map(
               (item) => (
                 <VehicleStatusCard
@@ -997,21 +768,25 @@ export default function VehicleTable() {
                   vehicleNo={
                     item.vehicleNo
                   }
-                  vehicle={item}
+                  vehicle={
+                    item
+                  }
                   status="LOADING_SLIP_SENT"
                   onClick={() =>
                     setViewVehicle(
-                      item,
+                      item
                     )
                   }
                 />
-              ),
+              )
             )}
+
+            {/* ETP DONE */}
 
             {etpDoneVehicles.map(
               (item) => (
                 <VehicleStatusCard
-                  key={`etp-invoice-${item.sno}`}
+                  key={`etp-done-${item.sno}`}
                   sno={
                     item.sno
                   }
@@ -1024,15 +799,20 @@ export default function VehicleTable() {
                   status={
                     item.status
                   }
-                  vehicle={item}
+                  vehicle={
+                    item
+                  }
                   onClick={() =>
                     setViewVehicle(
-                      item,
+                      item
                     )
                   }
                 />
-              ),
+              )
             )}
+
+            {/* ETP + INVOICE DONE */}
+
             {etpInvoiceDoneVehicles.map(
               (item) => (
                 <VehicleStatusCard
@@ -1049,20 +829,24 @@ export default function VehicleTable() {
                   status={
                     item.status
                   }
-                  vehicle={item}
+                  vehicle={
+                    item
+                  }
                   onClick={() =>
                     setViewVehicle(
-                      item,
+                      item
                     )
                   }
                 />
-              ),
+              )
             )}
 
+            {/* ETP GENERATING */}
+
             {etpGeneratingVehicles.map(
-              (item) => (
+              (item: any) => (
                 <VehicleStatusCard
-                  key={`etp-invoice-${item.sno}`}
+                  key={`etp-generating-${item.sno}`}
                   sno={
                     item.sno
                   }
@@ -1075,20 +859,24 @@ export default function VehicleTable() {
                   status={
                     item.status
                   }
-                  vehicle={item}
+                  vehicle={
+                    item
+                  }
                   onClick={() =>
                     setViewVehicle(
-                      item,
+                      item
                     )
                   }
                 />
-              ),
+              )
             )}
+
+            {/* INVOICE GENERATING */}
 
             {invoiceGeneratingVehicles.map(
               (item) => (
                 <VehicleStatusCard
-                  key={`etp-invoice-${item.sno}`}
+                  key={`invoice-generating-${item.sno}`}
                   sno={
                     item.sno
                   }
@@ -1101,15 +889,18 @@ export default function VehicleTable() {
                   status={
                     item.status
                   }
-                  vehicle={item}
+                  vehicle={
+                    item
+                  }
                   onClick={() =>
                     setViewVehicle(
-                      item,
+                      item
                     )
                   }
                 />
-              ),
+              )
             )}
+
           </div>
         )}
 
@@ -1118,21 +909,30 @@ export default function VehicleTable() {
         ================================= */}
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
           <div className="flex flex-wrap items-center gap-2">
+
             {/* REFRESH */}
 
             <button
-              onClick={
-                loadVehicles
+              onClick={() =>
+                loadVehicles(
+                  dateFilter,
+                  customDate
+                )
               }
-              className="cursor-pointer rounded-lg bg-orange-500 px-4 py-2 text-white transition hover:bg-orange-600"
+              disabled={loading}
+              className="cursor-pointer rounded-lg bg-orange-500 px-4 py-2 text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Refresh
+              {loading
+                ? "Loading..."
+                : "Refresh"}
             </button>
 
             {/* DATE FILTER */}
 
             <div className="relative">
+
               <select
                 value={
                   dateFilter
@@ -1143,7 +943,7 @@ export default function VehicleTable() {
                       .value as DateFilter;
 
                   setDateFilter(
-                    value,
+                    value
                   );
 
                   if (
@@ -1151,7 +951,7 @@ export default function VehicleTable() {
                     "custom"
                   ) {
                     setCustomDate(
-                      "",
+                      ""
                     );
                   }
                 }}
@@ -1179,6 +979,7 @@ export default function VehicleTable() {
               <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
                 ▼
               </div>
+
             </div>
 
             {/* CUSTOM DATE */}
@@ -1192,17 +993,19 @@ export default function VehicleTable() {
                   }
                   onChange={(e) =>
                     setCustomDate(
-                      e.target.value,
+                      e.target.value
                     )
                   }
                   className="h-10 cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                 />
               )}
+
           </div>
 
           {/* SEARCH */}
 
           <div className="w-full md:w-80">
+
             <SearchInput
               value={
                 search
@@ -1212,7 +1015,9 @@ export default function VehicleTable() {
               }
               placeholder="Search Vehicle..."
             />
+
           </div>
+
         </div>
 
         {/* =================================
@@ -1231,6 +1036,7 @@ export default function VehicleTable() {
           }
           onRowClick={() => { }}
         />
+
       </div>
 
       {/* =====================================
@@ -1246,7 +1052,7 @@ export default function VehicleTable() {
             }
             onClose={() =>
               setViewVehicle(
-                null,
+                null
               )
             }
           />
@@ -1265,18 +1071,23 @@ export default function VehicleTable() {
             }
             onClose={() =>
               setEditVehicle(
-                null,
+                null
               )
             }
             onSuccess={() => {
               setEditVehicle(
-                null,
+                null
               );
 
-              loadVehicles();
+              // Reload using current filter
+              loadVehicles(
+                dateFilter,
+                customDate
+              );
             }}
           />
         )}
+
     </>
   );
 }

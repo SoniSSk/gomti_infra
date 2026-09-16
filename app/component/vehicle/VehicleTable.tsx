@@ -65,7 +65,7 @@ export default function VehicleTable() {
   // =====================================
 
   const [dateFilter, setDateFilter] =
-    useState<DateFilter>("7days");
+    useState<DateFilter>("today");
 
   const [customDate, setCustomDate] = useState(() => {
     const today = new Date();

@@ -17,7 +17,8 @@ export default function Dashboard() {
 
   // Add Details is allowed only for Admin and Employee
   const canAddDetails =
-    userRole === "admin";
+    userRole === "admin" ||
+    userRole === "employee";
 
   return (
     <div className="p-6">
@@ -65,6 +66,7 @@ export default function Dashboard() {
             <VehicleForm
               onSuccess={() => {
                 setShowForm(false);
+
 
                 // Refresh table after adding details
                 window.location.reload();

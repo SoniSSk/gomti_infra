@@ -36,14 +36,37 @@ const Buyeres = [
   "EVONITH",
 ];
 
+// =========================
+// INPUT CLASS
+// =========================
 const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-200";
+  "w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500";
 
 export default function VehicleForm({ onSuccess }: VehicleFormProps) {
   const dispatch = useAppDispatch();
 
   const [submitting, setSubmitting] = useState(false);
 
+  // =========================
+  // USER ROLE
+  // =========================
+  const [userRole] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const role = localStorage.getItem("userRole");
+
+    return role?.trim().toLowerCase() || null;
+  });
+
+  // Admin & Employee can add/edit details
+  const canAddDetails =
+    userRole === "admin";
+
+  // =========================
+  // FORM DATA
+  // =========================
   const [formData, setFormData] = useState({
     vehicleNo: "",
     // tokenNo: "",
@@ -59,16 +82,26 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
     status: "WAITING_FOR_DETAILS",
   });
 
+  // =========================
+  // HANDLE CHANGE
+  // =========================
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
+    const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // =========================
+  // HANDLE SUBMIT
+  // =========================
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ) => {
     e.preventDefault();
 
     try {
@@ -90,9 +123,14 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to save vehicle");
+        throw new Error(
+          data.message || "Failed to save vehicle",
+        );
       }
 
+      // =========================
+      // RESET FORM
+      // =========================
       setFormData({
         vehicleNo: "",
         // tokenNo: "",
@@ -109,10 +147,14 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
       });
 
       toast.success("Vehicle saved successfully");
+
       onSuccess();
     } catch (error: any) {
-      console.error(error);
-      toast.error(error.message || "Failed to save vehicle");
+      console.error("Vehicle save error:", error);
+
+      toast.error(
+        error?.message || "Failed to save vehicle",
+      );
     } finally {
       setSubmitting(false);
       dispatch(hideLoader());
@@ -120,17 +162,26 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mb-6 rounded-2xl">
-      {/* Header */}
+    <form
+      onSubmit={handleSubmit}
+      className="mb-6 rounded-2xl"
+    >
+      {/* ========================= */}
+      {/* HEADER */}
+      {/* ========================= */}
       <div className="mb-6 flex items-center justify-between border-b pb-4">
         <h2 className="text-2xl font-bold text-gray-800">
           Vehicle Entry Form
         </h2>
       </div>
 
-      {/* Form Fields */}
+      {/* ========================= */}
+      {/* FORM FIELDS */}
+      {/* ========================= */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Vehicle Number */}
+        {/* ========================= */}
+        {/* VEHICLE NUMBER */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Vehicle Number *
@@ -146,37 +197,39 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           />
         </div>
 
-
-
-
-
-
         {/* ========================= */}
-        {/* Transporter Dropdown */}
+        {/* TRANSPORTER */}
         {/* ========================= */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700">
-            Transporter Name
-          </label>
+        {canAddDetails && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-700">
+              Transporter Name
+            </label>
 
-          <select
-            name="transporterName"
-            value={formData.transporterName}
-            onChange={handleChange}
-            className={inputClass}
-          >
-            <option value="">Select Transporter</option>
-
-            {Transporteres.map((transporter) => (
-              <option key={transporter} value={transporter}>
-                {transporter}
+            <select
+              name="transporterName"
+              value={formData.transporterName}
+              onChange={handleChange}
+              className={inputClass}
+            >
+              <option value="">
+                Select Transporter
               </option>
-            ))}
-          </select>
-        </div>
+
+              {Transporteres.map((transporter) => (
+                <option
+                  key={transporter}
+                  value={transporter}
+                >
+                  {transporter}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* ========================= */}
-        {/* Buyer Dropdown */}
+        {/* BUYER */}
         {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
@@ -189,7 +242,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             onChange={handleChange}
             className={inputClass}
           >
-            <option value="">Select Buyer</option>
+            <option value="">
+              Select Buyer
+            </option>
 
             {Buyeres.map((buyer) => (
               <option key={buyer} value={buyer}>
@@ -199,7 +254,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           </select>
         </div>
 
-        {/* Material Name */}
+        {/* ========================= */}
+        {/* MATERIAL NAME */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Material Name
@@ -214,7 +271,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           />
         </div>
 
-        {/* Material Grade */}
+        {/* ========================= */}
+        {/* MATERIAL GRADE */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Material Grade
@@ -229,7 +288,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           />
         </div>
 
-        {/* Destination */}
+        {/* ========================= */}
+        {/* DESTINATION */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Destination
@@ -244,7 +305,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           />
         </div>
 
-        {/* Net Weight */}
+        {/* ========================= */}
+        {/* NET WEIGHT */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Net Weight (MT)
@@ -253,6 +316,7 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           <input
             type="number"
             step="0.01"
+            min="0"
             name="netWeight"
             value={formData.netWeight}
             onChange={handleChange}
@@ -261,7 +325,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
           />
         </div>
 
-        {/* Status */}
+        {/* ========================= */}
+        {/* STATUS */}
+        {/* ========================= */}
         <div>
           <label className="mb-1 block text-sm font-semibold text-gray-700">
             Status
@@ -276,18 +342,41 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             <option value="WAITING_FOR_DETAILS">
               Waiting For Details
             </option>
-            <option value="ENTRY_DONE">Entry Done</option>
-            <option value="LOADING_STARTED">Loading Started</option>
-            <option value="LOADING_DONE">Loading Done</option>
-            <option value="LOADING_SLIP_SENT">Loading Slip Sent</option>
-            <option value="ETP_DONE">ETP Done</option>
-            <option value="ETP_INVOICE_DONE">ETP Invoice Done</option>
-            <option value="DISPATCH_DONE">Dispatch Done</option>
+
+            <option value="ENTRY_DONE">
+              Entry Done
+            </option>
+
+            <option value="LOADING_STARTED">
+              Loading Started
+            </option>
+
+            <option value="LOADING_DONE">
+              Loading Done
+            </option>
+
+            <option value="LOADING_SLIP_SENT">
+              Loading Slip Sent
+            </option>
+
+            <option value="ETP_DONE">
+              ETP Done
+            </option>
+
+            <option value="ETP_INVOICE_DONE">
+              ETP Invoice Done
+            </option>
+
+            <option value="DISPATCH_DONE">
+              Dispatch Done
+            </option>
           </select>
         </div>
       </div>
 
-      {/* Submit Button */}
+      {/* ========================= */}
+      {/* SUBMIT BUTTON */}
+      {/* ========================= */}
       <div className="mt-8 flex justify-end">
         <button
           type="submit"
@@ -309,7 +398,9 @@ export default function VehicleForm({ onSuccess }: VehicleFormProps) {
             disabled:opacity-60
           "
         >
-          {submitting ? "Saving Vehicle..." : "Save Vehicle"}
+          {submitting
+            ? "Saving Vehicle..."
+            : "Save Vehicle"}
         </button>
       </div>
     </form>

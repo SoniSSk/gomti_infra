@@ -250,7 +250,7 @@ export default function VehicleTable() {
       // ADMIN
       // =================================
 
-      if (role === "admin") {
+      if (role === "admin" || role == "view") {
         return vehicles;
       }
 
@@ -332,6 +332,7 @@ export default function VehicleTable() {
             );
           }
         );
+
       }
 
       return [];

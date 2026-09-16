@@ -17,8 +17,7 @@ export default function Dashboard() {
 
   // Add Details is allowed only for Admin and Employee
   const canAddDetails =
-    userRole === "admin" ||
-    userRole === "employee";
+    userRole === "admin";
 
   return (
     <div className="p-6">

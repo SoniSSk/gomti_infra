@@ -128,11 +128,29 @@ export async function GET(request: NextRequest) {
     else if (dateFilter === "last7days") {
       const { start, end } = getLast7DaysRange();
 
+      // If outTime is stored as:
+      // DD-MM-YYYY HH:MM AM/PM
+      // then we need to match each of the last 7 dates.
+
+      const outTimeDates: string[] = [];
+
+      const currentDate = new Date(start);
+
+      while (currentDate < end) {
+        const day = String(currentDate.getUTCDate()).padStart(2, "0");
+        const month = String(currentDate.getUTCMonth() + 1).padStart(2, "0");
+        const year = currentDate.getUTCFullYear();
+
+        outTimeDates.push(`${day}-${month}-${year}`);
+
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+      }
+
       query = {
         $or: [
-          // ------------------------------------------------------
-          // Created in last 7 days
-          // ------------------------------------------------------
+          // ========================================================
+          // 1. CREATED IN LAST 7 DAYS
+          // ========================================================
           {
             createdAt: {
               $gte: start,
@@ -140,11 +158,24 @@ export async function GET(request: NextRequest) {
             },
           },
 
-          // ------------------------------------------------------
-          // Old pending vehicles
-          // ------------------------------------------------------
+          // ========================================================
+          // 2. OUT TIME IN LAST 7 DAYS
+          // ========================================================
           {
-            outTime: "",
+            $or: outTimeDates.map((date) => ({
+              outTime: {
+                $regex: `^${date}`,
+              },
+            })),
+          },
+
+          // ========================================================
+          // 3. OLD PENDING VEHICLES
+          // ========================================================
+          {
+            outTime: {
+              $in: ["", null],
+            },
             status: {
               $ne: "DISPATCH_DONE",
             },
@@ -168,34 +199,18 @@ export async function GET(request: NextRequest) {
       }
 
       /*
-        Expected customDate:
+        Expected:
 
         2026-09-06
 
-        or
+        OR
 
         06-09-2026
       */
 
-      let day: number;
-      let month: number;
-      let year: number;
+      const parts = customDate.split("-");
 
-      if (customDate.includes("-")) {
-        const parts = customDate.split("-");
-
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD
-          year = Number(parts[0]);
-          month = Number(parts[1]);
-          day = Number(parts[2]);
-        } else {
-          // DD-MM-YYYY
-          day = Number(parts[0]);
-          month = Number(parts[1]);
-          year = Number(parts[2]);
-        }
-      } else {
+      if (parts.length !== 3) {
         return NextResponse.json(
           {
             success: false,
@@ -205,40 +220,62 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Start of selected date in IST
-      const start = new Date(
-        Date.UTC(year, month - 1, day, 0, 0, 0) - 5.5 * 60 * 60 * 1000,
-      );
+      let day: number;
+      let month: number;
+      let year: number;
 
-      // Start of next date in IST
-      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        year = Number(parts[0]);
+        month = Number(parts[1]);
+        day = Number(parts[2]);
+      } else {
+        // DD-MM-YYYY
+        day = Number(parts[0]);
+        month = Number(parts[1]);
+        year = Number(parts[2]);
+      }
 
+      // ------------------------------------------------------
+      // Validate date
+      // ------------------------------------------------------
+      const selectedDate = new Date(year, month - 1, day);
+
+      if (
+        Number.isNaN(selectedDate.getTime()) ||
+        selectedDate.getFullYear() !== year ||
+        selectedDate.getMonth() !== month - 1 ||
+        selectedDate.getDate() !== day
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Invalid custom date",
+          },
+          { status: 400 },
+        );
+      }
+
+      // ------------------------------------------------------
+      // DD-MM-YYYY
+      // ------------------------------------------------------
       const outTimeDate = `${String(day).padStart(
         2,
         "0",
       )}-${String(month).padStart(2, "0")}-${year}`;
 
+      // ------------------------------------------------------
+      // IMPORTANT:
+      //
+      // Custom filter checks ONLY outTime.
+      //
+      // createdAt is NOT used here.
+      // ------------------------------------------------------
       query = {
-        $or: [
-          // ------------------------------------------------------
-          // Created on selected date
-          // ------------------------------------------------------
-          {
-            createdAt: {
-              $gte: start,
-              $lt: end,
-            },
-          },
-
-          // ------------------------------------------------------
-          // Dispatched / outTime on selected date
-          // ------------------------------------------------------
-          {
-            outTime: {
-              $regex: `^${outTimeDate}`,
-            },
-          },
-        ],
+        outTime: {
+          $regex: `^${outTimeDate}`,
+        },
+        status: "DISPATCH_DONE",
       };
     }
 

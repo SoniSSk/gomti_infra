@@ -497,7 +497,7 @@ export default function LoginPage() {
               LOGIN / SIGNUP SWITCH
           ================================================= */}
 
-          {/*
+
           <div className="mb-7 flex rounded-xl bg-orange-50 p-1">
 
             <button
@@ -505,11 +505,10 @@ export default function LoginPage() {
               onClick={() =>
                 switchMode("login")
               }
-              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
-                mode === "login"
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${mode === "login"
                   ? "bg-orange-500 text-white shadow-md"
                   : "text-gray-600 hover:text-orange-600"
-              }`}
+                }`}
             >
               Login
             </button>
@@ -519,17 +518,16 @@ export default function LoginPage() {
               onClick={() =>
                 switchMode("signup")
               }
-              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
-                mode === "signup"
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${mode === "signup"
                   ? "bg-orange-500 text-white shadow-md"
                   : "text-gray-600 hover:text-orange-600"
-              }`}
+                }`}
             >
               Signup
             </button>
 
           </div>
-          */}
+
 
           {/* =================================================
               ERROR

@@ -7,7 +7,7 @@ import React, {
 } from "react";
 
 import CommonHeader from "./vehicle_new/common/CommonHeader";
-import VehicleTables from "./vehicle_new/vehicle /VehicleTable";
+import Links from "./dashboard/Links";
 
 /* =====================================================
    CONSTANTS
@@ -374,9 +374,7 @@ const Dashboard = () => {
         onLogout={handleLogout}
       />
 
-      <main className="p-4">
-        <VehicleTables />
-      </main>
+      <Links />
     </div>
   );
 };

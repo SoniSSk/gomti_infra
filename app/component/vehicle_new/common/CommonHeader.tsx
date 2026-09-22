@@ -7,7 +7,7 @@ import React, {
 } from "react";
 
 import CommonModal from "../common/CommonModal";
-import AddVehicle from "../vehicle /AddVehicle";
+import AddVehicle from "../vehicle/AddVehicle";
 
 export interface CommonHeaderProps {
     title: string;

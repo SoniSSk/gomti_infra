@@ -36,7 +36,7 @@ export default function Routes() {
       isLoggedIn &&
       pathname === "/login"
     ) {
-      router.replace("/dashboard");
+      router.replace("/dispatch/vehicle");
       return;
     }
   }, [pathname, router]);

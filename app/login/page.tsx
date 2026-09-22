@@ -284,7 +284,7 @@ export default function LoginPage() {
       // LOGIN SUCCESS
       // =================================================
 
-      router.replace("/");
+      router.replace("/dispatch/vehicle");
     } catch (error) {
       console.error(
         "Login Error:",
@@ -506,8 +506,8 @@ export default function LoginPage() {
                 switchMode("login")
               }
               className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${mode === "login"
-                  ? "bg-orange-500 text-white shadow-md"
-                  : "text-gray-600 hover:text-orange-600"
+                ? "bg-orange-500 text-white shadow-md"
+                : "text-gray-600 hover:text-orange-600"
                 }`}
             >
               Login
@@ -519,8 +519,8 @@ export default function LoginPage() {
                 switchMode("signup")
               }
               className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${mode === "signup"
-                  ? "bg-orange-500 text-white shadow-md"
-                  : "text-gray-600 hover:text-orange-600"
+                ? "bg-orange-500 text-white shadow-md"
+                : "text-gray-600 hover:text-orange-600"
                 }`}
             >
               Signup

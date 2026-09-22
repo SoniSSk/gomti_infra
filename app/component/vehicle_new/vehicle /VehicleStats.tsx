@@ -130,7 +130,7 @@ const STAT_CARDS: StatCard[] = [
     {
         heading: "Previous Day Vehicles",
         key: "previousPendingVehicles",
-        offset: 0,
+        offset: -4,
     },
 
     {

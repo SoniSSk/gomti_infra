@@ -8,16 +8,36 @@ export default function Routes() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
+    const userEmail =
+      localStorage.getItem("userEmail");
 
-    // If user is not logged in, allow only login page
-    if (!isLoggedIn && pathname !== "/login") {
+    const isLoggedIn =
+      Boolean(userEmail);
+
+    /* =========================================
+       USER NOT LOGGED IN
+       Allow only /login
+    ========================================= */
+
+    if (
+      !isLoggedIn &&
+      pathname !== "/login"
+    ) {
       router.replace("/login");
+      return;
     }
 
-    // If user is already logged in, don't allow login page
-    if (isLoggedIn && pathname === "/login") {
+    /* =========================================
+       USER ALREADY LOGGED IN
+       Don't allow /login
+    ========================================= */
+
+    if (
+      isLoggedIn &&
+      pathname === "/login"
+    ) {
       router.replace("/dashboard");
+      return;
     }
   }, [pathname, router]);
 

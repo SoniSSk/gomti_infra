@@ -10,16 +10,46 @@ export async function PUT(
     const { sno } = await params;
     const body = await req.json();
 
+    const vehicleSno = Number(sno);
+
+    if (!Number.isFinite(vehicleSno)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid vehicle S.No",
+        },
+        { status: 400 },
+      );
+    }
+
+    /*
+     * IMPORTANT
+     * ---------------------------------------------------------
+     * MongoDB _id is immutable.
+     *
+     * The frontend sends the complete Vehicle_new object,
+     * including _id. We must NOT pass _id into $set.
+     *
+     * sno is also used to identify the vehicle, so it is
+     * protected from modification here as well.
+     */
+    const { _id, sno: bodySno, ...updateData } = body;
+
+    console.log("🚛 PUT VEHICLE UPDATE");
+    console.log("🔢 S.No:", vehicleSno);
+    console.log("📦 Incoming Body:", body);
+    console.log("📦 Update Data:", updateData);
+
     const client = await clientPromise;
     const db = client.db("gomti_infra");
 
     const result = await db.collection("vehicles").updateOne(
       {
-        sno: Number(sno),
+        sno: vehicleSno,
       },
       {
         $set: {
-          ...body,
+          ...updateData,
           updatedAt: new Date(),
         },
       },
@@ -35,19 +65,28 @@ export async function PUT(
       );
     }
 
+    /*
+     * Fetch the saved document so the frontend receives the
+     * actual MongoDB object, including the real updatedAt.
+     */
+    const updatedVehicle = await db.collection("vehicles").findOne({
+      sno: vehicleSno,
+    });
+
     return NextResponse.json({
       success: true,
       message: "Vehicle updated successfully",
       matchedCount: result.matchedCount,
       modifiedCount: result.modifiedCount,
+      vehicle: updatedVehicle,
     });
   } catch (error: any) {
-    console.error("PUT vehicle error:", error);
+    console.error("❌ PUT vehicle error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: error.message || "Failed to update vehicle",
+        message: error?.message || "Failed to update vehicle",
       },
       { status: 500 },
     );

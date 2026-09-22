@@ -497,7 +497,7 @@ export default function LoginPage() {
               LOGIN / SIGNUP SWITCH
           ================================================= */}
 
-
+          {/* 
           <div className="mb-7 flex rounded-xl bg-orange-50 p-1">
 
             <button
@@ -526,7 +526,7 @@ export default function LoginPage() {
               Signup
             </button>
 
-          </div>
+          </div> */}
 
 
           {/* =================================================

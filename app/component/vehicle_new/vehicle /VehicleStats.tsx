@@ -111,11 +111,11 @@ interface StatCard {
 
 const STAT_CARDS: StatCard[] = [
     {
-        heading: "Today Vehicles",
+        heading: "Today Vehicle's",
         key: "todayVehicles",
     },
     {
-        heading: "Pending",
+        heading: "Previous Day Vehicle's",
         key: "previousPendingVehicles",
     },
     {
@@ -123,7 +123,7 @@ const STAT_CARDS: StatCard[] = [
         key: "dispatchDone",
     },
     {
-        heading: "Waiting",
+        heading: "Waiting For Detail's",
         key: "waitingForDetails",
     },
 ];

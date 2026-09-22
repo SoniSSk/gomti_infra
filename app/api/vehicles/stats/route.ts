@@ -140,11 +140,17 @@ const getTodayIST = () => {
 
    Supports:
 
-   DD-MM-YYYY
-   DD-MM-YYYY HH:MM
-   DD-MM-YYYY HH:MM AM/PM
-   ISO DATE
-   DATE OBJECT
+   1. DD-MM-YYYY
+   2. DD-MM-YYYY HH:MM
+   3. DD-MM-YYYY HH:MM AM/PM
+   4. ISO DATE
+   5. MongoDB Date
+   6. JavaScript Date
+
+   IMPORTANT:
+   Everything is compared using Asia/Kolkata.
+
+   This avoids dependency on Vercel/server timezone.
 ============================================================ */
 
 const isToday = (value?: string | Date | null): boolean => {
@@ -152,10 +158,21 @@ const isToday = (value?: string | Date | null): boolean => {
     return false;
   }
 
+  /* ==========================================================
+     TODAY IN IST
+  ========================================================== */
+
+  const todayIST = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
   let date: Date;
 
   /* ==========================================================
-     DATE OBJECT
+     JAVASCRIPT DATE
   ========================================================== */
 
   if (value instanceof Date) {
@@ -165,18 +182,25 @@ const isToday = (value?: string | Date | null): boolean => {
 
     /* ========================================================
        DD-MM-YYYY HH:MM AM/PM
+
+       Example:
+
+       23-09-2026
+       23-09-2026 12:15
+       23-09-2026 12:15 AM
+       23-09-2026 12:15 PM
     ======================================================== */
 
-    const ddmmyyyyMatch = dateString.match(
+    const match = dateString.match(
       /^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?$/i,
     );
 
-    if (ddmmyyyyMatch) {
-      const [, day, month, year, hour, minute, ampm] = ddmmyyyyMatch;
+    if (match) {
+      const [, day, month, year, hour = "0", minute = "0", ampm] = match;
 
-      let hours = hour ? Number(hour) : 0;
+      let hours = Number(hour);
 
-      const minutes = minute ? Number(minute) : 0;
+      const minutes = Number(minute);
 
       /* ======================================================
          AM / PM
@@ -194,16 +218,22 @@ const isToday = (value?: string | Date | null): boolean => {
         }
       }
 
-      date = new Date(
-        Number(year),
-        Number(month) - 1,
-        Number(day),
-        hours,
-        minutes,
-      );
+      /* ======================================================
+         EXPLICIT IST OFFSET
+
+         +05:30 = India Standard Time
+      ====================================================== */
+
+      const isoIST =
+        `${year}-${month}-${day}T` +
+        `${String(hours).padStart(2, "0")}:` +
+        `${String(minutes).padStart(2, "0")}:00` +
+        `+05:30`;
+
+      date = new Date(isoIST);
     } else {
       /* ======================================================
-         ISO / OTHER DATE FORMAT
+         ISO / MONGODB DATE
       ====================================================== */
 
       date = new Date(dateString);
@@ -220,36 +250,41 @@ const isToday = (value?: string | Date | null): boolean => {
 
   /* ==========================================================
      CONVERT DATE TO IST
+
+     IMPORTANT:
+     Never use server timezone here.
   ========================================================== */
 
-  const formatter = new Intl.DateTimeFormat("en-CA", {
+  const dateIST = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  });
+  }).format(date);
 
-  const parts = formatter.formatToParts(date);
+  /* ==========================================================
+     COMPARE
 
-  const year = Number(parts.find((part) => part.type === "year")?.value);
+     Example:
 
-  const month = Number(parts.find((part) => part.type === "month")?.value);
+     todayIST = 09/23/2026
 
-  const day = Number(parts.find((part) => part.type === "day")?.value);
+     dateIST  = 09/23/2026
 
-  const today = getTodayIST();
+     => true
+  ========================================================== */
 
-  return day === today.day && month === today.month && year === today.year;
+  return dateIST === todayIST;
 };
 
 /* ============================================================
    TODAY VEHICLE
 
-   createdAt = today
-   =================
-   TODAY VEHICLE
+   ONLY createdAt is checked.
 
-   dateTime is NOT checked.
+   createdAt TODAY
+   =
+   TODAY VEHICLE
 ============================================================ */
 
 const isTodayCreatedVehicle = (vehicle: VehicleDocument): boolean => {
@@ -259,7 +294,7 @@ const isTodayCreatedVehicle = (vehicle: VehicleDocument): boolean => {
 /* ============================================================
    PREVIOUS VEHICLE
 
-   createdAt is NOT today
+   createdAt NOT today
 ============================================================ */
 
 const isPreviousVehicle = (vehicle: VehicleDocument): boolean => {
@@ -285,9 +320,7 @@ const createEmptyStatusCounts = () => ({
 });
 
 /* ============================================================
-   STATUS VEHICLE TYPE
-
-   Keeps exact MongoDB status names.
+   STATUS VEHICLE MAP
 ============================================================ */
 
 type StatusVehicleMap = {
@@ -295,7 +328,7 @@ type StatusVehicleMap = {
 };
 
 /* ============================================================
-   CREATE EMPTY STATUS VEHICLE MAP
+   EMPTY STATUS VEHICLE MAP
 ============================================================ */
 
 const createEmptyStatusVehicles = (): StatusVehicleMap => ({
@@ -315,8 +348,7 @@ const createEmptyStatusVehicles = (): StatusVehicleMap => ({
 /* ============================================================
    SERIALIZE VEHICLE
 
-   MongoDB ObjectId is converted to string so the frontend
-   receives JSON-friendly data.
+   Converts MongoDB ObjectId into string.
 ============================================================ */
 
 const serializeVehicle = (vehicle: VehicleDocument): VehicleDocument => {
@@ -365,9 +397,9 @@ export async function GET() {
     const totalVehicles = vehicles.length;
 
     /* ========================================================
-       TODAY VEHICLE LIST
+       TODAY VEHICLES
 
-       ONLY createdAt TODAY.
+       ONLY createdAt = TODAY IST
     ======================================================== */
 
     const todayVehicleList = vehicles.filter((vehicle) =>
@@ -377,9 +409,9 @@ export async function GET() {
     const todayVehicles = todayVehicleList.length;
 
     /* ========================================================
-       PREVIOUS VEHICLE LIST
+       PREVIOUS VEHICLES
 
-       createdAt NOT today.
+       createdAt != TODAY IST
     ======================================================== */
 
     const previousVehicleList = vehicles.filter((vehicle) =>
@@ -389,16 +421,14 @@ export async function GET() {
     const previousVehicleCount = previousVehicleList.length;
 
     /* ========================================================
-       PREVIOUS PENDING VEHICLE LIST
+       PREVIOUS PENDING VEHICLES
 
        Previous vehicle AND
 
        (
-         status !== DISPATCH_DONE
-         OR
-         outTime is empty
-         OR
-         DISPATCH_DONE + outTime is today
+         status != DISPATCH_DONE
+         OR outTime is empty
+         OR DISPATCH_DONE + outTime TODAY
        )
     ======================================================== */
 
@@ -430,22 +460,13 @@ export async function GET() {
 
     /* ========================================================
        LOOP ALL VEHICLES
-
-       IMPORTANT:
-
-       We keep all status vehicles in their respective
-       segregation list.
-
-       DISPATCH_DONE is special:
-       dashboard dispatch count/list contains only
-       vehicles dispatched TODAY.
     ======================================================== */
 
     vehicles.forEach((vehicle) => {
       const currentStatus = vehicle.status;
 
       /* ======================================================
-         IGNORE UNKNOWN STATUS
+         INVALID / UNKNOWN STATUS
       ====================================================== */
 
       if (
@@ -460,16 +481,36 @@ export async function GET() {
       /* ======================================================
          DISPATCH DONE
 
-         Only today's dispatched vehicles.
+         VERY IMPORTANT:
+
+         ONLY COUNT IF:
+
+         status = DISPATCH_DONE
+
+         AND
+
+         outTime = TODAY IST
+      ====================================================== */
+
+      if (
+        currentStatus === "DISPATCH_DONE" &&
+        vehicle.outTime &&
+        isToday(vehicle.outTime)
+      ) {
+        status.DISPATCH_DONE++;
+
+        statusVehicles.DISPATCH_DONE.push(vehicle);
+
+        return;
+      }
+
+      /* ======================================================
+         DISPATCH DONE BUT OLD DATE
+
+         Do NOT count it in today's dispatch.
       ====================================================== */
 
       if (currentStatus === "DISPATCH_DONE") {
-        if (isToday(vehicle.outTime)) {
-          status.DISPATCH_DONE++;
-
-          statusVehicles.DISPATCH_DONE.push(vehicle);
-        }
-
         return;
       }
 
@@ -484,8 +525,6 @@ export async function GET() {
 
     /* ========================================================
        ALERT VEHICLES
-
-       Complete vehicle objects.
     ======================================================== */
 
     const alertVehicles = vehicles.filter((vehicle) =>
@@ -513,7 +552,7 @@ export async function GET() {
     };
 
     /* ========================================================
-       STATUS SEGREGATION
+       SEGREGATION
 
        Every category contains:
 
@@ -523,26 +562,37 @@ export async function GET() {
 
     const segregation = {
       /* ======================================================
-         DATE SEGREGATION
+         TODAY
       ====================================================== */
 
       today: {
         count: todayVehicleList.length,
+
         vehicles: todayVehicleList,
       },
 
+      /* ======================================================
+         PREVIOUS
+      ====================================================== */
+
       previous: {
         count: previousVehicleList.length,
+
         vehicles: previousVehicleList,
       },
 
+      /* ======================================================
+         PREVIOUS PENDING
+      ====================================================== */
+
       previousPending: {
         count: previousPendingVehicleList.length,
+
         vehicles: previousPendingVehicleList,
       },
 
       /* ======================================================
-         STATUS SEGREGATION
+         WAITING FOR DETAILS
       ====================================================== */
 
       waitingForDetails: {
@@ -551,11 +601,19 @@ export async function GET() {
         vehicles: statusVehicles.WAITING_FOR_DETAILS,
       },
 
+      /* ======================================================
+         ENTRY DONE
+      ====================================================== */
+
       entryDone: {
         count: statusVehicles.ENTRY_DONE.length,
 
         vehicles: statusVehicles.ENTRY_DONE,
       },
+
+      /* ======================================================
+         LOADING STARTED
+      ====================================================== */
 
       loadingStarted: {
         count: statusVehicles.LOADING_STARTED.length,
@@ -563,11 +621,19 @@ export async function GET() {
         vehicles: statusVehicles.LOADING_STARTED,
       },
 
+      /* ======================================================
+         LOADING DONE
+      ====================================================== */
+
       loadingDone: {
         count: statusVehicles.LOADING_DONE.length,
 
         vehicles: statusVehicles.LOADING_DONE,
       },
+
+      /* ======================================================
+         LOADING SLIP SENT
+      ====================================================== */
 
       loadingSlipSent: {
         count: statusVehicles.LOADING_SLIP_SENT.length,
@@ -575,11 +641,19 @@ export async function GET() {
         vehicles: statusVehicles.LOADING_SLIP_SENT,
       },
 
+      /* ======================================================
+         ETP GENERATING
+      ====================================================== */
+
       etpGenerating: {
         count: statusVehicles.ETP_GENERATING.length,
 
         vehicles: statusVehicles.ETP_GENERATING,
       },
+
+      /* ======================================================
+         ETP DONE
+      ====================================================== */
 
       etpDone: {
         count: statusVehicles.ETP_DONE.length,
@@ -587,11 +661,19 @@ export async function GET() {
         vehicles: statusVehicles.ETP_DONE,
       },
 
+      /* ======================================================
+         ETP + INVOICE DONE
+      ====================================================== */
+
       etpInvoiceDone: {
         count: statusVehicles.ETP_INVOICE_DONE.length,
 
         vehicles: statusVehicles.ETP_INVOICE_DONE,
       },
+
+      /* ======================================================
+         INVOICE GENERATING
+      ====================================================== */
 
       invoiceGenerating: {
         count: statusVehicles.INVOICE_GENERATING.length,
@@ -599,11 +681,25 @@ export async function GET() {
         vehicles: statusVehicles.INVOICE_GENERATING,
       },
 
+      /* ======================================================
+         NOT REGISTERED
+      ====================================================== */
+
       notRegistered: {
         count: statusVehicles.NOT_REGISTERD.length,
 
         vehicles: statusVehicles.NOT_REGISTERD,
       },
+
+      /* ======================================================
+         DISPATCHED
+
+         ONLY:
+
+         status = DISPATCH_DONE
+         AND
+         outTime = TODAY IST
+      ====================================================== */
 
       dispatched: {
         count: statusVehicles.DISPATCH_DONE.length,
@@ -626,7 +722,7 @@ export async function GET() {
       /* ======================================================
          MAIN COUNTS
 
-         KEPT SAME FOR BACKWARD COMPATIBILITY
+         Existing structure maintained.
       ====================================================== */
 
       counts: {
@@ -655,7 +751,7 @@ export async function GET() {
         previousPendingVehicles,
 
         /* -----------------------------------------------
-           INDIVIDUAL STATUS COUNTS
+           STATUS COUNTS
         ----------------------------------------------- */
 
         waitingForDetails: status.WAITING_FOR_DETAILS,
@@ -688,25 +784,19 @@ export async function GET() {
       },
 
       /* ======================================================
-         NEW SEGREGATED DATA
-
-         COUNT + COMPLETE VEHICLE DETAILS
+         NEW SEGREGATED VEHICLE DATA
       ====================================================== */
 
       segregation,
 
       /* ======================================================
-         RAW STATUS VEHICLES
-
-         Useful if frontend needs direct status mapping.
+         STATUS VEHICLES
       ====================================================== */
 
       statusVehicles,
 
       /* ======================================================
-         VEHICLE ALERTS
-
-         Existing response maintained.
+         ALERT VEHICLES
       ====================================================== */
 
       vehicleAlerts: {

@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -104,17 +103,6 @@ const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
 interface StatCard {
     heading: string;
     key: keyof VehicleStats;
-
-    /**
-     * Value adjustment for display only.
-     *
-     * Example:
-     * offset: -4
-     *
-     * API = 20
-     * Card = 16
-     */
-    offset?: number;
 }
 
 /* =========================================================
@@ -123,24 +111,19 @@ interface StatCard {
 
 const STAT_CARDS: StatCard[] = [
     {
-        heading: "Today's Vehicles",
+        heading: "Today Vehicle's",
         key: "todayVehicles",
     },
-
     {
-        heading: "Previous Day Vehicles",
+        heading: "Previous Day Vehicle's",
         key: "previousPendingVehicles",
-        offset: -4,
     },
-
     {
         heading: "Dispatched",
         key: "dispatchDone",
-        offset: -4,
     },
-
     {
-        heading: "Waiting For Details",
+        heading: "Waiting For Detail's",
         key: "waitingForDetails",
     },
 ];
@@ -332,7 +315,7 @@ const VehicleStats = () => {
 
                     /* =====================================
                        ALERT VEHICLES
-
+                       
                        Only store alerts for allowed
                        roles.
                     ===================================== */
@@ -350,7 +333,6 @@ const VehicleStats = () => {
                         );
                     } else {
                         setAlertVehicles([]);
-
                         setAlertCounts(
                             DEFAULT_ALERT_COUNTS,
                         );
@@ -363,9 +345,7 @@ const VehicleStats = () => {
                 );
 
                 if (!cancelled) {
-                    setStats(
-                        DEFAULT_STATS,
-                    );
+                    setStats(DEFAULT_STATS);
 
                     setAlertVehicles([]);
 
@@ -384,7 +364,6 @@ const VehicleStats = () => {
          * Wait until localStorage role has been
          * loaded before fetching stats.
          */
-
         if (userRole !== "") {
             fetchStats();
         }
@@ -392,51 +371,7 @@ const VehicleStats = () => {
         return () => {
             cancelled = true;
         };
-    }, [userRole, showVehicleAlerts]);
-
-    /* =====================================================
-       GET CARD DISPLAY VALUE
-       
-       Applies offset ONLY to the cards that define it.
-       
-       Previous:
-       API 20 -> 16
-
-       Dispatched:
-       API 20 -> 16
-
-       Other cards:
-       API value remains unchanged.
-    ===================================================== */
-
-    const getCardValue = (
-        key: keyof VehicleStats,
-        offset?: number,
-    ): number => {
-        const originalValue =
-            Number(stats[key] ?? 0);
-
-        const safeValue = Number.isFinite(
-            originalValue,
-        )
-            ? originalValue
-            : 0;
-
-        if (
-            offset === undefined ||
-            offset === 0
-        ) {
-            return Math.max(
-                0,
-                safeValue,
-            );
-        }
-
-        return Math.max(
-            0,
-            safeValue + offset,
-        );
-    };
+    }, [userRole]);
 
     /* =====================================================
        CARD CLICK
@@ -452,13 +387,9 @@ const VehicleStats = () => {
         }
 
         const convertedVehicle =
-            convertVehicleToVehicleNew(
-                vehicle,
-            );
+            convertVehicleToVehicleNew(vehicle);
 
-        setSelectedVehicle(
-            convertedVehicle,
-        );
+        setSelectedVehicle(convertedVehicle);
 
         setIsEditModalOpen(false);
 
@@ -551,21 +482,14 @@ const VehicleStats = () => {
                     "
                 >
                     {STAT_CARDS.map(
-                        ({
-                            heading,
-                            key,
-                            offset,
-                        }) => (
+                        ({ heading, key }) => (
                             <CommonCard
                                 key={key}
                                 heading={heading}
                                 number={
                                     loading
                                         ? 0
-                                        : getCardValue(
-                                            key,
-                                            offset,
-                                        )
+                                        : stats[key]
                                 }
                             />
                         ),
@@ -826,12 +750,8 @@ const VehicleStats = () => {
                 <ViewModal
                     vehicle={selectedVehicle}
                     isOpen={isViewModalOpen}
-                    onClose={
-                        handleCloseViewModal
-                    }
-                    onEdit={
-                        handleEditVehicle
-                    }
+                    onClose={handleCloseViewModal}
+                    onEdit={handleEditVehicle}
                 />
             )}
 
@@ -846,12 +766,8 @@ const VehicleStats = () => {
                 <EditModal
                     vehicle={selectedVehicle}
                     isOpen={isEditModalOpen}
-                    onClose={
-                        handleCloseEditModal
-                    }
-                    onSuccess={
-                        handleEditSuccess
-                    }
+                    onClose={handleCloseEditModal}
+                    onSuccess={handleEditSuccess}
                 />
             )}
         </>

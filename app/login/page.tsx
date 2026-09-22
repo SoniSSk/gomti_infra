@@ -1,7 +1,10 @@
-
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 
 type Mode = "login" | "signup";
@@ -9,73 +12,117 @@ type Mode = "login" | "signup";
 export default function LoginPage() {
   const router = useRouter();
 
-  // Session expires automatically 8 hours after successful login
+  // =====================================================
+  // SESSION
+  // =====================================================
+
+  // Session expires automatically after 8 hours
   const SESSION_DURATION = 8 * 60 * 60 * 1000;
 
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
   const logoutUser = () => {
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("loginTime");
-    localStorage.removeItem("sessionExpiry");
+    // Clear EVERYTHING from localStorage
+    localStorage.clear();
 
     router.replace("/login");
   };
 
-  // Check an existing session when the login page loads.
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
-    const sessionExpiry = localStorage.getItem("sessionExpiry");
+  // =====================================================
+  // CHECK EXISTING SESSION
+  // =====================================================
 
-    if (isLoggedIn !== "true" || !sessionExpiry) return;
+  useEffect(() => {
+    const isLoggedIn =
+      localStorage.getItem("isLoggedIn");
+
+    const sessionExpiry =
+      localStorage.getItem("sessionExpiry");
+
+    // No active session
+    if (
+      isLoggedIn !== "true" ||
+      !sessionExpiry
+    ) {
+      return;
+    }
 
     const expiryTime = Number(sessionExpiry);
 
-    if (!Number.isFinite(expiryTime) || Date.now() >= expiryTime) {
+    // Invalid or expired session
+    if (
+      !Number.isFinite(expiryTime) ||
+      Date.now() >= expiryTime
+    ) {
       logoutUser();
       return;
     }
 
-    // If already logged in, don't show the login screen.
+    // Existing valid session
     router.replace("/");
   }, [router]);
 
-  const [mode, setMode] = useState<Mode>("login");
+  // =====================================================
+  // STATE
+  // =====================================================
 
-  // Signup
-  const [name, setName] = useState("");
+  const [mode, setMode] =
+    useState<Mode>("login");
+
+  // =====================================================
+  // SIGNUP
+  // =====================================================
+
+  const [name, setName] =
+    useState("");
+
   const [signupEmail, setSignupEmail] =
     useState("");
+
   const [signupPassword, setSignupPassword] =
     useState("");
+
   const [confirmPassword, setConfirmPassword] =
     useState("");
+
   const [role, setRole] =
     useState("employee");
 
-  // Login
-  const [email, setEmail] = useState("");
+  // =====================================================
+  // LOGIN
+  // =====================================================
+
+  const [email, setEmail] =
+    useState("");
+
   const [password, setPassword] =
     useState("");
 
-  // Common
-  const [error, setError] = useState("");
+  // =====================================================
+  // COMMON
+  // =====================================================
+
+  const [error, setError] =
+    useState("");
+
   const [success, setSuccess] =
     useState("");
+
   const [loading, setLoading] =
     useState(false);
 
-  // -----------------------------------------
+  // =====================================================
   // INPUT CLASS
-  // -----------------------------------------
+  // =====================================================
 
   const inputClass =
     "w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200";
 
-  // -----------------------------------------
+  // =====================================================
   // GET CURRENT LOCATION
-  // -----------------------------------------
+  // =====================================================
 
   const getCurrentLocation = (): Promise<{
     latitude?: number;
@@ -112,9 +159,9 @@ export default function LoginPage() {
     });
   };
 
-  // -----------------------------------------
+  // =====================================================
   // LOGIN
-  // -----------------------------------------
+  // =====================================================
 
   const handleLogin = async (
     e: FormEvent<HTMLFormElement>
@@ -126,9 +173,24 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // Get GPS location
+      // =================================================
+      // CLEAR ALL OLD LOCAL STORAGE
+      // =================================================
+
+      // This removes any old/stale user/session data
+      // before starting a new login.
+      localStorage.clear();
+
+      // =================================================
+      // GET GPS LOCATION
+      // =================================================
+
       const location =
         await getCurrentLocation();
+
+      // =================================================
+      // LOGIN API
+      // =================================================
 
       const response = await fetch(
         "/api/auth/login",
@@ -159,6 +221,10 @@ export default function LoginPage() {
       const data =
         await response.json();
 
+      // =================================================
+      // LOGIN ERROR
+      // =================================================
+
       if (!response.ok) {
         setError(
           data.message ||
@@ -168,45 +234,56 @@ export default function LoginPage() {
         return;
       }
 
-      // -------------------------------------
-      // SAVE USER
-      // -------------------------------------
+      // =================================================
+      // SAVE NEW USER SESSION
+      // =================================================
 
       const loginTime = Date.now();
-      const sessionExpiry = loginTime + SESSION_DURATION;
 
+      const sessionExpiry =
+        loginTime +
+        SESSION_DURATION;
+
+      // Login status
       localStorage.setItem(
         "isLoggedIn",
         "true"
       );
 
+      // User role
       localStorage.setItem(
         "userRole",
         data.user.role
       );
 
+      // User name
       localStorage.setItem(
         "userName",
         data.user.name
       );
 
+      // User email
       localStorage.setItem(
         "userEmail",
         data.user.email
       );
 
-      // 8-hour session
+      // Login timestamp
       localStorage.setItem(
         "loginTime",
         String(loginTime)
       );
 
+      // 8-hour expiry timestamp
       localStorage.setItem(
         "sessionExpiry",
         String(sessionExpiry)
       );
 
-      // Login successful
+      // =================================================
+      // LOGIN SUCCESS
+      // =================================================
+
       router.replace("/");
     } catch (error) {
       console.error(
@@ -222,9 +299,9 @@ export default function LoginPage() {
     }
   };
 
-  // -----------------------------------------
+  // =====================================================
   // SIGNUP
-  // -----------------------------------------
+  // =====================================================
 
   const handleSignup = async (
     e: FormEvent<HTMLFormElement>
@@ -234,7 +311,10 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
 
-    // Password validation
+    // =================================================
+    // PASSWORD VALIDATION
+    // =================================================
+
     if (signupPassword.length < 8) {
       setError(
         "Password must be at least 8 characters"
@@ -243,9 +323,13 @@ export default function LoginPage() {
       return;
     }
 
-    // Confirm password
+    // =================================================
+    // CONFIRM PASSWORD
+    // =================================================
+
     if (
-      signupPassword !== confirmPassword
+      signupPassword !==
+      confirmPassword
     ) {
       setError(
         "Passwords do not match"
@@ -257,6 +341,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // =================================================
+      // SIGNUP API
+      // =================================================
+
       const response = await fetch(
         "/api/auth/signup",
         {
@@ -274,7 +362,8 @@ export default function LoginPage() {
               .trim()
               .toLowerCase(),
 
-            password: signupPassword,
+            password:
+              signupPassword,
 
             role,
           }),
@@ -283,6 +372,10 @@ export default function LoginPage() {
 
       const data =
         await response.json();
+
+      // =================================================
+      // SIGNUP ERROR
+      // =================================================
 
       if (!response.ok) {
         setError(
@@ -293,22 +386,28 @@ export default function LoginPage() {
         return;
       }
 
-      // -------------------------------------
-      // SUCCESS
-      // -------------------------------------
+      // =================================================
+      // SIGNUP SUCCESS
+      // =================================================
 
       setSuccess(
         "Account created successfully. Waiting for admin approval."
       );
 
-      // Clear fields
+      // =================================================
+      // CLEAR SIGNUP FIELDS
+      // =================================================
+
       setName("");
       setSignupEmail("");
       setSignupPassword("");
       setConfirmPassword("");
       setRole("employee");
 
-      // Switch to login
+      // =================================================
+      // SWITCH TO LOGIN
+      // =================================================
+
       setTimeout(() => {
         setMode("login");
         setSuccess("");
@@ -327,9 +426,9 @@ export default function LoginPage() {
     }
   };
 
-  // -----------------------------------------
+  // =====================================================
   // SWITCH LOGIN / SIGNUP
-  // -----------------------------------------
+  // =====================================================
 
   const switchMode = (
     newMode: Mode
@@ -349,10 +448,16 @@ export default function LoginPage() {
     setPassword("");
   };
 
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-100 px-4 py-8">
 
-      {/* Card */}
+      {/* =================================================
+          CARD
+      ================================================= */}
 
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-2xl">
 
@@ -362,9 +467,9 @@ export default function LoginPage() {
 
         <div className="p-8 sm:p-10">
 
-          {/* -------------------------------- */}
-          {/* HEADER */}
-          {/* -------------------------------- */}
+          {/* =================================================
+              HEADER
+          ================================================= */}
 
           <div className="mb-7 text-center">
 
@@ -388,21 +493,23 @@ export default function LoginPage() {
 
           </div>
 
-          {/* -------------------------------- */}
-          {/* LOGIN / SIGNUP SWITCH */}
-          {/* -------------------------------- */}
+          {/* =================================================
+              LOGIN / SIGNUP SWITCH
+          ================================================= */}
 
-          {/* <div className="mb-7 flex rounded-xl bg-orange-50 p-1">
+          {/*
+          <div className="mb-7 flex rounded-xl bg-orange-50 p-1">
 
             <button
               type="button"
               onClick={() =>
                 switchMode("login")
               }
-              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${mode === "login"
-                ? "bg-orange-500 text-white shadow-md"
-                : "text-gray-600 hover:text-orange-600"
-                }`}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+                mode === "login"
+                  ? "bg-orange-500 text-white shadow-md"
+                  : "text-gray-600 hover:text-orange-600"
+              }`}
             >
               Login
             </button>
@@ -412,47 +519,53 @@ export default function LoginPage() {
               onClick={() =>
                 switchMode("signup")
               }
-              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${mode === "signup"
-                ? "bg-orange-500 text-white shadow-md"
-                : "text-gray-600 hover:text-orange-600"
-                }`}
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition ${
+                mode === "signup"
+                  ? "bg-orange-500 text-white shadow-md"
+                  : "text-gray-600 hover:text-orange-600"
+              }`}
             >
               Signup
             </button>
 
-          </div> */}
+          </div>
+          */}
 
-          {/* -------------------------------- */}
-          {/* ERROR */}
-          {/* -------------------------------- */}
+          {/* =================================================
+              ERROR
+          ================================================= */}
 
           {error && (
             <div className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
 
               <span>⚠</span>
 
-              <span>{error}</span>
+              <span>
+                {error}
+              </span>
 
             </div>
           )}
 
-          {/* -------------------------------- */}
-          {/* SUCCESS */}
-          {/* -------------------------------- */}
+          {/* =================================================
+              SUCCESS
+          ================================================= */}
 
           {success && (
             <div className="mb-5 flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-600">
 
               <span>✓</span>
 
-              <span>{success}</span>
+              <span>
+                {success}
+              </span>
 
             </div>
           )}
 
-          {/* ================================= */}
-          {/* LOGIN FORM */}
-          {/* ================================= */}
+          {/* =================================================
+              LOGIN FORM
+          ================================================= */}
 
           {mode === "login" && (
             <form
@@ -463,6 +576,7 @@ export default function LoginPage() {
               {/* Email */}
 
               <div>
+
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Email Address
                 </label>
@@ -474,18 +588,23 @@ export default function LoginPage() {
                     setEmail(
                       e.target.value
                     );
+
                     setError("");
                   }}
                   placeholder="Enter your email"
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                   required
                   autoComplete="email"
                 />
+
               </div>
 
               {/* Password */}
 
               <div>
+
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Password
                 </label>
@@ -497,13 +616,17 @@ export default function LoginPage() {
                     setPassword(
                       e.target.value
                     );
+
                     setError("");
                   }}
                   placeholder="Enter your password"
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                   required
                   autoComplete="current-password"
                 />
+
               </div>
 
               {/* Login Button */}
@@ -513,6 +636,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full rounded-xl bg-orange-500 py-3.5 font-semibold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
+
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
 
@@ -524,14 +648,15 @@ export default function LoginPage() {
                 ) : (
                   "Login"
                 )}
+
               </button>
 
             </form>
           )}
 
-          {/* ================================= */}
-          {/* SIGNUP FORM */}
-          {/* ================================= */}
+          {/* =================================================
+              SIGNUP FORM
+          ================================================= */}
 
           {mode === "signup" && (
             <form
@@ -542,6 +667,7 @@ export default function LoginPage() {
               {/* Name */}
 
               <div>
+
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Full Name
                 </label>
@@ -553,18 +679,23 @@ export default function LoginPage() {
                     setName(
                       e.target.value
                     );
+
                     setError("");
                   }}
                   placeholder="Enter your full name"
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                   required
                   autoComplete="name"
                 />
+
               </div>
 
               {/* Email */}
 
               <div>
+
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Email Address
                 </label>
@@ -576,18 +707,23 @@ export default function LoginPage() {
                     setSignupEmail(
                       e.target.value
                     );
+
                     setError("");
                   }}
                   placeholder="Enter your email"
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                   required
                   autoComplete="email"
                 />
+
               </div>
 
               {/* Role */}
 
               <div>
+
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Account Type
                 </label>
@@ -598,15 +734,19 @@ export default function LoginPage() {
                     setRole(
                       e.target.value
                     );
+
                     setError("");
                   }}
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                   required
                 >
 
                   <option value="admin">
                     Admin
                   </option>
+
                   <option value="employee">
                     Employee
                   </option>
@@ -614,6 +754,7 @@ export default function LoginPage() {
                   <option value="shreecement">
                     Shree Cement
                   </option>
+
                   <option value="welspun">
                     Welspun
                   </option>
@@ -621,55 +762,71 @@ export default function LoginPage() {
                   <option value="evonith">
                     Evonith
                   </option>
+
                 </select>
+
               </div>
 
               {/* Password */}
 
               <div>
+
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Password
                 </label>
 
                 <input
                   type="password"
-                  value={signupPassword}
+                  value={
+                    signupPassword
+                  }
                   onChange={(e) => {
                     setSignupPassword(
                       e.target.value
                     );
+
                     setError("");
                   }}
                   placeholder="Minimum 8 characters"
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                   required
                   minLength={8}
                   autoComplete="new-password"
                 />
+
               </div>
 
               {/* Confirm Password */}
 
               <div>
+
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Confirm Password
                 </label>
 
                 <input
                   type="password"
-                  value={confirmPassword}
+                  value={
+                    confirmPassword
+                  }
                   onChange={(e) => {
                     setConfirmPassword(
                       e.target.value
                     );
+
                     setError("");
                   }}
                   placeholder="Confirm your password"
-                  className={inputClass}
+                  className={
+                    inputClass
+                  }
                   required
                   minLength={8}
                   autoComplete="new-password"
                 />
+
               </div>
 
               {/* Approval Message */}
@@ -677,15 +834,20 @@ export default function LoginPage() {
               <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
 
                 <div className="flex items-center gap-2 text-sm font-semibold text-orange-700">
+
                   <span>🕐</span>
+
                   Admin Approval Required
+
                 </div>
 
                 <p className="mt-1 text-xs leading-5 text-orange-600">
+
                   Your account will be created
                   as pending. You can login only
                   after Gomti Admin approves your
                   account.
+
                 </p>
 
               </div>
@@ -697,6 +859,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full rounded-xl bg-orange-500 py-3.5 font-semibold text-white shadow-lg shadow-orange-200 transition hover:bg-orange-600 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
+
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
 
@@ -708,19 +871,22 @@ export default function LoginPage() {
                 ) : (
                   "Create Account"
                 )}
+
               </button>
 
             </form>
           )}
 
-          {/* -------------------------------- */}
-          {/* FOOTER */}
-          {/* -------------------------------- */}
+          {/* =================================================
+              FOOTER
+          ================================================= */}
 
           <div className="mt-8 border-t border-gray-100 pt-5 text-center">
 
             <p className="text-xs text-gray-400">
-              © {new Date().getFullYear()} Gomti Mining
+              ©{" "}
+              {new Date().getFullYear()}{" "}
+              Gomti Mining
             </p>
 
             <p className="mt-1 text-xs text-gray-400">
@@ -731,7 +897,7 @@ export default function LoginPage() {
 
         </div>
       </div>
+
     </main>
   );
 }
-

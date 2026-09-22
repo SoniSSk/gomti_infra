@@ -82,13 +82,34 @@ interface VehicleDocument {
 }
 
 /* ============================================================
+   ALL VEHICLE STATUSES
+
+   IMPORTANT:
+   Status names are kept exactly as stored in MongoDB.
+============================================================ */
+
+const VEHICLE_STATUSES = [
+  "WAITING_FOR_DETAILS",
+  "ENTRY_DONE",
+  "LOADING_STARTED",
+  "LOADING_DONE",
+  "LOADING_SLIP_SENT",
+  "ETP_GENERATING",
+  "ETP_DONE",
+  "ETP_INVOICE_DONE",
+  "INVOICE_GENERATING",
+  "NOT_REGISTERD",
+  "DISPATCH_DONE",
+] as const;
+
+/* ============================================================
    ALERT STATUSES
 
-   ALL VEHICLES HAVING THESE STATUSES WILL BE
-   RETURNED AS COMPLETE OBJECTS
+   These vehicles are returned inside vehicleAlerts.
 ============================================================ */
 
 const ALERT_STATUSES = [
+  "ETP_GENERATING",
   "ETP_DONE",
   "LOADING_SLIP_SENT",
   "INVOICE_GENERATING",
@@ -227,6 +248,72 @@ const isToday = (value?: string | Date | null): boolean => {
 };
 
 /* ============================================================
+   TODAY VEHICLE
+
+   IMPORTANT:
+
+   Today vehicle depends ONLY on createdAt.
+
+   createdAt = today
+   -----------------
+   TODAY VEHICLE
+
+   dateTime is NOT checked here.
+============================================================ */
+
+const isTodayCreatedVehicle = (vehicle: VehicleDocument): boolean => {
+  return isToday(vehicle.createdAt);
+};
+
+/* ============================================================
+   PREVIOUS VEHICLE
+
+   Previous means:
+
+   createdAt is NOT today
+   AND
+   dateTime is NOT today
+
+   IMPORTANT:
+
+   dateTime today alone does NOT make it a
+   Today Vehicle.
+
+============================================================ */
+
+const isPreviousVehicle = (vehicle: VehicleDocument): boolean => {
+  return !isToday(vehicle.createdAt) && !isToday(vehicle.dateTime);
+};
+
+/* ============================================================
+   EMPTY STATUS COUNTS
+============================================================ */
+
+const createEmptyStatusCounts = () => ({
+  WAITING_FOR_DETAILS: 0,
+
+  ENTRY_DONE: 0,
+
+  LOADING_STARTED: 0,
+
+  LOADING_DONE: 0,
+
+  LOADING_SLIP_SENT: 0,
+
+  ETP_GENERATING: 0,
+
+  ETP_DONE: 0,
+
+  ETP_INVOICE_DONE: 0,
+
+  INVOICE_GENERATING: 0,
+
+  NOT_REGISTERD: 0,
+
+  DISPATCH_DONE: 0,
+});
+
+/* ============================================================
    GET API
 ============================================================ */
 
@@ -244,8 +331,6 @@ export async function GET() {
 
     /* ========================================================
        GET ALL VEHICLES
-
-       Complete MongoDB documents are returned.
     ======================================================== */
 
     const vehicles = await collection.find({}).toArray();
@@ -258,57 +343,59 @@ export async function GET() {
 
     /* ========================================================
        TODAY VEHICLES
+
+       ONLY CREATED AT TODAY.
+
+       dateTime is completely ignored here.
     ======================================================== */
 
     const todayVehicles = vehicles.filter((vehicle) =>
-      isToday(vehicle.dateTime),
+      isTodayCreatedVehicle(vehicle),
     ).length;
 
     /* ========================================================
-       PREVIOUS PENDING VEHICLES
+       PREVIOUS VEHICLES
+
+       createdAt NOT today
+       AND
+       dateTime NOT today
     ======================================================== */
 
-    const previousPendingVehicles = vehicles.filter(
-      (vehicle) =>
-        (!isToday(vehicle.dateTime) && vehicle.status !== "DISPATCH_DONE") ||
-        (!isToday(vehicle.dateTime) &&
-          isToday(vehicle.outTime) &&
-          vehicle.status === "DISPATCH_DONE"),
-    ).length;
+    const previousVehicles = vehicles.filter((vehicle) =>
+      isPreviousVehicle(vehicle),
+    );
+
+    const previousVehicleCount = previousVehicles.length;
+
+    /* ========================================================
+       PREVIOUS PENDING VEHICLES
+
+       Previous vehicle
+       AND
+       status is not DISPATCH_DONE.
+    ======================================================== */
+
+    const previousPendingVehicles = previousVehicles.filter((vehicle) => {
+      const isDateTimeToday = isToday(vehicle.dateTime);
+
+      const isDateTimeEmpty =
+        !vehicle.dateTime || String(vehicle.dateTime).trim() === "";
+
+      const isOutTimeToday = isToday(vehicle.outTime);
+
+      return isDateTimeToday || isDateTimeEmpty || isOutTimeToday;
+    }).length;
 
     /* ========================================================
        STATUS COUNTS
     ======================================================== */
 
-    const status = {
-      WAITING_FOR_DETAILS: 0,
-
-      ENTRY_DONE: 0,
-
-      LOADING_STARTED: 0,
-
-      LOADING_DONE: 0,
-
-      LOADING_SLIP_SENT: 0,
-
-      ETP_DONE: 0,
-
-      ETP_INVOICE_DONE: 0,
-
-      INVOICE_GENERATING: 0,
-
-      NOT_REGISTERD: 0,
-
-      DISPATCH_DONE: 0,
-    };
+    const status = createEmptyStatusCounts();
 
     /* ========================================================
        VEHICLE ALERTS
 
-       IMPORTANT:
-
-       This array contains the COMPLETE MongoDB
-       objects of matching vehicles.
+       Complete MongoDB objects.
     ======================================================== */
 
     const alertVehicles: VehicleDocument[] = vehicles.filter((vehicle) =>
@@ -318,103 +405,126 @@ export async function GET() {
     );
 
     /* ========================================================
-       COUNT STATUS
+       COUNT EVERY STATUS
 
-       We count all statuses from the complete
-       vehicle collection.
+       IMPORTANT:
+
+       Status is never changed.
+
+       MongoDB status:
+       WAITING_FOR_DETAILS
+
+       Response:
+       WAITING_FOR_DETAILS
     ======================================================== */
 
     vehicles.forEach((vehicle) => {
-      /* ====================================================
-           WAITING FOR DETAILS
-        ==================================================== */
+      const currentStatus = vehicle.status;
 
-      if (vehicle.status === "WAITING_FOR_DETAILS") {
+      /* ======================================================
+         WAITING_FOR_DETAILS
+      ====================================================== */
+
+      if (currentStatus === "WAITING_FOR_DETAILS") {
         status.WAITING_FOR_DETAILS++;
       }
 
-      /* ====================================================
-           ENTRY DONE
-        ==================================================== */
+      /* ======================================================
+         ENTRY_DONE
+      ====================================================== */
 
-      if (vehicle.status === "ENTRY_DONE") {
+      if (currentStatus === "ENTRY_DONE") {
         status.ENTRY_DONE++;
       }
 
-      /* ====================================================
-           LOADING STARTED
-        ==================================================== */
+      /* ======================================================
+         LOADING_STARTED
+      ====================================================== */
 
-      if (vehicle.status === "LOADING_STARTED") {
+      if (currentStatus === "LOADING_STARTED") {
         status.LOADING_STARTED++;
       }
 
-      /* ====================================================
-           LOADING DONE
-        ==================================================== */
+      /* ======================================================
+         LOADING_DONE
+      ====================================================== */
 
-      if (vehicle.status === "LOADING_DONE") {
+      if (currentStatus === "LOADING_DONE") {
         status.LOADING_DONE++;
       }
 
-      /* ====================================================
-           LOADING SLIP SENT
-        ==================================================== */
+      /* ======================================================
+         LOADING_SLIP_SENT
+      ====================================================== */
 
-      if (vehicle.status === "LOADING_SLIP_SENT") {
+      if (currentStatus === "LOADING_SLIP_SENT") {
         status.LOADING_SLIP_SENT++;
       }
 
-      /* ====================================================
-           ETP DONE
-        ==================================================== */
+      /* ======================================================
+         ETP_GENERATING
+      ====================================================== */
 
-      if (vehicle.status === "ETP_DONE") {
+      if (currentStatus === "ETP_GENERATING") {
+        status.ETP_GENERATING++;
+      }
+
+      /* ======================================================
+         ETP_DONE
+      ====================================================== */
+
+      if (currentStatus === "ETP_DONE") {
         status.ETP_DONE++;
       }
 
-      /* ====================================================
-           ETP INVOICE DONE
-        ==================================================== */
+      /* ======================================================
+         ETP_INVOICE_DONE
+      ====================================================== */
 
-      if (vehicle.status === "ETP_INVOICE_DONE") {
+      if (currentStatus === "ETP_INVOICE_DONE") {
         status.ETP_INVOICE_DONE++;
       }
 
-      /* ====================================================
-           INVOICE GENERATING
-        ==================================================== */
+      /* ======================================================
+         INVOICE_GENERATING
+      ====================================================== */
 
-      if (vehicle.status === "INVOICE_GENERATING") {
+      if (currentStatus === "INVOICE_GENERATING") {
         status.INVOICE_GENERATING++;
       }
 
-      /* ====================================================
-           NOT REGISTERED
-        ==================================================== */
+      /* ======================================================
+         NOT_REGISTERD
 
-      if (vehicle.status === "NOT_REGISTERD") {
+         Keep exact spelling from MongoDB.
+      ====================================================== */
+
+      if (currentStatus === "NOT_REGISTERD") {
         status.NOT_REGISTERD++;
       }
 
-      /* ====================================================
-           DISPATCH DONE
+      /* ======================================================
+         DISPATCH_DONE
 
-           Only today's dispatched vehicles
-        ==================================================== */
+         Only today's dispatched vehicles.
 
-      if (vehicle.status === "DISPATCH_DONE" && isToday(vehicle.outTime)) {
+         Dispatch date is checked using outTime.
+      ====================================================== */
+
+      if (currentStatus === "DISPATCH_DONE" && isToday(vehicle.outTime)) {
         status.DISPATCH_DONE++;
       }
     });
 
     /* ========================================================
        ALERT COUNTS
-
-       Counts are calculated from alertVehicles only.
     ======================================================== */
 
     const alertCounts = {
+      ETP_GENERATING: alertVehicles.filter(
+        (vehicle) => vehicle.status === "ETP_GENERATING",
+      ).length,
+
       ETP_DONE: alertVehicles.filter((vehicle) => vehicle.status === "ETP_DONE")
         .length,
 
@@ -447,15 +557,43 @@ export async function GET() {
       timezone: "Asia/Kolkata",
 
       /* ======================================================
-         MAIN DASHBOARD COUNTS
+         MAIN COUNTS
       ====================================================== */
 
       counts: {
+        /* -----------------------------------------------
+           TOTAL
+        ----------------------------------------------- */
+
         totalVehicles,
+
+        /* -----------------------------------------------
+           TODAY
+
+           createdAt TODAY ONLY
+        ----------------------------------------------- */
 
         todayVehicles,
 
+        /* -----------------------------------------------
+           PREVIOUS
+
+           createdAt NOT TODAY
+           AND
+           dateTime NOT TODAY
+        ----------------------------------------------- */
+
+        previousVehicles: previousVehicleCount,
+
+        /* -----------------------------------------------
+           PREVIOUS PENDING
+        ----------------------------------------------- */
+
         previousPendingVehicles,
+
+        /* -----------------------------------------------
+           INDIVIDUAL STATUS COUNTS
+        ----------------------------------------------- */
 
         waitingForDetails: status.WAITING_FOR_DETAILS,
 
@@ -467,6 +605,8 @@ export async function GET() {
 
         loadingSlipSent: status.LOADING_SLIP_SENT,
 
+        etpGenerating: status.ETP_GENERATING,
+
         etpDone: status.ETP_DONE,
 
         etpInvoiceDone: status.ETP_INVOICE_DONE,
@@ -477,19 +617,15 @@ export async function GET() {
 
         dispatchDone: status.DISPATCH_DONE,
 
+        /* -----------------------------------------------
+           COMPLETE STATUS OBJECT
+        ----------------------------------------------- */
+
         status,
       },
 
       /* ======================================================
          VEHICLE ALERTS
-
-         KEEPING YOUR EXACT STRUCTURE
-
-         total
-         counts
-         vehicles
-
-         vehicles contains COMPLETE OBJECTS.
       ====================================================== */
 
       vehicleAlerts: {
@@ -522,6 +658,8 @@ export async function GET() {
 
           todayVehicles: 0,
 
+          previousVehicles: 0,
+
           previousPendingVehicles: 0,
 
           waitingForDetails: 0,
@@ -534,6 +672,8 @@ export async function GET() {
 
           loadingSlipSent: 0,
 
+          etpGenerating: 0,
+
           etpDone: 0,
 
           etpInvoiceDone: 0,
@@ -544,37 +684,15 @@ export async function GET() {
 
           dispatchDone: 0,
 
-          status: {
-            WAITING_FOR_DETAILS: 0,
-
-            ENTRY_DONE: 0,
-
-            LOADING_STARTED: 0,
-
-            LOADING_DONE: 0,
-
-            LOADING_SLIP_SENT: 0,
-
-            ETP_DONE: 0,
-
-            ETP_INVOICE_DONE: 0,
-
-            INVOICE_GENERATING: 0,
-
-            NOT_REGISTERD: 0,
-
-            DISPATCH_DONE: 0,
-          },
+          status: createEmptyStatusCounts(),
         },
-
-        /* ====================================================
-           KEEP SAME STRUCTURE ON ERROR
-        ==================================================== */
 
         vehicleAlerts: {
           total: 0,
 
           counts: {
+            ETP_GENERATING: 0,
+
             ETP_DONE: 0,
 
             LOADING_SLIP_SENT: 0,

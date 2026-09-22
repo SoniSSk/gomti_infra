@@ -210,6 +210,66 @@ const formatDateTime = (
 };
 
 /* =========================================================
+   WEIGHT HELPERS
+========================================================= */
+
+const parseWeight = (
+    value: unknown,
+): number => {
+    if (
+        value === null ||
+        value === undefined ||
+        value === ""
+    ) {
+        return 0;
+    }
+
+    if (typeof value === "number") {
+        return Number.isFinite(value)
+            ? value
+            : 0;
+    }
+
+    const cleaned = String(value)
+        .replace(/,/g, "")
+        .trim();
+
+    /*
+     * Supports values such as:
+     * 30
+     * "30"
+     * "30 MT"
+     * "30.50 MT"
+     * "30,500"
+     */
+    const match = cleaned.match(
+        /-?\d+(?:\.\d+)?/,
+    );
+
+    if (!match) {
+        return 0;
+    }
+
+    const parsed = Number(match[0]);
+
+    return Number.isFinite(parsed)
+        ? parsed
+        : 0;
+};
+
+const formatWeight = (
+    value: number,
+): string => {
+    return value.toLocaleString(
+        "en-IN",
+        {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3,
+        },
+    );
+};
+
+/* =========================================================
    COMPONENT
 ========================================================= */
 
@@ -559,6 +619,31 @@ const CommonTable = <
             currentPage,
             rowsPerPage,
         ]);
+
+    /* =====================================================
+       TOTAL WEIGHT
+    ===================================================== */
+
+    /*
+     * Total is calculated from filteredData, not paginatedData,
+     * so pagination does not change the total.
+     */
+    const totalWeight = useMemo(() => {
+        return filteredData.reduce(
+            (total, row) => {
+                return (
+                    total +
+                    parseWeight(
+                        row[
+                        "netWeight" as keyof T
+                        ],
+                    )
+                );
+            },
+            0,
+        );
+    }, [filteredData]);
+
 
     /* =====================================================
        CLEAR FILTERS
@@ -1419,6 +1504,7 @@ const CommonTable = <
                                                 {columns.map(
                                                     (
                                                         column,
+                                                        columnIndex,
                                                     ) => (
                                                         <td
                                                             key={String(
@@ -1446,38 +1532,50 @@ const CommonTable = <
                                                                 }
                                                             `}
                                                         >
-                                                            {column.render
-                                                                ? column.render(
-                                                                    row,
-                                                                )
-                                                                : (() => {
-                                                                    const value =
-                                                                        row[
-                                                                        column.key as keyof T
-                                                                        ];
+                                                            {column.key ===
+                                                                "sno"
+                                                                ? pagination
+                                                                    ? (
+                                                                        currentPage -
+                                                                        1
+                                                                    ) *
+                                                                    rowsPerPage +
+                                                                    rowIndex +
+                                                                    1
+                                                                    : rowIndex +
+                                                                    1
+                                                                : column.render
+                                                                    ? column.render(
+                                                                        row,
+                                                                    )
+                                                                    : (() => {
+                                                                        const value =
+                                                                            row[
+                                                                            column.key as keyof T
+                                                                            ];
 
-                                                                    if (
-                                                                        column.key ===
-                                                                        "createdAt" ||
-                                                                        column.key ===
-                                                                        "updatedAt" ||
-                                                                        column.key ===
-                                                                        "dateTime" ||
-                                                                        column.key ===
-                                                                        "inTime" ||
-                                                                        column.key ===
-                                                                        "outTime"
-                                                                    ) {
-                                                                        return formatDateTime(
-                                                                            value,
+                                                                        if (
+                                                                            column.key ===
+                                                                            "createdAt" ||
+                                                                            column.key ===
+                                                                            "updatedAt" ||
+                                                                            column.key ===
+                                                                            "dateTime" ||
+                                                                            column.key ===
+                                                                            "inTime" ||
+                                                                            column.key ===
+                                                                            "outTime"
+                                                                        ) {
+                                                                            return formatDateTime(
+                                                                                value,
+                                                                            );
+                                                                        }
+
+                                                                        return String(
+                                                                            value ??
+                                                                            "-",
                                                                         );
-                                                                    }
-
-                                                                    return String(
-                                                                        value ??
-                                                                        "-",
-                                                                    );
-                                                                })()}
+                                                                    })()}
                                                         </td>
                                                     ),
                                                 )}
@@ -1510,6 +1608,88 @@ const CommonTable = <
                             )
                         )}
                     </tbody>
+
+                    {/* =================================================
+                        TOTAL WEIGHT ROW
+                    ================================================= */}
+
+                    <tfoot>
+                        <tr className="border-t-2 border-orange-200 bg-orange-50">
+                            {expandable && (
+                                <td
+                                    className="
+                                        w-[52px]
+                                        min-w-[52px]
+                                        max-w-[52px]
+                                        px-2
+                                        py-3
+                                    "
+                                    style={{
+                                        width: "52px",
+                                        minWidth: "52px",
+                                        maxWidth: "52px",
+                                    }}
+                                />
+                            )}
+
+                            {columns.map(
+                                (column, columnIndex) => (
+                                    <td
+                                        key={`total-${String(
+                                            column.key,
+                                        )}`}
+                                        style={{
+                                            width:
+                                                column.width,
+                                            minWidth:
+                                                column.width,
+                                            maxWidth:
+                                                column.width,
+                                        }}
+                                        className={`
+                                            px-4
+                                            py-3
+                                            text-left
+                                            text-sm
+                                            font-bold
+                                            text-gray-800
+                                            ${column.hideOnMobile
+                                                ? "hidden sm:table-cell"
+                                                : ""
+                                            }
+                                        `}
+                                    >
+                                        {columnIndex === 0 &&
+                                            column.key === "sno" ? (
+                                            <span>
+                                                Total
+                                            </span>
+                                        ) : column.key ===
+                                            "netWeight" ? (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-orange-700">
+                                                    {formatWeight(
+                                                        totalWeight,
+                                                    )}
+                                                </span>
+
+                                                <span className="rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-bold text-white">
+                                                    MT
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            columnIndex === 0 ? (
+                                                <span>
+                                                    Total
+                                                </span>
+                                            ) : null
+                                        )}
+                                    </td>
+                                ),
+                            )}
+                        </tr>
+                    </tfoot>
+
                 </table>
             </div>
 
@@ -1774,16 +1954,25 @@ const CommonTable = <
             {rowModal &&
                 selectedRow && (
                     <CommonModal
-                        isOpen={rowModal && !!selectedRow}
-                        onClose={handleCloseModal}
-                        title={rowModalTitle}
+                        isOpen={
+                            rowModal &&
+                            !!selectedRow
+                        }
+                        onClose={
+                            handleCloseModal
+                        }
+                        title={
+                            rowModalTitle
+                        }
                         size="xl"
                         closeOnOutsideClick
                         footer={
                             <div className="flex justify-end gap-3">
                                 <button
                                     type="button"
-                                    onClick={handleCloseModal}
+                                    onClick={
+                                        handleCloseModal
+                                    }
                                     className="
                     rounded-lg
                     border

@@ -51,13 +51,63 @@ interface VehicleColumnActions {
 }
 
 /* =========================================================
+   READ ONLY ROLES
+========================================================= */
+
+const READ_ONLY_ROLES = [
+    "welspun",
+    "evonith",
+    "shreecement",
+];
+
+/* =========================================================
+   GET USER ROLE FROM LOCAL STORAGE
+========================================================= */
+
+const getUserRoleFromLocalStorage = (): string => {
+    if (typeof window === "undefined") {
+        return "";
+    }
+
+    const role = localStorage.getItem("userRole");
+
+    return String(role ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "");
+};
+
+/* =========================================================
    VEHICLE COLUMNS
 ========================================================= */
 
 export const vehicleColumns = ({
     onView,
     onEdit,
-}: VehicleColumnActions = {}): TableColumn<Vehicle_new>[] => [
+}: VehicleColumnActions = {}): TableColumn<Vehicle_new>[] => {
+
+    /* =====================================================
+       GET ROLE FROM LOCAL STORAGE
+    ===================================================== */
+
+    const userRole = getUserRoleFromLocalStorage();
+
+    console.log(userRole, userRole)
+
+    console.log("Current User Role:", userRole);
+
+    /* =====================================================
+       CHECK READ ONLY ROLE
+    ===================================================== */
+
+    const isReadOnlyRole =
+        READ_ONLY_ROLES.includes(userRole);
+
+    /* =====================================================
+       BASE COLUMNS
+    ===================================================== */
+
+    const columns: TableColumn<Vehicle_new>[] = [
         /* =========================
            S.NO
         ========================= */
@@ -148,8 +198,6 @@ export const vehicleColumns = ({
             label: "Destination",
         },
 
-
-
         /* =========================
            STATUS
         ========================= */
@@ -170,54 +218,79 @@ export const vehicleColumns = ({
                 return (
                     <span
                         className={`
-                        inline-flex
-                        items-center
-                        justify-center
-                        whitespace-nowrap
-                        rounded-full
-                        px-3
-                        py-1
-                        text-xs
-                        font-medium
-                        ${statusClass}
-                    `}
+                            inline-flex
+                            items-center
+                            justify-center
+                            whitespace-nowrap
+                            rounded-full
+                            px-3
+                            py-1
+                            text-xs
+                            font-medium
+                            ${statusClass}
+                        `}
                     >
                         {getStatusLabel(status)}
                     </span>
                 );
             },
         },
-        /* =========================
-          ACTION
-       ========================= */
+    ];
 
-        {
-            key: "action",
-            label: "Action",
+    /* =====================================================
+       READ ONLY USERS
+       
+       welspun
+       evonith
+       shreecement
+       
+       No Action column
+       No View
+       No Edit
+    ===================================================== */
 
-            render: (row) => {
-                return (
-                    <div
-                        className="flex items-center gap-2 cursor-pointer"
+    if (isReadOnlyRole) {
+        return columns;
+    }
+
+    /* =====================================================
+       ACTION COLUMN
+       
+       Other roles:
+       - View
+       - Edit
+    ===================================================== */
+
+    columns.push({
+        key: "action",
+        label: "Action",
+
+        render: (row) => {
+            return (
+                <div
+                    className="flex items-center gap-2"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                    }}
+                >
+                    {/* =========================
+                        VIEW
+                    ========================= */}
+
+                    <button
+                        type="button"
                         onClick={(event) => {
                             event.stopPropagation();
+                            onView?.(row);
                         }}
-                    >
-                        {/* VIEW BUTTON */}
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onView?.(row);
-                            }}
-                            className="
+                        className="
                             rounded-md
                             border
                             border-blue-200
                             bg-blue-50
                             px-3
-                            cursor-pointer
                             py-1.5
+                            cursor-pointer
                             text-xs
                             font-medium
                             text-blue-700
@@ -225,18 +298,21 @@ export const vehicleColumns = ({
                             hover:bg-blue-100
                             active:scale-95
                         "
-                        >
-                            View
-                        </button>
+                    >
+                        View
+                    </button>
 
-                        {/* EDIT BUTTON */}
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onEdit?.(row);
-                            }}
-                            className="
+                    {/* =========================
+                        EDIT
+                    ========================= */}
+
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onEdit?.(row);
+                        }}
+                        className="
                             rounded-md
                             border
                             border-orange-200
@@ -251,11 +327,13 @@ export const vehicleColumns = ({
                             hover:bg-orange-100
                             active:scale-95
                         "
-                        >
-                            Edit
-                        </button>
-                    </div>
-                );
-            },
+                    >
+                        Edit
+                    </button>
+                </div>
+            );
         },
-    ];
+    });
+
+    return columns;
+};

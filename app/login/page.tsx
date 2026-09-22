@@ -1,13 +1,45 @@
 
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Mode = "login" | "signup";
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // Session expires automatically 8 hours after successful login
+  const SESSION_DURATION = 8 * 60 * 60 * 1000;
+
+  const logoutUser = () => {
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("loginTime");
+    localStorage.removeItem("sessionExpiry");
+
+    router.replace("/login");
+  };
+
+  // Check an existing session when the login page loads.
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem("isLoggedIn");
+    const sessionExpiry = localStorage.getItem("sessionExpiry");
+
+    if (isLoggedIn !== "true" || !sessionExpiry) return;
+
+    const expiryTime = Number(sessionExpiry);
+
+    if (!Number.isFinite(expiryTime) || Date.now() >= expiryTime) {
+      logoutUser();
+      return;
+    }
+
+    // If already logged in, don't show the login screen.
+    router.replace("/");
+  }, [router]);
 
   const [mode, setMode] = useState<Mode>("login");
 
@@ -140,6 +172,9 @@ export default function LoginPage() {
       // SAVE USER
       // -------------------------------------
 
+      const loginTime = Date.now();
+      const sessionExpiry = loginTime + SESSION_DURATION;
+
       localStorage.setItem(
         "isLoggedIn",
         "true"
@@ -160,8 +195,19 @@ export default function LoginPage() {
         data.user.email
       );
 
+      // 8-hour session
+      localStorage.setItem(
+        "loginTime",
+        String(loginTime)
+      );
+
+      localStorage.setItem(
+        "sessionExpiry",
+        String(sessionExpiry)
+      );
+
       // Login successful
-      router.push("/");
+      router.replace("/");
     } catch (error) {
       console.error(
         "Login Error:",

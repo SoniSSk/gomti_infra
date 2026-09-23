@@ -1040,6 +1040,7 @@ export default function EditVehicleModal({
         "KRISHNA ROAD LINES",
         "VEER LOGISTICS",
         "VINAYAK ROADWAYS",
+        "LAXMI TRANSPORT CORPORATION"
     ];
 
     const tyreOptions = [

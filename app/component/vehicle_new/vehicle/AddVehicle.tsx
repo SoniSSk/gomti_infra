@@ -31,6 +31,7 @@ const TRANSPORTERS = [
     "KRISHNA ROAD LINES",
     "VEER LOGISTICS",
     "VINAYAK ROADWAYS",
+    "LAXMI TRANSPORT CORPORATION"
 ];
 
 /* =========================================================
@@ -818,10 +819,10 @@ export default function AddVehicle({
                             handleChange
                         }
                         className={`${inputClass} ${vehicleNumbersMismatch
-                                ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-                                : vehicleNumbersMatch
-                                    ? "border-green-500 focus:border-green-500 focus:ring-green-200"
-                                    : ""
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-200"
+                            : vehicleNumbersMatch
+                                ? "border-green-500 focus:border-green-500 focus:ring-green-200"
+                                : ""
                             }`}
                         placeholder="Re-enter vehicle number"
                         required

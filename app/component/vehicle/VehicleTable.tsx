@@ -584,7 +584,7 @@ export default function VehicleTable() {
             DISPATCH_DONE:
               "bg-green-100 text-green-700",
 
-            NOT_REGISTERD:
+            NOT_REGISTERED:
               "bg-gray-100 text-gray-700",
           };
 

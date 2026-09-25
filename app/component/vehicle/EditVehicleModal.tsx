@@ -426,12 +426,13 @@ export default function EditVehicleModal({
     "LOADING_STARTED",
     "LOADING_DONE",
     "LOADING_SLIP_SENT",
+    "ON_HOLD",
+    "NOT_REGISTERED",
     "ETP_GENERATING",
     "ETP_DONE",
     "INVOICE_GENERATING",
     "ETP_INVOICE_DONE",
     "DISPATCH_DONE",
-    "NOT_REGISTERD",
   ];
 
   // =========================

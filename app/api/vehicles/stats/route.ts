@@ -91,11 +91,12 @@ const VEHICLE_STATUSES = [
   "LOADING_STARTED",
   "LOADING_DONE",
   "LOADING_SLIP_SENT",
+  "ON_HOLD",
   "ETP_GENERATING",
   "ETP_DONE",
-  "ETP_INVOICE_DONE",
   "INVOICE_GENERATING",
-  "NOT_REGISTERD",
+  "ETP_INVOICE_DONE",
+  "NOT_REGISTERED",
   "DISPATCH_DONE",
 ] as const;
 
@@ -108,7 +109,7 @@ const ALERT_STATUSES = [
   "ETP_DONE",
   "LOADING_SLIP_SENT",
   "INVOICE_GENERATING",
-  "NOT_REGISTERD",
+  "NOT_REGISTERED",
   "ETP_INVOICE_DONE",
 ] as const;
 
@@ -315,7 +316,7 @@ const createEmptyStatusCounts = () => ({
   ETP_DONE: 0,
   ETP_INVOICE_DONE: 0,
   INVOICE_GENERATING: 0,
-  NOT_REGISTERD: 0,
+  NOT_REGISTERED: 0,
   DISPATCH_DONE: 0,
 });
 
@@ -341,8 +342,9 @@ const createEmptyStatusVehicles = (): StatusVehicleMap => ({
   ETP_DONE: [],
   ETP_INVOICE_DONE: [],
   INVOICE_GENERATING: [],
-  NOT_REGISTERD: [],
+  NOT_REGISTERED: [],
   DISPATCH_DONE: [],
+  ON_HOLD: [],
 });
 
 /* ============================================================
@@ -546,7 +548,7 @@ export async function GET() {
 
       INVOICE_GENERATING: statusVehicles.INVOICE_GENERATING.length,
 
-      NOT_REGISTERD: statusVehicles.NOT_REGISTERD.length,
+      NOT_REGISTERED: statusVehicles.NOT_REGISTERED.length,
 
       ETP_INVOICE_DONE: statusVehicles.ETP_INVOICE_DONE.length,
     };
@@ -686,9 +688,9 @@ export async function GET() {
       ====================================================== */
 
       notRegistered: {
-        count: statusVehicles.NOT_REGISTERD.length,
+        count: statusVehicles.NOT_REGISTERED.length,
 
-        vehicles: statusVehicles.NOT_REGISTERD,
+        vehicles: statusVehicles.NOT_REGISTERED,
       },
 
       /* ======================================================
@@ -772,7 +774,7 @@ export async function GET() {
 
         invoiceGenerating: status.INVOICE_GENERATING,
 
-        notRegistered: status.NOT_REGISTERD,
+        notRegistered: status.NOT_REGISTERED,
 
         dispatchDone: status.DISPATCH_DONE,
 
@@ -952,7 +954,7 @@ export async function GET() {
             ETP_DONE: 0,
             LOADING_SLIP_SENT: 0,
             INVOICE_GENERATING: 0,
-            NOT_REGISTERD: 0,
+            NOT_REGISTERED: 0,
             ETP_INVOICE_DONE: 0,
           },
 

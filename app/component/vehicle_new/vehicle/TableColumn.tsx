@@ -17,7 +17,7 @@ export const statusStyles: Record<string, string> = {
     ETP_INVOICE_DONE: "bg-cyan-100 text-cyan-700",
     INVOICE_GENERATING: "bg-sky-100 text-sky-700",
     DISPATCH_DONE: "bg-green-100 text-green-700",
-    NOT_REGISTERD: "bg-gray-100 text-gray-700",
+    NOT_REGISTERED: "bg-gray-100 text-gray-700",
 };
 
 /* =========================================================

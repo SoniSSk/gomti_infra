@@ -41,7 +41,7 @@ interface VehicleAlertCounts {
     ETP_DONE: number;
     LOADING_SLIP_SENT: number;
     INVOICE_GENERATING: number;
-    NOT_REGISTERD: number;
+    NOT_REGISTERED: number;
     ETP_INVOICE_DONE: number;
 }
 
@@ -92,7 +92,7 @@ const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
     ETP_DONE: 0,
     LOADING_SLIP_SENT: 0,
     INVOICE_GENERATING: 0,
-    NOT_REGISTERD: 0,
+    NOT_REGISTERED: 0,
     ETP_INVOICE_DONE: 0,
 };
 
@@ -626,7 +626,7 @@ const VehicleStats = () => {
                             >
                                 Not Registered:{" "}
                                 {
-                                    alertCounts.NOT_REGISTERD
+                                    alertCounts.NOT_REGISTERED
                                 }
                             </div>
 

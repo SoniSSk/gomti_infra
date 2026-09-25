@@ -3,6 +3,6 @@ import { Vehicle } from "@/app/types/vehicle";
 
 export const useEtpDoneVehicles = (vehicles: Vehicle[]): Vehicle[] => {
   return useMemo(() => {
-    return vehicles.filter((vehicle) => vehicle.status === "NOT_REGISTERD");
+    return vehicles.filter((vehicle) => vehicle.status === "NOT_REGISTERED");
   }, [vehicles]);
 };

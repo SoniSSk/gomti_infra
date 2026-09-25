@@ -237,7 +237,7 @@ const StatusBadge = ({
             dotClass = "bg-purple-500";
             break;
 
-        case "NOT_REGISTERD":
+        case "NOT_REGISTERED":
             badgeClass =
                 "border-red-200 bg-red-50 text-red-700";
             dotClass = "bg-red-500";

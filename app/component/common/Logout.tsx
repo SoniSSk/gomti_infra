@@ -13,7 +13,7 @@ export default function LogoutButton() {
 
         await signOut({ redirect: false });
 
-        router.push("/login");
+        router.push("/");
     };
 
     return (

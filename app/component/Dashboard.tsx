@@ -56,7 +56,7 @@ const Dashboard = () => {
      */
 
     signOut({ redirect: false }).finally(() => {
-      window.location.replace("/login");
+      window.location.replace("/");
     });
   }, []);
 

@@ -85,9 +85,9 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
 
         /*
          * The session cookie must be cleared too, otherwise proxy.ts
-         * sends /login straight back to the dashboard.
+         * still treats the user as logged in.
          */
-        await signOut({ redirectTo: "/login" });
+        await signOut({ redirectTo: "/" });
     }, [isLoggingOut, onLogout]);
 
     const handleAddVehicleSuccess = () => {

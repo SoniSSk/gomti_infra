@@ -70,47 +70,6 @@ export const parseDateTime = (value?: string | null): ParsedDateTime | null => {
     };
 };
 
-const SHORT_DATE_FORMAT = new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-});
-
-const MINUTE = 60 * 1000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-/** "just now", "15m ago", "3h ago", "2d ago"; older than a week -> "12 Sept". */
-export const formatRelativeTime = (
-    value?: string | null,
-    now: number = Date.now(),
-): string => {
-    const date = toDate(value);
-
-    if (!date || Number.isNaN(date.getTime())) {
-        return value ? String(value).trim() : "";
-    }
-
-    const diff = now - date.getTime();
-
-    if (diff < MINUTE) {
-        return "just now";
-    }
-
-    if (diff < HOUR) {
-        return `${Math.floor(diff / MINUTE)}m ago`;
-    }
-
-    if (diff < DAY) {
-        return `${Math.floor(diff / HOUR)}h ago`;
-    }
-
-    if (diff < 7 * DAY) {
-        return `${Math.floor(diff / DAY)}d ago`;
-    }
-
-    return SHORT_DATE_FORMAT.format(date);
-};
-
 /** "26 Sept 2026, 10:05 AM" or "—"-friendly empty string. */
 export const formatDateTime = (value?: string | null): string => {
     const parsed = parseDateTime(value);

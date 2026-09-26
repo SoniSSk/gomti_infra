@@ -4,7 +4,7 @@ import { Vehicle_new } from "@/app/types/vehicle_new";
 import { TableColumn, formatWeight } from "../common/CommonTable";
 import CommonButton from "../common/CommonButton";
 import { StatusBadge, formatStatus } from "../common/vehicleStatus";
-import { formatDateTime, formatRelativeTime } from "../common/dateTime";
+import { formatDateTime } from "../common/dateTime";
 import type { ExportColumn } from "@/app/utils/tableExport";
 import { getLastStatusChange } from "@/app/utils/lastStatusChange";
 import {
@@ -68,8 +68,7 @@ export const vehicleExportColumns: ExportColumn<Vehicle_new>[] = [
 /* =========================================================
    TIMELINE CELL
 
-   Entry / In / Out stacked as relative times ("15m ago");
-   the full timestamp shows on hover.
+   Entry / In / Out stacked, each with its full timestamp.
 ========================================================= */
 
 const TIMELINE_ROWS: { label: string; value: (row: Vehicle_new) => string | undefined }[] = [
@@ -81,14 +80,13 @@ const TIMELINE_ROWS: { label: string; value: (row: Vehicle_new) => string | unde
 const TimelineCell = ({ row }: { row: Vehicle_new }) => (
     <div className="flex flex-col whitespace-nowrap text-xs leading-4 tabular-nums">
         {TIMELINE_ROWS.map(({ label, value }) => {
-            const raw = value(row);
-            const relative = formatRelativeTime(raw);
+            const formatted = formatDateTime(value(row));
 
             return (
-                <span key={label} title={formatDateTime(raw) || undefined}>
+                <span key={label}>
                     <span className="inline-block w-9 text-gray-400">{label}</span>
-                    <span className={relative ? "text-gray-800" : "text-gray-300"}>
-                        {relative || "—"}
+                    <span className={formatted ? "text-gray-800" : "text-gray-300"}>
+                        {formatted || "—"}
                     </span>
                 </span>
             );
@@ -205,7 +203,7 @@ export const vehicleColumns = ({
             ),
         },
 
-        /* Entry / In / Out as relative times; full timestamp on hover */
+        /* Entry / In / Out full timestamps, stacked */
         {
             key: "createdAt",
             label: "Timeline",

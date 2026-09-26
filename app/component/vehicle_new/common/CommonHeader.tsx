@@ -14,6 +14,7 @@ import CommonModal from "./CommonModal";
 import CommonUserMenu from "./CommonUserMenu";
 import AddVehicle from "../vehicle/AddVehicle";
 import Logo from "../../common/Logo";
+import { canAddVehicle } from "@/app/utils/vehiclePermissions";
 
 export interface CommonHeaderProps {
     title: string;
@@ -58,6 +59,8 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
         userName || storedUserName;
 
     const hasUser = Boolean(displayUserName);
+
+    const showAddVehicle = canAddVehicle(userRole);
 
     const [isAddVehicleOpen, setIsAddVehicleOpen] =
         useState(false);
@@ -172,26 +175,30 @@ className="
                             sm:gap-3
                         "
                     >
-                        {/* Add Vehicle */}
+                        {/* Add Vehicle (admins and super admins only) */}
 
-                        <CommonButton
-                            icon={Plus}
-                            onClick={() =>
-                                setIsAddVehicleOpen(true)
-                            }
-                        >
-                            <span className="hidden sm:inline">
-                                Add Vehicle
-                            </span>
-                            <span className="sm:hidden">
-                                Add
-                            </span>
-                        </CommonButton>
+                        {showAddVehicle && (
+                            <>
+                                <CommonButton
+                                    icon={Plus}
+                                    onClick={() =>
+                                        setIsAddVehicleOpen(true)
+                                    }
+                                >
+                                    <span className="hidden sm:inline">
+                                        Add Vehicle
+                                    </span>
+                                    <span className="sm:hidden">
+                                        Add
+                                    </span>
+                                </CommonButton>
 
-                        <span
-                            className="mx-1 hidden h-6 w-px bg-gray-200 sm:block"
-                            aria-hidden="true"
-                        />
+                                <span
+                                    className="mx-1 hidden h-6 w-px bg-gray-200 sm:block"
+                                    aria-hidden="true"
+                                />
+                            </>
+                        )}
 
                         {/* Account menu (falls back to a plain Logout button) */}
 
@@ -222,7 +229,7 @@ className="
             {/* ================= ADD VEHICLE MODAL ================= */}
 
             <CommonModal
-                isOpen={isAddVehicleOpen}
+                isOpen={showAddVehicle && isAddVehicleOpen}
                 onClose={() =>
                     setIsAddVehicleOpen(false)
                 }
@@ -233,6 +240,7 @@ title="Add vehicle"
             >
 <div className="bg-gray-50 p-4 sm:p-6">
                     <AddVehicle
+                        userRole={userRole}
                         onSuccess={
                             handleAddVehicleSuccess
                         }

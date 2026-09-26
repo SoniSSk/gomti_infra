@@ -808,10 +808,6 @@ const [retryKey, setRetryKey] =
                                                         vehicle._id ||
                                                         `${vehicle.vehicleNo}-${index}`
                                                     }
-                                                    sno={
-                                                        vehicle.sno ??
-                                                        index + 1
-                                                    }
                                                     tokenNo={
                                                         vehicle.tokenNo
                                                     }

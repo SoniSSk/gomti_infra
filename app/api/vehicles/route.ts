@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import clientPromise from "@/app/lib/mongodb";
 import { auth } from "@/auth";
-import { customerVehicleFilter } from "@/app/utils/vehiclePermissions";
+import {
+  canAddVehicle,
+  customerVehicleFilter,
+} from "@/app/utils/vehiclePermissions";
 import { NextRequest, NextResponse } from "next/server";
 
 const DB_NAME = "gomti_infra";
@@ -355,6 +358,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+
+    if (!canAddVehicle(session?.user?.role)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Only an admin or super admin can add vehicles",
+        },
+        { status: 403 },
+      );
+    }
+
     const body = await req.json();
 
     const client = await clientPromise;

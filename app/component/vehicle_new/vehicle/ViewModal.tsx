@@ -19,6 +19,7 @@ import {
 
 import { Vehicle_new } from "@/app/types/vehicle_new";
 import { normalizeVehicle } from "@/app/utils/vehicleMapper";
+import { getLastStatusChange } from "@/app/utils/lastStatusChange";
 import { canModifyVehicle, getStoredUserRole } from "@/app/utils/vehiclePermissions";
 
 import CommonButton from "../common/CommonButton";
@@ -363,6 +364,7 @@ const ViewModal = ({
     const v = normalizeVehicle(vehicle);
     const location = v.currentLocation;
     const tracking = (v.tracking ?? []).slice().reverse();
+    const lastStatusChange = getLastStatusChange(v);
     // Dispatched vehicles: super admin only
     const canEdit =
         !!onEdit && canModifyVehicle(v.status, getStoredUserRole());
@@ -574,6 +576,14 @@ const ViewModal = ({
                             <div className="space-y-4">
                                 <PersonCard heading="Created by" person={v.createdBy} />
                                 <PersonCard heading="Last updated by" person={v.updatedBy} />
+                                <PersonCard
+                                    heading={
+                                        lastStatusChange?.at
+                                            ? `Last status change by · ${formatDateTime(lastStatusChange.at)}`
+                                            : "Last status change by"
+                                    }
+                                    person={lastStatusChange?.user}
+                                />
                             </div>
                         </ModalSection>
                     </div>
@@ -585,6 +595,8 @@ const ViewModal = ({
                     title="Activity"
                     description="Most recent first"
                     icon={Activity}
+                    collapsible
+                    defaultOpen={false}
                     action={
                         tracking.length > 0 && (
                             <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-600">

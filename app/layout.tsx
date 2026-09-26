@@ -8,8 +8,8 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "Gomti Infra Mining",
-  description: "Gomti Infra Mining Dashboard",
+  title: "Gomti Infra And Mining",
+  description: "Gomti Infra And Mining Dashboard",
 };
 
 export default function RootLayout({

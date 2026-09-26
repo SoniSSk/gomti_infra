@@ -6,10 +6,11 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 
 import CommonButton from "./CommonButton";
-import { StatusBadge, getStatusMeta } from "./vehicleStatus";
+import { StatusBadge } from "./vehicleStatus";
+import { formatDateTime } from "./dateTime";
+import { getLastStatusChange } from "@/app/utils/lastStatusChange";
 
 export interface CommonVehicleStatusCardProps {
-    sno: number;
     tokenNo?: string;
     vehicleNo?: string;
     status: string;
@@ -22,8 +23,22 @@ export interface CommonVehicleStatusCardProps {
     showGoogleChat?: boolean;
 }
 
+/** "just now", "12m ago", "3h ago", "2d ago"; "" when unparseable (legacy DD-MM-YYYY strings are shown via the tooltip instead). */
+const formatRelative = (value?: string | null): string => {
+    if (!value) return "";
+
+    const time = new Date(value).getTime();
+    if (Number.isNaN(time)) return "";
+
+    const minutes = Math.floor((Date.now() - time) / 60000);
+
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}h ago`;
+    return `${Math.floor(minutes / (60 * 24))}d ago`;
+};
+
 const CommonVehicleStatusCard = ({
-    sno,
     tokenNo,
     vehicleNo,
     status,
@@ -36,7 +51,9 @@ const CommonVehicleStatusCard = ({
     const [copied, setCopied] = useState(false);
     const [sendingChat, setSendingChat] = useState(false);
 
-    const statusMeta = getStatusMeta(status);
+    const statusChange = getLastStatusChange(vehicle);
+    const statusChangedAt = formatDateTime(statusChange?.at);
+    const statusChangedAgo = formatRelative(statusChange?.at);
 
     const handleKeyDown = (
         e: React.KeyboardEvent<HTMLDivElement>,
@@ -156,23 +173,19 @@ const CommonVehicleStatusCard = ({
             tabIndex={onClick ? 0 : undefined}
             aria-label={
                 onClick
-                    ? `Open vehicle ${vehicleNo || sno}`
+                    ? `Open vehicle ${vehicleNo || tokenNo || ""}`
                     : undefined
             }
             className={`
                 group
-                relative
                 flex
                 flex-col
                 gap-3
-                overflow-hidden
-                rounded-lg
+                rounded-xl
                 border
                 border-gray-200
                 bg-white
-                py-3.5
-                pl-5
-                pr-4
+                p-4
                 transition
                 duration-200
                 ${onClick
@@ -180,24 +193,16 @@ const CommonVehicleStatusCard = ({
                     : ""}
             `}
         >
-            {/* ================= STATUS STRIPE ================= */}
-            <span
-                className={`absolute inset-y-0 left-0 w-1 ${statusMeta.dot}`}
-                aria-hidden="true"
-            />
-
             {/* ================= HEADER ================= */}
             <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-1">
-                    <p className="truncate text-base font-semibold tracking-wide text-gray-900">
+                <div className="flex min-w-0 items-center gap-1.5">
+                    <p className="truncate text-base font-semibold tracking-wider text-gray-900">
                         {vehicleNo || "-"}
                     </p>
 
                     {vehicleNo && (
-                        <CommonButton
-                            variant="ghost"
-                            size="sm"
-                            icon={copied ? Check : Copy}
+                        <button
+                            type="button"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 copyVehicleNo();
@@ -208,7 +213,16 @@ const CommonVehicleStatusCard = ({
                                     ? "Copied"
                                     : "Copy vehicle number"
                             }
-                        />
+                            className={`inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 ${copied
+                                ? "text-green-600"
+                                : "text-gray-300 hover:bg-gray-100 hover:text-gray-600 group-hover:text-gray-400"}`}
+                        >
+                            {copied ? (
+                                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                            ) : (
+                                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                        </button>
                     )}
                 </div>
 
@@ -216,20 +230,36 @@ const CommonVehicleStatusCard = ({
             </div>
 
             {/* ================= META ================= */}
-            <dl className="flex items-center gap-4 text-xs">
-                <div className="flex items-center gap-1.5">
-                    <dt className="text-gray-400">Token</dt>
-                    <dd className="font-medium tabular-nums text-gray-700">
+            <dl className="grid grid-cols-2 gap-3 border-t border-gray-100 pt-3">
+                <div className="min-w-0">
+                    <dt className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                        Token
+                    </dt>
+                    <dd className="mt-0.5 truncate text-sm font-medium tabular-nums text-gray-800">
                         {tokenNo || "-"}
                     </dd>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                    <dt className="text-gray-400">S.No</dt>
-                    <dd className="font-medium tabular-nums text-gray-700">
-                        {sno}
-                    </dd>
-                </div>
+                {statusChange && (
+                    <div
+                        className="min-w-0"
+                        title={statusChangedAt ? `Status changed on ${statusChangedAt}` : undefined}
+                    >
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                            Updated by
+                        </dt>
+                        <dd className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-sm">
+                            <span className="truncate font-medium text-gray-800">
+                                {statusChange.user.name}
+                            </span>
+                            {statusChangedAgo && (
+                                <span className="shrink-0 text-xs text-gray-400">
+                                    · {statusChangedAgo}
+                                </span>
+                            )}
+                        </dd>
+                    </div>
+                )}
             </dl>
 
             {/* ================= HOLD REASON ================= */}

@@ -33,7 +33,7 @@ export default function Home() {
           <Logo height={96} className="max-w-full" />
         </div>
         <h2 className="text-4xl font-extrabold sm:text-5xl">
-          Gomti Infra Mining
+          Gomti Infra And Mining
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-orange-50">
           Managing mining dispatch, weighbridge, and fleet operations with one

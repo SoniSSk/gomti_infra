@@ -13,6 +13,10 @@ import {
 
 import toast from "react-hot-toast";
 import {
+    canAddVehicle,
+    getStoredUserRole,
+} from "@/app/utils/vehiclePermissions";
+import {
     CircleCheck,
     CircleX,
     Package,
@@ -29,6 +33,8 @@ import { Vehicle_new } from "@/app/types/vehicle_new";
 
 interface VehicleFormProps {
     onSuccess: () => void;
+    /** Session role; falls back to the role saved at login. */
+    userRole?: string;
 }
 
 /* =========================================================
@@ -101,7 +107,12 @@ const INITIAL_FORM_DATA: VehicleFormData = {
 
 export default function AddVehicle({
     onSuccess,
+    userRole: sessionRole,
 }: VehicleFormProps) {
+    const showSubmit = canAddVehicle(
+        sessionRole || getStoredUserRole(),
+    );
+
     const dispatch = useAppDispatch();
 
     const [submitting, setSubmitting] =
@@ -273,6 +284,10 @@ export default function AddVehicle({
         e: React.FormEvent<HTMLFormElement>,
     ) => {
         e.preventDefault();
+
+        if (!showSubmit) {
+            return;
+        }
 
         /* -----------------------------------------------
            VEHICLE NUMBER
@@ -903,15 +918,17 @@ export default function AddVehicle({
                         </p>
                     )}
 
-                    <CommonButton
-                        type="submit"
-                        icon={Plus}
-                        disabled={!isFormValid}
-                        loading={submitting}
-                        loadingText="Saving vehicle..."
-                    >
-                        Add vehicle
-                    </CommonButton>
+                    {showSubmit && (
+                        <CommonButton
+                            type="submit"
+                            icon={Plus}
+                            disabled={!isFormValid}
+                            loading={submitting}
+                            loadingText="Saving vehicle..."
+                        >
+                            Add vehicle
+                        </CommonButton>
+                    )}
                 </div>
             </div>
         </form>

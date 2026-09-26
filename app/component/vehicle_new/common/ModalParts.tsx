@@ -1,5 +1,7 @@
-import React from "react";
-import type { LucideIcon } from "lucide-react";
+"use client";
+
+import React, { useId, useState } from "react";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 
 /*
  * Building blocks for modal bodies so View / Edit / Add modals
@@ -14,8 +16,12 @@ export interface ModalSectionProps {
     title: string;
     description?: string;
     icon?: LucideIcon;
-    /** Right-aligned header content (count, button). */
+    /** Right-aligned header content (count, button). Keep it non-interactive when `collapsible`. */
     action?: React.ReactNode;
+    /** Render as an accordion that toggles from the header. */
+    collapsible?: boolean;
+    /** Initial state when `collapsible`. */
+    defaultOpen?: boolean;
     children: React.ReactNode;
     className?: string;
 }
@@ -25,37 +31,72 @@ export const ModalSection = ({
     description,
     icon: Icon,
     action,
+    collapsible = false,
+    defaultOpen = true,
     children,
     className = "",
-}: ModalSectionProps) => (
-    <section className={`rounded-xl border border-gray-200 bg-white ${className}`}>
-        <header className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-                {Icon && (
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
-                        <Icon className="h-4 w-4" aria-hidden="true" />
-                    </span>
+}: ModalSectionProps) => {
+    const [open, setOpen] = useState(defaultOpen);
+    const contentId = useId();
+    const isOpen = !collapsible || open;
+
+    const heading = (
+        <div className="flex min-w-0 items-center gap-2.5">
+            {Icon && (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                </span>
+            )}
+
+            <div className="min-w-0">
+                <h3 className="truncate text-sm font-semibold text-gray-900">
+                    {title}
+                </h3>
+
+                {description && (
+                    <p className="truncate text-xs text-gray-500">
+                        {description}
+                    </p>
                 )}
-
-                <div className="min-w-0">
-                    <h3 className="truncate text-sm font-semibold text-gray-900">
-                        {title}
-                    </h3>
-
-                    {description && (
-                        <p className="truncate text-xs text-gray-500">
-                            {description}
-                        </p>
-                    )}
-                </div>
             </div>
+        </div>
+    );
 
-            {action}
-        </header>
+    return (
+        <section className={`rounded-xl border border-gray-200 bg-white ${className}`}>
+            {collapsible ? (
+                <button
+                    type="button"
+                    onClick={() => setOpen((prev) => !prev)}
+                    aria-expanded={open}
+                    aria-controls={contentId}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-100 ${open ? "rounded-b-none border-b border-gray-100" : ""}`}
+                >
+                    {heading}
 
-        <div className="p-4">{children}</div>
-    </section>
-);
+                    <span className="flex shrink-0 items-center gap-2">
+                        {action}
+                        <ChevronDown
+                            className={`h-4 w-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+                            aria-hidden="true"
+                        />
+                    </span>
+                </button>
+            ) : (
+                <header className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+                    {heading}
+                    {action}
+                </header>
+            )}
+
+            {isOpen && (
+                <div id={contentId} className="p-4">
+                    {children}
+                </div>
+            )}
+        </section>
+    );
+};
 
 /* =========================================================
    DETAIL GRID / ITEM

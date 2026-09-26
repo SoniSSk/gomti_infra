@@ -207,7 +207,6 @@ const AlertVehicleGrid = ({
         {vehicles.map((vehicle, index) => (
             <CommonVehicleStatusCard
                 key={vehicle._id || `${vehicle.vehicleNo}-${index}`}
-                sno={vehicle.sno ?? index + 1}
                 tokenNo={vehicle.tokenNo}
                 vehicleNo={vehicle.vehicleNo}
                 status={vehicle.status}

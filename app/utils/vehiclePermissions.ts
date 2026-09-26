@@ -7,6 +7,10 @@ const normalizeRole = (role?: string | null): string =>
 export const isSuperAdminRole = (role?: string | null): boolean =>
     normalizeRole(role) === "superadmin";
 
+/** Only admins and super admins can register new vehicles. */
+export const canAddVehicle = (role?: string | null): boolean =>
+    ["admin", "superadmin"].includes(normalizeRole(role));
+
 /** Role saved at login; empty during SSR. */
 export const getStoredUserRole = (): string => {
     if (typeof window === "undefined") {

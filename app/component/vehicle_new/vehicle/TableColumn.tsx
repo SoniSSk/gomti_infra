@@ -7,6 +7,7 @@ import { StatusBadge, formatStatus } from "../common/vehicleStatus";
 import CommonTooltip from "../common/CommonTooltip";
 import { formatDateTime } from "../common/dateTime";
 import type { ExportColumn } from "@/app/utils/tableExport";
+import { getLastStatusChange } from "@/app/utils/lastStatusChange";
 import {
     canModifyVehicle,
     getStoredUserRole,
@@ -43,6 +44,14 @@ export const vehicleExportColumns: ExportColumn<Vehicle_new>[] = [
     { label: "Token No", value: (row) => row.tokenNo },
     { label: "Status", value: (row) => formatStatus(row.status) },
     { label: "Hold Reason", value: (row) => row.holdReason },
+    {
+        label: "Status Changed By",
+        value: (row) => getLastStatusChange(row)?.user.name,
+    },
+    {
+        label: "Status Changed At",
+        value: (row) => formatDateTime(getLastStatusChange(row)?.at),
+    },
     { label: "Buyer", value: (row) => row.buyerDetails },
     { label: "Destination", value: (row) => row.destination },
     { label: "Transporter", value: (row) => row.transporterName },
@@ -138,9 +147,27 @@ export const vehicleColumns = ({
         {
             key: "status",
             label: "Status",
-            render: (row) => (
-                <StatusBadge status={String(row.status ?? "")} />
-            ),
+            render: (row) => {
+                const change = getLastStatusChange(row);
+                const changedAt = formatDateTime(change?.at);
+
+                return (
+                    <div className="flex flex-col items-start gap-1">
+                        <StatusBadge status={String(row.status ?? "")} />
+                        {change && (
+                            <span
+                                className="max-w-[160px] truncate text-xs text-gray-500"
+                                title={changedAt ? `Changed on ${changedAt}` : undefined}
+                            >
+                                by{" "}
+                                <span className="font-medium text-gray-700">
+                                    {change.user.name}
+                                </span>
+                            </span>
+                        )}
+                    </div>
+                );
+            },
         },
 
         /* Buyer + Destination */

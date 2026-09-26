@@ -14,6 +14,12 @@ export interface CommonCardProps {
 
     /** Shows a placeholder instead of the number (avoids a misleading 0). */
     loading?: boolean;
+
+    /** Tailwind bg-* class for the accent bar, e.g. "bg-green-500". */
+    accent?: string;
+
+    /** Optional short helper line under the number. */
+    description?: string;
 }
 
 const CommonCard: React.FC<CommonCardProps> = ({
@@ -24,98 +30,96 @@ const CommonCard: React.FC<CommonCardProps> = ({
     numberClassName = "",
     onClick,
     loading = false,
+    accent = "bg-orange-500",
+    description,
 }) => {
     const interactive = Boolean(onClick);
 
     const displayNumber =
         number === null ||
+            number === undefined ||
             number === "undefined" ||
             number === ""
             ? 0
             : number;
 
+    const Wrapper = interactive ? "button" : "div";
+
     return (
-        <div
-            onClick={onClick}
+        <Wrapper
+            {...(interactive
+                ? { type: "button" as const, onClick }
+                : {})}
             className={`
-                group
                 relative
-                min-h-[65px]
+                flex
+                w-full
+                flex-col
                 overflow-hidden
-                rounded-2xl
+                rounded-xl
                 border
-                border-gray-100
+                border-gray-200
                 bg-white
-                px-1
-                py-1
-                text-center
-                shadow-md
-                transition-all
-                duration-300
-                ease-in-out
+                p-4
+                text-left
+                shadow-sm
+                transition
+                duration-200
                 ${interactive
-                    ? "cursor-pointer hover:-translate-y-1 hover:border-orange-200 hover:shadow-xl"
+                    ? "cursor-pointer hover:border-orange-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-200"
                     : ""}
                 ${className}
             `}
         >
-            {/* TOP ACCENT */}
-            <div
-                className="
-                    absolute
-                    left-0
-                    top-0
-                    h-1
-                    w-full
-                    bg-gradient-to-r
-                    from-orange-500
-                    to-orange-300
-                "
+            {/* ACCENT */}
+            <span
+                className={`absolute inset-y-0 left-0 w-1 ${accent}`}
+                aria-hidden="true"
             />
 
-            {/* CONTENT */}
-            <div className="flex min-h-[65px] flex-col items-center justify-center">
-                {/* HEADING */}
-                <span
-                    className={`
-                        text-[12px]
-                        font-semibold
-                        uppercase
-                        tracking-wider
-                        text-gray-500
-                        transition-colors
-                        duration-300
-                        group-hover:text-orange-600
-                        ${headingClassName}
-                    `}
-                >
-                    {heading}
-                </span>
+            {/* HEADING */}
+            <span
+                className={`
+                    truncate
+                    text-xs
+                    font-medium
+                    text-gray-500
+                    sm:text-sm
+                    ${headingClassName}
+                `}
+            >
+                {heading}
+            </span>
 
-                {/* NUMBER */}
-                <h3
-                    className={`
-                        mt-1
-                        text-2xl
-                        font-extrabold
-                        text-orange-600
-                        transition-transform
-                        duration-300
-                        group-hover:scale-105
-                        ${numberClassName}
-                    `}
-                >
-                    {loading ? (
-                        <span
-                            className="mx-auto block h-7 w-12 animate-pulse rounded bg-gray-200"
-                            aria-label="Loading"
-                        />
-                    ) : (
-                        displayNumber
-                    )}
-                </h3>
-            </div>
-        </div>
+            {/* NUMBER */}
+            <span
+                className={`
+                    mt-1.5
+                    text-2xl
+                    font-semibold
+                    leading-none
+                    tabular-nums
+                    text-gray-900
+                    sm:text-3xl
+                    ${numberClassName}
+                `}
+            >
+                {loading ? (
+                    <span
+                        className="block h-7 w-14 animate-pulse rounded bg-gray-200 sm:h-8"
+                        aria-label="Loading"
+                    />
+                ) : (
+                    displayNumber
+                )}
+            </span>
+
+            {description && (
+                <span className="mt-1.5 truncate text-xs text-gray-400">
+                    {description}
+                </span>
+            )}
+        </Wrapper>
     );
 };
 

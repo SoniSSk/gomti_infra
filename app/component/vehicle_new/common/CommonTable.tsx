@@ -5,6 +5,10 @@ import React, {
     useMemo,
     useState,
 } from "react";
+import { ChevronDown, CircleAlert, Inbox, Plus, RefreshCw, Search, X } from "lucide-react";
+
+import CommonButton from "./CommonButton";
+import CommonStateMessage from "./CommonStateMessage";
 import CommonModal from "./CommonModal";
 
 /* =========================================================
@@ -30,6 +34,11 @@ export interface TableColumn<T> {
      * Hide column on smaller screens
      */
     hideOnMobile?: boolean;
+
+    /**
+     * Cell alignment. Use "right" for numeric columns.
+     */
+    align?: "left" | "center" | "right";
 }
 
 export interface TableFilterOption {
@@ -183,6 +192,12 @@ export interface CommonTableProps<T> {
 ========================================================= */
 
 const SKELETON_ROWS = 6;
+
+const ALIGN_CLASS = {
+    left: "text-left",
+    center: "text-center",
+    right: "text-right tabular-nums",
+} as const;
 
 const formatDateTime = (
     value: unknown,
@@ -752,7 +767,7 @@ const CommonTable = <
                 onRefresh ||
                 onAdd
             ) && (
-                    <div className="w-full border-b border-orange-100 bg-white">
+<div className="w-full border-b border-gray-200 bg-white">
                         <div className="w-full p-3 sm:p-4">
                             <div className="flex w-full flex-col gap-3">
                                 <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center">
@@ -764,22 +779,7 @@ const CommonTable = <
                                         {searchable && (
                                             <div className="relative w-full min-w-0 sm:flex-1 lg:max-w-md">
                                                 <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        strokeWidth={
-                                                            1.8
-                                                        }
-                                                        stroke="currentColor"
-                                                        className="h-4 w-4"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
-                                                        />
-                                                    </svg>
+                                                    <Search className="h-4 w-4" aria-hidden="true" />
                                                 </div>
 
                                                 <input
@@ -824,11 +824,12 @@ const CommonTable = <
                                                 {searchText && (
                                                     <button
                                                         type="button"
-                                                        onClick={() =>
+onClick={() =>
                                                             handleSearchChange(
                                                                 "",
                                                             )
                                                         }
+                                                        aria-label="Clear search"
                                                         className="
                                                         absolute
                                                         right-2
@@ -842,7 +843,7 @@ const CommonTable = <
                                                         hover:text-orange-500
                                                     "
                                                     >
-                                                        ✕
+                                                        <X className="h-4 w-4" aria-hidden="true" />
                                                     </button>
                                                 )}
                                             </div>
@@ -935,31 +936,14 @@ const CommonTable = <
                                         {/* ================= CLEAR ================= */}
 
                                         {hasActiveFilters && (
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    clearFilters
-                                                }
-                                                className="
-                                                h-10
-                                                w-full
-                                                rounded-lg
-                                                border
-                                                border-gray-200
-                                                bg-gray-50
-                                                px-3
-                                                text-sm
-                                                font-medium
-                                                text-gray-600
-                                                transition
-                                                hover:border-orange-200
-                                                hover:bg-orange-50
-                                                hover:text-orange-600
-                                                sm:w-auto
-                                            "
+                                            <CommonButton
+                                                variant="secondary"
+                                                onClick={clearFilters}
+                                                icon={X}
+                                                className="w-full sm:w-auto"
                                             >
                                                 Clear
-                                            </button>
+                                            </CommonButton>
                                         )}
                                     </div>
 
@@ -984,9 +968,7 @@ const CommonTable = <
                                                 className="
                                                 flex
                                                 w-full
-                                                sm:w-[160px]
-                                                md:w-[160px]
-                                                lg:w-auto
+sm:w-auto
                                             "
                                             >
                                                 {
@@ -998,210 +980,33 @@ const CommonTable = <
                                         {/* ================= ADD ================= */}
 
                                         {onAdd && (
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    handleAdd
-                                                }
-                                                disabled={
-                                                    adding ||
-                                                    loading
-                                                }
-                                                className="
-                                                inline-flex
-                                                h-10
-                                                w-full
-                                                items-center
-                                                justify-center
-                                                gap-2
-                                                rounded-lg
-                                                bg-orange-500
-                                                px-4
-                                                text-sm
-                                                font-semibold
-                                                text-white
-                                                shadow-sm
-                                                transition-all
-                                                duration-200
-                                                hover:bg-orange-600
-                                                active:scale-[0.98]
-                                                disabled:cursor-not-allowed
-                                                disabled:opacity-50
-                                                sm:w-[160px]
-                                                md:w-[160px]
-                                                lg:w-auto
-                                            "
+                                            <CommonButton
+                                                onClick={handleAdd}
+                                                disabled={loading}
+                                                loading={adding}
+                                                loadingText="Adding..."
+                                                icon={Plus}
+                                                className="w-full sm:w-auto"
                                             >
-                                                {adding ? (
-                                                    <>
-                                                        <svg
-                                                            className="h-4 w-4 animate-spin"
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <circle
-                                                                className="opacity-25"
-                                                                cx="12"
-                                                                cy="12"
-                                                                r="10"
-                                                                stroke="currentColor"
-                                                                strokeWidth="4"
-                                                            />
-
-                                                            <path
-                                                                className="opacity-75"
-                                                                fill="currentColor"
-                                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                                            />
-                                                        </svg>
-
-                                                        <span>
-                                                            Adding...
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={
-                                                                2
-                                                            }
-                                                            stroke="currentColor"
-                                                            className="h-5 w-5"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M12 4v16m8-8H4"
-                                                            />
-                                                        </svg>
-
-                                                        <span className="whitespace-nowrap">
-                                                            {
-                                                                addButtonLabel
-                                                            }
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </button>
+                                                {addButtonLabel}
+                                            </CommonButton>
                                         )}
 
                                         {/* ================= REFRESH ================= */}
 
                                         {onRefresh && (
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    handleRefresh
-                                                }
-                                                disabled={
-                                                    refreshing ||
-                                                    loading
-                                                }
+                                            <CommonButton
+                                                variant="secondary"
+                                                onClick={handleRefresh}
+                                                disabled={loading}
+                                                loading={refreshing}
+                                                loadingText="Refreshing..."
+                                                icon={RefreshCw}
                                                 title="Refresh"
-                                                className="
-                                                inline-flex
-                                                h-10
-                                                w-full
-                                                items-center
-                                                justify-center
-                                                gap-2
-                                                rounded-lg
-                                                border
-                                                border-gray-200
-                                                bg-white
-                                                px-4
-                                                text-sm
-                                                font-semibold
-                                                text-gray-600
-                                                shadow-sm
-                                                transition-all
-                                                duration-200
-                                                hover:border-orange-300
-                                                hover:bg-orange-50
-                                                hover:text-orange-600
-                                                active:scale-[0.98]
-                                                disabled:cursor-not-allowed
-                                                disabled:opacity-50
-                                                sm:w-[160px]
-                                                md:w-[160px]
-                                                lg:w-auto
-                                            "
+                                                className="w-full sm:w-auto"
                                             >
-                                                {refreshing ? (
-                                                    <>
-                                                        <svg
-                                                            className="h-4 w-4 animate-spin"
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <circle
-                                                                className="opacity-25"
-                                                                cx="12"
-                                                                cy="12"
-                                                                r="10"
-                                                                stroke="currentColor"
-                                                                strokeWidth="4"
-                                                            />
-
-                                                            <path
-                                                                className="opacity-75"
-                                                                fill="currentColor"
-                                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                                            />
-                                                        </svg>
-
-                                                        <span>
-                                                            Refreshing...
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={
-                                                                2
-                                                            }
-                                                            stroke="currentColor"
-                                                            className="h-4 w-4"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M4.5 12a7.5 7.5 0 0112.8-5.3L19.5 9"
-                                                            />
-
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M19.5 4.5V9h-4.5"
-                                                            />
-
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M19.5 12a7.5 7.5 0 01-12.8 5.3L4.5 15"
-                                                            />
-
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M4.5 19.5V15H9"
-                                                            />
-                                                        </svg>
-
-                                                        <span>
-                                                            Refresh
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </button>
+                                                Refresh
+                                            </CommonButton>
                                         )}
                                     </div>
                                 </div>
@@ -1233,7 +1038,7 @@ const CommonTable = <
                     {/* ================= HEAD ================= */}
 
                     <thead>
-                        <tr className="border-b border-orange-600 bg-orange-500">
+<tr className="border-b-2 border-orange-200 bg-orange-50">
                             {/* EXPAND COLUMN */}
 
                             {expandable && (
@@ -1245,7 +1050,7 @@ const CommonTable = <
                                         w-[52px]
                                         min-w-[52px]
                                         max-w-[52px]
-                                        bg-orange-500
+                                        bg-orange-50
                                         px-2
                                         py-3
                                     "
@@ -1280,15 +1085,15 @@ const CommonTable = <
                                             top-0
                                             z-20
                                             whitespace-nowrap
-                                            bg-orange-500
+                                            bg-orange-50
                                             px-4
                                             py-3
-                                            text-left
+${ALIGN_CLASS[column.align ?? "left"]}
                                             text-xs
-                                            font-bold
+                                            font-semibold
                                             uppercase
-                                            tracking-wider
-                                            text-white
+                                            tracking-wide
+                                            text-orange-800
                                             ${column.hideOnMobile
                                                 ? "hidden sm:table-cell"
                                                 : ""
@@ -1322,14 +1127,14 @@ const CommonTable = <
                                             <td className="px-2 py-3" />
                                         )}
 
-                                        {columns.map(
-                                            (_, colIndex) => (
+{columns.map(
+                                            (column, colIndex) => (
                                                 <td
                                                     key={colIndex}
                                                     className="px-4 py-3"
                                                 >
                                                     <div
-                                                        className="h-3.5 rounded bg-gray-200"
+className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : ""}`}
                                                         style={{
                                                             width: `${55 + ((rowIndex + colIndex) % 4) * 12}%`,
                                                         }}
@@ -1349,47 +1154,26 @@ const CommonTable = <
                                             ? 1
                                             : 0)
                                     }
-                                    className="px-4 py-16 text-center"
+                                    className="px-4 py-16"
                                 >
-                                    <div
-                                        role="alert"
-                                        className="flex flex-col items-center justify-center"
-                                    >
-                                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                strokeWidth={1.5}
-                                                stroke="currentColor"
-                                                className="h-6 w-6"
-                                                aria-hidden="true"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-                                                />
-                                            </svg>
-                                        </div>
-
-                                        <p className="text-sm font-semibold text-gray-700">
-                                            {error}
-                                        </p>
-
-                                        {onRetry && (
-                                            <button
-                                                type="button"
-                                                onClick={onRetry}
-                                                disabled={refreshing}
-                                                className="mt-3 inline-flex h-9 cursor-pointer items-center rounded-lg bg-orange-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                {refreshing
-                                                    ? "Retrying..."
-                                                    : "Retry"}
-                                            </button>
-                                        )}
-                                    </div>
+                                    <CommonStateMessage
+                                        tone="danger"
+                                        icon={CircleAlert}
+                                        title={error}
+                                        action={
+                                            onRetry && (
+                                                <CommonButton
+                                                    size="sm"
+                                                    icon={RefreshCw}
+                                                    onClick={onRetry}
+                                                    loading={refreshing}
+                                                    loadingText="Retrying..."
+                                                >
+                                                    Retry
+                                                </CommonButton>
+                                            )
+                                        }
+                                    />
                                 </td>
                             </tr>
                         ) : paginatedData.length ===
@@ -1402,45 +1186,17 @@ const CommonTable = <
                                             ? 1
                                             : 0)
                                     }
-                                    className="px-4 py-16 text-center"
+                                    className="px-4 py-16"
                                 >
-                                    <div className="flex flex-col items-center justify-center">
-                                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-orange-400">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                strokeWidth={
-                                                    1.5
-                                                }
-                                                stroke="currentColor"
-                                                className="h-6 w-6"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    d="M20.25 6.75v10.5a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6.75m16.5 0A2.25 2.25 0 0018 4.5H6a2.25 2.25 0 00-2.25 2.25m16.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0l-7.5-4.615A2.25 2.25 0 013.75 6.993V6.75"
-                                                />
-                                            </svg>
-                                        </div>
-
-                                        <p className="text-sm font-semibold text-gray-700">
-                                            {
-                                                emptyMessage
-                                            }
-                                        </p>
-
-                                        {hasActiveFilters && (
-                                            <p className="mt-1 text-xs text-gray-400">
-                                                Try
-                                                changing
-                                                your
-                                                search
-                                                or
-                                                filters.
-                                            </p>
-                                        )}
-                                    </div>
+                                    <CommonStateMessage
+                                        icon={Inbox}
+                                        title={emptyMessage}
+                                        description={
+                                            hasActiveFilters
+                                                ? "Try changing your search or filters."
+                                                : undefined
+                                        }
+                                    />
                                 </td>
                             </tr>
                         ) : (
@@ -1535,31 +1291,7 @@ const CommonTable = <
                                                                 hover:text-orange-600
                                                             "
                                                         >
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                strokeWidth={
-                                                                    2
-                                                                }
-                                                                stroke="currentColor"
-                                                                className={`
-                                                                    h-4
-                                                                    w-4
-                                                                    transition-transform
-                                                                    duration-200
-                                                                    ${isExpanded
-                                                                        ? "rotate-180 text-orange-500"
-                                                                        : ""
-                                                                    }
-                                                                `}
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    d="m19 9-7 7-7-7"
-                                                                />
-                                                            </svg>
+                                                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180 text-orange-500" : "" }`} aria-hidden="true" />
                                                         </button>
                                                     </td>
                                                 )}
@@ -1584,13 +1316,14 @@ const CommonTable = <
                                                                     column.width,
                                                             }}
                                                             className={`
-                                                                whitespace-nowrap
+whitespace-nowrap
                                                                 overflow-hidden
                                                                 text-ellipsis
                                                                 px-4
                                                                 py-3
                                                                 text-sm
                                                                 text-gray-700
+                                                                ${ALIGN_CLASS[column.align ?? "left"]}
                                                                 ${column.hideOnMobile
                                                                     ? "hidden sm:table-cell"
                                                                     : ""
@@ -1680,7 +1413,7 @@ const CommonTable = <
 
                     {!loading && !error && (
                     <tfoot>
-                        <tr className="border-t-2 border-orange-200 bg-orange-50">
+<tr className="border-t border-gray-200 bg-gray-50">
                             {expandable && (
                                 <td
                                     className="
@@ -1713,12 +1446,12 @@ const CommonTable = <
                                                 column.width,
                                         }}
                                         className={`
-                                            px-4
+px-4
                                             py-3
-                                            text-left
+                                            ${ALIGN_CLASS[column.align ?? "left"]}
                                             text-sm
-                                            font-bold
-                                            text-gray-800
+                                            font-semibold
+                                            text-gray-900
                                             ${column.hideOnMobile
                                                 ? "hidden sm:table-cell"
                                                 : ""
@@ -1732,17 +1465,14 @@ const CommonTable = <
                                             </span>
                                         ) : column.key ===
                                             "netWeight" ? (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-orange-700">
-                                                    {formatWeight(
-                                                        totalWeight,
-                                                    )}
-                                                </span>
-
-                                                <span className="rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-bold text-white">
+<span>
+                                                {formatWeight(
+                                                    totalWeight,
+                                                )}{" "}
+                                                <span className="text-xs font-medium text-gray-500">
                                                     MT
                                                 </span>
-                                            </div>
+                                            </span>
                                         ) : (
                                             columnIndex === 0 ? (
                                                 <span>
@@ -1863,7 +1593,9 @@ const CommonTable = <
                     <div className="flex flex-wrap items-center gap-1">
                         {/* PREVIOUS */}
 
-                        <button
+                        <CommonButton
+                            variant="secondary"
+                            size="sm"
                             type="button"
                             disabled={
                                 currentPage ===
@@ -1885,27 +1617,9 @@ const CommonTable = <
                                     null,
                                 );
                             }}
-                            className="
-                                cursor-pointer
-                                rounded-lg
-                                border
-                                border-gray-200
-                                bg-white
-                                px-3
-                                py-1.5
-                                text-sm
-                                font-medium
-                                text-gray-600
-                                transition
-                                hover:border-orange-300
-                                hover:bg-orange-50
-                                hover:text-orange-600
-                                disabled:cursor-not-allowed
-                                disabled:opacity-40
-                            "
                         >
                             Previous
-                        </button>
+                        </CommonButton>
 
                         {/* PAGE NUMBERS */}
 
@@ -1965,7 +1679,9 @@ const CommonTable = <
 
                         {/* NEXT */}
 
-                        <button
+                        <CommonButton
+                            variant="secondary"
+                            size="sm"
                             type="button"
                             disabled={
                                 currentPage ===
@@ -1989,27 +1705,9 @@ const CommonTable = <
                                     null,
                                 );
                             }}
-                            className="
-                                cursor-pointer
-                                rounded-lg
-                                border
-                                border-gray-200
-                                bg-white
-                                px-3
-                                py-1.5
-                                text-sm
-                                font-medium
-                                text-gray-600
-                                transition
-                                hover:border-orange-300
-                                hover:bg-orange-50
-                                hover:text-orange-600
-                                disabled:cursor-not-allowed
-                                disabled:opacity-40
-                            "
                         >
                             Next
-                        </button>
+                        </CommonButton>
                     </div>
                 </div>
             )}
@@ -2035,41 +1733,14 @@ const CommonTable = <
                         closeOnOutsideClick
                         footer={
                             <div className="flex justify-end gap-3">
-                                <button
-                                    type="button"
+                                <CommonButton
+                                    variant="secondary"
                                     onClick={
                                         handleCloseModal
                                     }
-                                    className="
-                    rounded-lg
-                    border
-                    border-gray-300
-                    px-4
-                    py-2
-                    text-sm
-                    font-medium
-                    text-gray-700
-                    hover:bg-gray-50
-                "
                                 >
                                     Close
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className="
-                    rounded-lg
-                    bg-orange-500
-                    px-4
-                    py-2
-                    text-sm
-                    font-medium
-                    text-white
-                    hover:bg-orange-600
-                "
-                                >
-                                    Save
-                                </button>
+                                </CommonButton>
                             </div>
                         }
                     >

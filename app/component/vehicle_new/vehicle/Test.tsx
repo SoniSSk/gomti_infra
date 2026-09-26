@@ -14,6 +14,8 @@ import CommonTable, {
 
 import toast from "react-hot-toast";
 
+import CommonInput from "../common/CommonInput";
+
 import { Vehicle_new } from "@/app/types/vehicle_new";
 
 import ViewModal from "./ViewModal";
@@ -683,40 +685,16 @@ export default function Test({
     const headerContent =
         dateFilter ===
             "custom" ? (
-            <div className="w-full">
-                <input
-                    type="date"
-                    value={
-                        customDate
-                    }
-                    onChange={(
-                        event,
-                    ) =>
-                        handleCustomDateChange(
-                            event
-                                .target
-                                .value,
-                        )
-                    }
-                    className="
-                        h-10
-                        w-full
-                        rounded-lg
-                        border
-                        border-gray-300
-                        bg-white
-                        px-3
-                        text-sm
-                        text-gray-700
-                        outline-none
-                        transition
-                        hover:border-orange-400
-                        focus:border-orange-500
-                        focus:ring-1
-                        focus:ring-orange-100
-                    "
-                />
-            </div>
+            <CommonInput
+                type="date"
+                aria-label="Custom date"
+                value={customDate}
+                onChange={(event) =>
+                    handleCustomDateChange(
+                        event.target.value,
+                    )
+                }
+            />
         ) : null;
 
     /* =====================================================

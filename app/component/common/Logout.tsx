@@ -1,14 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 export default function LogoutButton() {
     const router = useRouter();
 
-    const handleLogout = () => {
-        localStorage.removeItem("isLoggedIn");
+    const handleLogout = async () => {
         localStorage.removeItem("userRole");
         localStorage.removeItem("userName");
+        localStorage.removeItem("userEmail");
+
+        await signOut({ redirect: false });
 
         router.push("/login");
     };

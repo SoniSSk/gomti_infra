@@ -2,67 +2,19 @@
 
 import {
   FormEvent,
-  useEffect,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { signIn, getSession } from "next-auth/react";
 
 type Mode = "login" | "signup";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // =====================================================
-  // SESSION
-  // =====================================================
-
-  // Session expires automatically after 8 hours
-  const SESSION_DURATION = 8 * 60 * 60 * 1000;
-
-  // =====================================================
-  // LOGOUT
-  // =====================================================
-
-  const logoutUser = () => {
-    // Clear EVERYTHING from localStorage
-    localStorage.clear();
-
-    router.replace("/login");
-  };
-
-  // =====================================================
-  // CHECK EXISTING SESSION
-  // =====================================================
-
-  useEffect(() => {
-    const isLoggedIn =
-      localStorage.getItem("isLoggedIn");
-
-    const sessionExpiry =
-      localStorage.getItem("sessionExpiry");
-
-    // No active session
-    if (
-      isLoggedIn !== "true" ||
-      !sessionExpiry
-    ) {
-      return;
-    }
-
-    const expiryTime = Number(sessionExpiry);
-
-    // Invalid or expired session
-    if (
-      !Number.isFinite(expiryTime) ||
-      Date.now() >= expiryTime
-    ) {
-      logoutUser();
-      return;
-    }
-
-    // Existing valid session
-    router.replace("/");
-  }, [router]);
+  // Auth state (login redirect for /login vs protected pages) is now
+  // enforced server-side by middleware.ts, based on the real NextAuth
+  // session cookie — no client-side session bookkeeping needed here.
 
   // =====================================================
   // STATE
@@ -189,96 +141,42 @@ export default function LoginPage() {
         await getCurrentLocation();
 
       // =================================================
-      // LOGIN API
+      // LOGIN VIA NEXTAUTH
       // =================================================
 
-      const response = await fetch(
-        "/api/auth/login",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            email: email
-              .trim()
-              .toLowerCase(),
-
-            password,
-
-            latitude:
-              location.latitude,
-
-            longitude:
-              location.longitude,
-          }),
-        }
-      );
-
-      const data =
-        await response.json();
+      const result = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        redirect: false,
+      });
 
       // =================================================
       // LOGIN ERROR
       // =================================================
 
-      if (!response.ok) {
-        setError(
-          data.message ||
-          "Invalid email or password"
-        );
-
+      if (!result || result.error) {
+        setError("Invalid email or password");
         return;
       }
 
       // =================================================
-      // SAVE NEW USER SESSION
+      // SAVE DISPLAY-ONLY USER INFO
       // =================================================
+      //
+      // The real session lives in an httpOnly cookie managed by
+      // NextAuth. These localStorage values are only read by a few
+      // components to render the signed-in user's name/role — they
+      // are not used for access control anymore.
 
-      const loginTime = Date.now();
+      const session = await getSession();
 
-      const sessionExpiry =
-        loginTime +
-        SESSION_DURATION;
-
-      // Login status
-      localStorage.setItem(
-        "isLoggedIn",
-        "true"
-      );
-
-      // User role
-      localStorage.setItem(
-        "userRole",
-        data.user.role
-      );
-
-      // User name
-      localStorage.setItem(
-        "userName",
-        data.user.name
-      );
-
-      // User email
-      localStorage.setItem(
-        "userEmail",
-        data.user.email
-      );
-
-      // Login timestamp
-      localStorage.setItem(
-        "loginTime",
-        String(loginTime)
-      );
-
-      // 8-hour expiry timestamp
-      localStorage.setItem(
-        "sessionExpiry",
-        String(sessionExpiry)
-      );
+      if (session?.user) {
+        localStorage.setItem("userRole", session.user.role || "");
+        localStorage.setItem("userName", session.user.name || "");
+        localStorage.setItem("userEmail", session.user.email || "");
+      }
 
       // =================================================
       // LOGIN SUCCESS

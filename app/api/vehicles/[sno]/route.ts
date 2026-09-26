@@ -35,11 +35,6 @@ export async function PUT(
      */
     const { _id, sno: bodySno, ...updateData } = body;
 
-    console.log("🚛 PUT VEHICLE UPDATE");
-    console.log("🔢 S.No:", vehicleSno);
-    console.log("📦 Incoming Body:", body);
-    console.log("📦 Update Data:", updateData);
-
     const client = await clientPromise;
     const db = client.db("gomti_infra");
 

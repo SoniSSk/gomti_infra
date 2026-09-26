@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 
+import { signOut } from "next-auth/react";
 import CommonHeader from "./vehicle_new/common/CommonHeader";
 import Links from "./dashboard/Links";
 
@@ -51,10 +52,12 @@ const Dashboard = () => {
     }
 
     /*
-     * Redirect to login
+     * Clear the real NextAuth session cookie, then redirect.
      */
 
-    window.location.replace("/login");
+    signOut({ redirect: false }).finally(() => {
+      window.location.replace("/login");
+    });
   }, []);
 
   /* =====================================================

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
+import { SessionProvider } from "next-auth/react";
 import ScrollToTop from "./component/common/ScrollToTop";
 import GlobalLoader from "./component/common/GlobalLoader";
 import ReduxProvider from "./redux/ReduxProvider";
 import "./globals.css";
-import Routes from "./component/Routes";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
@@ -20,11 +20,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ReduxProvider>
-          <Routes />
-          <GlobalLoader />
-          {children}
-        </ReduxProvider>
+        <SessionProvider>
+          <ReduxProvider>
+            <GlobalLoader />
+            {children}
+          </ReduxProvider>
+        </SessionProvider>
         <Toaster position="top-right" />
         <ScrollToTop />
       </body>

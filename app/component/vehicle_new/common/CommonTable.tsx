@@ -279,13 +279,13 @@ const parseWeight = (
         : 0;
 };
 
-const formatWeight = (
+export const formatWeight = (
     value: number,
 ): string => {
     return value.toLocaleString(
         "en-IN",
         {
-            minimumFractionDigits: 0,
+            minimumFractionDigits: 3,
             maximumFractionDigits: 3,
         },
     );

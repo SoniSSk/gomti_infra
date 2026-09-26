@@ -1,10 +1,37 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import {
+    Activity,
+    Check,
+    Clock,
+    Copy,
+    ExternalLink,
+    FileText,
+    FileX,
+    MapPin,
+    Package,
+    Pencil,
+    Phone,
+    Truck,
+    Users,
+} from "lucide-react";
+
 import { Vehicle_new } from "@/app/types/vehicle_new";
 import { normalizeVehicle } from "@/app/utils/vehicleMapper";
+
+import CommonButton from "../common/CommonButton";
 import CommonFileUpload from "../common/CommonFileUpload";
+import CommonModal from "../common/CommonModal";
+import { formatDateTime } from "../common/dateTime";
+import {
+    DetailGrid,
+    DetailItem,
+    EmptyNote,
+    ModalSection,
+    isEmptyValue,
+} from "../common/ModalParts";
+import { StatusBadge, getStatusMeta } from "../common/vehicleStatus";
 
 interface ViewModalProps {
     vehicle: Vehicle_new | null;
@@ -13,284 +40,111 @@ interface ViewModalProps {
     onEdit?: () => void;
 }
 
+type Person = NonNullable<Vehicle_new["createdBy"]>;
+type TrackingItem = NonNullable<Vehicle_new["tracking"]>[number];
+
 /* =========================================================
-   DETAIL ITEM
+   HELPERS
 ========================================================= */
 
-interface VehicleDetailItemProps {
-    label: string;
-    value?: string | number | null;
-    icon?: React.ReactNode;
-}
+/** "DETAILS_UPDATED" -> "Details updated" */
+const formatAction = (action?: string) =>
+    action
+        ? action.charAt(0) + action.slice(1).toLowerCase().replaceAll("_", " ")
+        : "Update";
 
-const VehicleDetailItem = ({
-    label,
-    value,
-    icon,
-}: VehicleDetailItemProps) => {
-    const displayValue =
-        value !== undefined &&
-            value !== null &&
-            value !== ""
-            ? String(value)
-            : "-";
+/** "materialGrade" -> "Material grade" */
+const formatField = (field: string) => {
+    const spaced = field
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replaceAll("_", " ")
+        .toLowerCase();
 
-    return (
-        <div
-            className="
-                group
-                relative
-                overflow-hidden
-                rounded-xl
-                border
-                border-slate-200
-                bg-white
-                p-3.5
-                transition-all
-                duration-200
-                hover:-translate-y-[1px]
-                hover:border-orange-300
-                hover:shadow-md
-            "
-        >
-            <div
-                className="
-                    absolute
-                    left-0
-                    top-0
-                    h-full
-                    w-[3px]
-                    bg-transparent
-                    transition
-                    group-hover:bg-orange-500
-                "
-            />
-
-            <div className="flex items-start gap-3">
-                {icon && (
-                    <div
-                        className="
-                            flex
-                            h-8
-                            w-8
-                            shrink-0
-                            items-center
-                            justify-center
-                            rounded-lg
-                            bg-gradient-to-br
-                            from-orange-100
-                            to-amber-50
-                            text-orange-600
-                        "
-                    >
-                        {icon}
-                    </div>
-                )}
-
-                <div className="min-w-0">
-                    <p
-                        className="
-                            text-[9px]
-                            font-bold
-                            uppercase
-                            tracking-[0.12em]
-                            text-slate-400
-                        "
-                    >
-                        {label}
-                    </p>
-
-                    <p
-                        className="
-                            mt-1
-                            break-words
-                            text-[13px]
-                            font-semibold
-                            leading-5
-                            text-slate-700
-                        "
-                    >
-                        {displayValue}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 };
 
-/* =========================================================
-   SECTION
-========================================================= */
-
-const Section = ({
-    number,
-    title,
-    children,
-}: {
-    number: string;
-    title: string;
-    children: React.ReactNode;
-}) => {
-    return (
-        <section className="relative">
-            <div className="mb-4 flex items-center gap-3">
-                <div
-                    className="
-                        flex
-                        h-7
-                        w-7
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-gradient-to-br
-                        from-orange-600
-                        to-amber-500
-                        text-[10px]
-                        font-bold
-                        text-white
-                        shadow-sm
-                    "
-                >
-                    {number}
-                </div>
-
-                <div>
-                    <h3 className="text-sm font-bold text-slate-800">
-                        {title}
-                    </h3>
-
-                    <div
-                        className="
-                            mt-1
-                            h-[2px]
-                            w-10
-                            rounded-full
-                            bg-gradient-to-r
-                            from-orange-500
-                            to-amber-400
-                        "
-                    />
-                </div>
-            </div>
-
-            {children}
-        </section>
-    );
-};
-
-/* =========================================================
-   STATUS
-========================================================= */
-
-const StatusBadge = ({
-    status,
-}: {
-    status?: string;
-}) => {
-    let badgeClass =
-        "border-slate-200 bg-slate-100 text-slate-600";
-
-    let dotClass = "bg-slate-400";
-
-    switch (status) {
-        case "DISPATCH_DONE":
-            badgeClass =
-                "border-emerald-200 bg-emerald-50 text-emerald-700";
-            dotClass = "bg-emerald-500";
-            break;
-
-        case "LOADING_STARTED":
-            badgeClass =
-                "border-orange-200 bg-orange-50 text-orange-700";
-            dotClass = "bg-orange-500";
-            break;
-
-        case "LOADING_DONE":
-            badgeClass =
-                "border-blue-200 bg-blue-50 text-blue-700";
-            dotClass = "bg-blue-500";
-            break;
-
-        case "ENTRY_DONE":
-            badgeClass =
-                "border-indigo-200 bg-indigo-50 text-indigo-700";
-            dotClass = "bg-indigo-500";
-            break;
-
-        case "WAITING_FOR_DETAILS":
-            badgeClass =
-                "border-red-200 bg-red-50 text-red-700";
-            dotClass = "bg-red-500";
-            break;
-
-        case "WAITING_FOR_TOKEN":
-            badgeClass =
-                "border-yellow-200 bg-yellow-50 text-yellow-700";
-            dotClass = "bg-yellow-500";
-            break;
-
-        case "ETP_DONE":
-        case "ETP_INVOICE_DONE":
-            badgeClass =
-                "border-purple-200 bg-purple-50 text-purple-700";
-            dotClass = "bg-purple-500";
-            break;
-
-        case "NOT_REGISTERED":
-            badgeClass =
-                "border-red-200 bg-red-50 text-red-700";
-            dotClass = "bg-red-500";
-            break;
-
-        case "LOADING_SLIP_SENT":
-            badgeClass =
-                "border-cyan-200 bg-cyan-50 text-cyan-700";
-            dotClass = "bg-cyan-500";
-            break;
-
-        case "ETP_GENERATING":
-            badgeClass =
-                "border-violet-200 bg-violet-50 text-violet-700";
-            dotClass = "bg-violet-500";
-            break;
-
-        case "INVOICE_GENERATING":
-            badgeClass =
-                "border-pink-200 bg-pink-50 text-pink-700";
-            dotClass = "bg-pink-500";
-            break;
+const formatValue = (value: unknown): string => {
+    if (isEmptyValue(value)) {
+        return "—";
     }
 
-    return (
-        <span
-            className={`
-                inline-flex
-                items-center
-                gap-2
-                rounded-full
-                border
-                px-3
-                py-1.5
-                text-[10px]
-                font-bold
-                shadow-sm
-                ${badgeClass}
-            `}
-        >
-            <span
-                className={`
-                    h-1.5
-                    w-1.5
-                    rounded-full
-                    ${dotClass}
-                `}
-            />
+    if (typeof value === "object") {
+        return JSON.stringify(value);
+    }
 
-            {status || "UNKNOWN"}
-        </span>
+    return String(value);
+};
+
+const getInitials = (name?: string) =>
+    (name ?? "")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("") || "?";
+
+const formatWeight = (weight?: string) =>
+    isEmptyValue(weight) ? "" : `${weight} MT`;
+
+/* =========================================================
+   COPY BUTTON
+========================================================= */
+
+const CopyButton = ({ value, label }: { value?: unknown; label: string }) => {
+    const [copied, setCopied] = useState(false);
+
+    if (isEmptyValue(value)) {
+        return null;
+    }
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(String(value));
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1200);
+        } catch (error) {
+            console.error("Copy failed:", error);
+        }
+    };
+
+    return (
+        <CommonButton
+            variant="ghost"
+            size="sm"
+            icon={copied ? Check : Copy}
+            onClick={handleCopy}
+            aria-label={copied ? "Copied" : `Copy ${label}`}
+            title={copied ? "Copied" : `Copy ${label}`}
+            className="-my-1.5"
+        />
     );
 };
+
+/* =========================================================
+   SUMMARY TILE (top strip)
+========================================================= */
+
+const SummaryTile = ({
+    label,
+    value,
+}: {
+    label: string;
+    value?: React.ReactNode;
+}) => (
+    <div className="min-w-0 bg-white px-4 py-3">
+        <p className="text-xs font-medium text-gray-500">{label}</p>
+        <p
+            className="mt-1 truncate text-sm font-semibold text-gray-900"
+            title={typeof value === "string" ? value : undefined}
+        >
+            {isEmptyValue(value) ? (
+                <span className="font-normal text-gray-300">—</span>
+            ) : (
+                value
+            )}
+        </p>
+    </div>
+);
 
 /* =========================================================
    DOCUMENT
@@ -301,250 +155,178 @@ const DocumentItem = ({
     value,
 }: {
     label: string;
-    value?: string;
+    value?: string | null;
 }) => {
     if (!value) {
         return (
-            <div
-                className="
-                    rounded-xl
-                    border
-                    border-dashed
-                    border-orange-200
-                    bg-gradient-to-br
-                    from-orange-50
-                    to-amber-50
-                    p-4
-                "
-            >
-                <div className="flex items-center gap-3">
-                    <div
-                        className="
-                            flex
-                            h-9
-                            w-9
-                            shrink-0
-                            items-center
-                            justify-center
-                            rounded-lg
-                            bg-orange-100
-                            text-orange-500
-                        "
-                    >
-                        <span className="text-sm">📄</span>
-                    </div>
+            <div className="flex items-center gap-3 rounded-lg border border-dashed border-gray-200 px-3 py-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-400">
+                    <FileX className="h-4 w-4" aria-hidden="true" />
+                </span>
 
-                    <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-orange-500">
-                            {label}
-                        </p>
-
-                        <p className="mt-1 text-xs font-medium text-slate-400">
-                            Not uploaded
-                        </p>
-                    </div>
+                <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-700">
+                        {label}
+                    </p>
+                    <p className="text-xs text-gray-400">Not uploaded</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div
-            className="
-                overflow-hidden
-                rounded-xl
-                border
-                border-orange-200
-                bg-white
-                shadow-sm
-            "
-        >
-            <CommonFileUpload
-                label={label}
-                value={value}
-                disabled
-                onChange={() => { }}
-                maxSizeMB={100}
-                className="w-full"
-            />
-        </div>
+        <CommonFileUpload
+            label={label}
+            value={value}
+            disabled
+            onChange={() => { }}
+            maxSizeMB={100}
+            className="w-full"
+        />
     );
 };
 
 /* =========================================================
-   EMPTY
+   PERSON
 ========================================================= */
 
-const EmptyState = ({
-    text,
+const PersonCard = ({
+    heading,
+    person,
 }: {
-    text: string;
-}) => {
-    return (
-        <div
-            className="
-                rounded-xl
-                border
-                border-dashed
-                border-orange-200
-                bg-gradient-to-br
-                from-orange-50
-                to-amber-50
-                px-5
-                py-8
-                text-center
-            "
-        >
-            <div className="mb-2 text-xl">—</div>
+    heading: string;
+    person?: Person;
+}) => (
+    <div>
+        <p className="mb-2 text-xs font-medium text-gray-500">{heading}</p>
 
-            <p className="text-xs font-medium text-slate-400">
-                {text}
-            </p>
-        </div>
-    );
-};
+        {person ? (
+            <div className="flex items-start gap-3">
+                <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-orange-700"
+                    aria-hidden="true"
+                >
+                    {getInitials(person.name)}
+                </span>
+
+                <div className="min-w-0 text-sm">
+                    <p className="truncate font-medium text-gray-900">
+                        {person.name || "—"}
+                    </p>
+                    {person.role && (
+                        <p className="truncate text-xs capitalize text-gray-500">
+                            {person.role}
+                        </p>
+                    )}
+                    {person.email && (
+                        <a
+                            href={`mailto:${person.email}`}
+                            className="block truncate text-xs text-orange-600 hover:text-orange-700"
+                        >
+                            {person.email}
+                        </a>
+                    )}
+                </div>
+            </div>
+        ) : (
+            <p className="text-sm text-gray-300">—</p>
+        )}
+    </div>
+);
 
 /* =========================================================
-   TRACKING VALUE
+   TIMELINE ENTRY
 ========================================================= */
 
-const formatTrackingValue = (
-    value: unknown,
-): string => {
-    if (
-        value === undefined ||
-        value === null ||
-        value === ""
-    ) {
-        return "-";
-    }
-
-    if (typeof value === "object") {
-        return JSON.stringify(value, null, 2);
-    }
-
-    return String(value);
-};
-
-/* =========================================================
-   COPY BUTTON
-========================================================= */
-
-const CopyButton = ({
-    value,
+const TimelineEntry = ({
+    item,
+    isLast,
 }: {
-    value?: string | number | null;
+    item: TrackingItem;
+    isLast: boolean;
 }) => {
-    const [copied, setCopied] = React.useState(false);
-
-    const disabled =
-        value === undefined ||
-        value === null ||
-        value === "";
-
-    const handleCopy = async () => {
-        if (disabled) return;
-
-        try {
-            await navigator.clipboard.writeText(String(value));
-            setCopied(true);
-
-            window.setTimeout(() => {
-                setCopied(false);
-            }, 1200);
-        } catch (error) {
-            console.error("Copy failed:", error);
-        }
-    };
+    const dot = item.toStatus
+        ? getStatusMeta(item.toStatus).dot
+        : "bg-gray-300";
 
     return (
-        <button
-            type="button"
-            onClick={handleCopy}
-            disabled={disabled}
-            title={
-                disabled
-                    ? "Nothing to copy"
-                    : copied
-                        ? "Copied"
-                        : "Copy"
-            }
-            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all duration-200 ${disabled
-                ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
-                : copied
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                    : "border-orange-100 bg-orange-50 text-orange-500 hover:border-orange-300 hover:bg-orange-100 hover:text-orange-700"
-                }`}
-        >
-            {copied ? (
-                <svg
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="h-3.5 w-3.5"
-                >
-                    <path
-                        fillRule="evenodd"
-                        d="M16.704 5.29a1 1 0 010 1.42l-7.2 7.2a1 1 0 01-1.42 0l-3.2-3.2a1 1 0 111.42-1.42l2.49 2.49 6.49-6.49a1 1 0 011.42 0z"
-                        clipRule="evenodd"
-                    />
-                </svg>
-            ) : (
-                <svg
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    className="h-3.5 w-3.5"
-                >
-                    <rect
-                        x="6"
-                        y="6"
-                        width="9"
-                        height="9"
-                        rx="1.5"
-                    />
-                    <path d="M4 13V4.5A1.5 1.5 0 015.5 3H13" />
-                </svg>
+        <li className="relative pb-6 pl-8 last:pb-0">
+            {!isLast && (
+                <span
+                    className="absolute left-[7px] top-4 h-full w-px bg-gray-200"
+                    aria-hidden="true"
+                />
             )}
-        </button>
-    );
-};
 
-/* =========================================================
-   QUICK STAT
-========================================================= */
+            <span
+                className={`absolute left-0 top-1 h-[15px] w-[15px] rounded-full border-[3px] border-white ring-1 ring-gray-200 ${dot}`}
+                aria-hidden="true"
+            />
 
-const QuickStat = ({
-    label,
-    value,
-}: {
-    label: string;
-    value?: string | number | null;
-}) => {
-    const displayValue =
-        value !== undefined &&
-            value !== null &&
-            value !== ""
-            ? String(value)
-            : "-";
-
-    return (
-        <div className="group min-w-0 px-3 py-3 transition-colors hover:bg-orange-50/60 sm:px-4">
-            <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-[9px] font-bold uppercase tracking-wider text-orange-500">
-                    {label}
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <p className="text-sm font-medium text-gray-900">
+                    {formatAction(item.action)}
                 </p>
-
-                <CopyButton value={value} />
+                <time className="text-xs tabular-nums text-gray-500">
+                    {formatDateTime(item.createdAt) || "—"}
+                </time>
             </div>
 
-            <p
-                className="mt-1 truncate text-xs font-bold text-slate-700"
-                title={displayValue}
-            >
-                {displayValue}
-            </p>
-        </div>
+            {item.user?.name && (
+                <p className="mt-0.5 text-xs text-gray-500">
+                    by{" "}
+                    <span className="font-medium text-gray-700">
+                        {item.user.name}
+                    </span>
+                    {item.user.role && (
+                        <span className="capitalize"> · {item.user.role}</span>
+                    )}
+                </p>
+            )}
+
+            {item.fromStatus && item.toStatus && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={item.fromStatus} />
+                    <span className="text-gray-400" aria-hidden="true">→</span>
+                    <StatusBadge status={item.toStatus} />
+                </div>
+            )}
+
+            {item.changes && item.changes.length > 0 && (
+                <ul className="mt-2 space-y-1 rounded-lg bg-gray-50 px-3 py-2 text-xs">
+                    {item.changes.map((change, index) => (
+                        <li
+                            key={`${change.field}-${index}`}
+                            className="flex flex-wrap items-baseline gap-x-1.5"
+                        >
+                            <span className="font-medium text-gray-700">
+                                {formatField(change.field)}:
+                            </span>
+                            <span className="break-all text-gray-400 line-through">
+                                {formatValue(change.oldValue)}
+                            </span>
+                            <span className="text-gray-400" aria-hidden="true">→</span>
+                            <span className="break-all text-gray-900">
+                                {formatValue(change.newValue)}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {item.location?.address && (
+                <p className="mt-2 flex items-start gap-1.5 text-xs text-gray-500">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    {item.location.address}
+                </p>
+            )}
+
+            {item.comment && (
+                <p className="mt-2 border-l-2 border-gray-200 pl-3 text-sm italic text-gray-600">
+                    {item.comment}
+                </p>
+            )}
+        </li>
     );
 };
 
@@ -552,1325 +334,261 @@ const QuickStat = ({
    VIEW MODAL
 ========================================================= */
 
+const DOCUMENTS: { key: keyof NonNullable<Vehicle_new["documents"]>; label: string }[] = [
+    { key: "vehicleImage", label: "Vehicle Image" },
+    { key: "vehicleRegistrationImage", label: "Vehicle Registration" },
+    { key: "driverLicenseImage", label: "Driver License" },
+    { key: "weightSlip", label: "Weight Slip" },
+    { key: "etp", label: "ETP" },
+    { key: "invoiceImage", label: "Invoice" },
+    { key: "EWayBill", label: "E-Way Bill" },
+    { key: "LRSlip", label: "LR Slip" },
+    { key: "loadingVideo", label: "Loading Video" },
+];
+
 const ViewModal = ({
     vehicle,
     isOpen,
     onClose,
     onEdit,
 }: ViewModalProps) => {
-    const [isQuickStatsExpanded, setIsQuickStatsExpanded] =
-        React.useState(false);
-
     if (!isOpen || !vehicle) {
         return null;
     }
 
-    // Normalize API vehicle data so flat document fields are available
-    // under vehicle.documents as expected by Vehicle_new.
-    const normalizedVehicle = normalizeVehicle(vehicle);
+    // Flat API document fields -> vehicle.documents
+    const v = normalizeVehicle(vehicle);
+    const location = v.currentLocation;
+    const tracking = (v.tracking ?? []).slice().reverse();
+    const uploadedCount = DOCUMENTS.filter(({ key }) => v.documents?.[key]).length;
+
+    const mapsUrl =
+        location &&
+            Number.isFinite(location.latitude) &&
+            Number.isFinite(location.longitude)
+            ? `https://www.google.com/maps?q=${location.latitude},${location.longitude}`
+            : null;
 
     return (
-        <div
-            className="
-                fixed
-                inset-0
-                z-[9999]
-                flex
-                items-center
-                justify-center
-                bg-slate-950/70
-                p-2
-                backdrop-blur-sm
-                sm:p-5
-            "
-            onClick={onClose}
-        >
-            {/* =================================================
-                MAIN MODAL
-            ================================================= */}
-
-            <div
-                className="
-                    relative
-                    flex
-                    h-[96vh]
-                    w-full
-                    max-w-[1200px]
-                    flex-col
-                    overflow-hidden
-                    rounded-2xl
-                    border
-                    border-orange-200
-                    bg-slate-100
-                    shadow-[0_30px_100px_rgba(0,0,0,0.35)]
-                "
-                onClick={(event) =>
-                    event.stopPropagation()
-                }
-            >
-                {/* =================================================
-                    HEADER
-                ================================================= */}
-
-                <header
-                    className="
-                        relative
-                        shrink-0
-                        overflow-hidden
-                        bg-gradient-to-br
-                        from-orange-500
-                        via-orange-400
-                        to-amber-300
-                        px-5
-                        py-4
-                        text-white
-                        sm:px-7
-                    "
-                >
-                    <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-yellow-300/25 blur-3xl" />
-
-                    <div className="pointer-events-none absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-orange-900/20 blur-3xl" />
-
-                    <div className="relative flex items-center justify-between gap-4">
-                        {/* LEFT SIDE */}
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                                <span className="rounded-md bg-white px-2.5 py-1 text-[9px] font-black tracking-widest text-orange-600 shadow-sm">
-                                    VEHICLE
-                                </span>
-
-                                <span className="text-[10px] font-medium uppercase tracking-widest text-orange-100">
-                                    Details
-                                </span>
-                            </div>
-
-                            <h2 className="mt-1.5 truncate text-2xl font-black tracking-tight text-white sm:text-3xl">
-                                {normalizedVehicle.vehicleNo}
-                            </h2>
-                        </div>
-
-                        {/* RIGHT SIDE */}
-                        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                            {/* STATUS */}
-                            <div className="hidden sm:block">
-                                <StatusBadge
-                                    status={normalizedVehicle.status}
-                                />
-                            </div>
-
-                            {/* EDIT VEHICLE */}
-                            {onEdit && (
-                                <button
-                                    type="button"
-                                    onClick={onEdit}
-                                    className="
-                                        inline-flex
-                                        h-9
-                                        items-center
-                                        gap-2
-                                        rounded-xl
-                                        border
-                                        border-white/30
-                                        bg-white
-                                        px-3.5
-                                        text-xs
-                                        font-bold
-                                        text-orange-600
-                                        shadow-sm
-                                        transition-all
-                                        duration-200
-                                        hover:bg-orange-50
-                                        hover:text-orange-700
-                                        hover:shadow-lg
-                                        active:scale-95
-                                        sm:px-4
-                                    "
-                                    title="Edit Vehicle"
-                                >
-                                    {/* EDIT ICON */}
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        className="h-4 w-4"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M12 20h9"
-                                        />
-
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4L16.5 3.5z"
-                                        />
-                                    </svg>
-
-                                    <span className="hidden sm:inline">
-                                        Edit Vehicle
-                                    </span>
-                                </button>
-                            )}
-
-                            {/* CLOSE */}
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="
-                                    flex
-                                    h-9
-                                    w-9
-                                    items-center
-                                    justify-center
-                                    rounded-xl
-                                    border
-                                    border-white/20
-                                    bg-white/10
-                                    text-xl
-                                    text-white
-                                    backdrop-blur-sm
-                                    transition-all
-                                    duration-200
-                                    hover:border-white/40
-                                    hover:bg-white
-                                    hover:text-orange-600
-                                    hover:shadow-lg
-                                    active:scale-95
-                                "
-                                aria-label="Close"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* MOBILE STATUS */}
-                    <div className="relative mt-3 sm:hidden">
-                        <StatusBadge status={normalizedVehicle.status} />
-                    </div>
-
-                    <div className="absolute bottom-0 left-0 h-[3px] w-full bg-gradient-to-r from-yellow-300 via-white/70 to-orange-900/30" />
-                </header>
-
-                {/* =================================================
-                    QUICK STATS
-                ================================================= */}
-
-                <div className="shrink-0 border-b border-orange-100 bg-gradient-to-r from-orange-50 via-white to-amber-50 px-4 py-3 sm:px-7">
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setIsQuickStatsExpanded(
-                                (prev) => !prev,
-                            )
-                        }
-                        aria-expanded={
-                            isQuickStatsExpanded
-                        }
-                        className="
-                            flex
-                            w-full
-                            items-center
-                            justify-between
-                            gap-3
-                            rounded-xl
-                            border
-                            border-orange-200
-                            bg-white
-                            px-4
-                            py-2.5
-                            text-left
-                            shadow-sm
-                            transition-all
-                            duration-200
-                            hover:border-orange-300
-                            hover:bg-orange-50/60
-                        "
-                    >
-                        <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-600 to-amber-500 text-white shadow-sm">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    className="h-4 w-4"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                </svg>
-                            </div>
-
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-orange-600">
-                                    Quick Details
-                                </p>
-
-                                <p className="truncate text-[11px] font-medium text-slate-400">
-                                    {isQuickStatsExpanded
-                                        ? "Hide vehicle details"
-                                        : "Show vehicle details"}
-                                </p>
-                            </div>
-                        </div>
-
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
-                            <svg
-                                viewBox="0 0 20 20"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                className={`h-4 w-4 transition-transform duration-300 ${isQuickStatsExpanded
-                                    ? "rotate-180"
-                                    : ""
-                                    }`}
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="m5 7.5 5 5 5-5"
-                                />
-                            </svg>
+        <CommonModal
+            isOpen={isOpen}
+            onClose={onClose}
+            size="xl"
+            title={
+                <span className="flex min-w-0 items-center gap-3">
+                    <span className="truncate tracking-wide">
+                        {v.vehicleNo || "Vehicle"}
+                    </span>
+                    <StatusBadge status={v.status} />
+                </span>
+            }
+            description={
+                <span className="flex flex-wrap gap-x-2">
+                    <span>
+                        Token{" "}
+                        <span className="font-medium text-gray-700">
+                            {v.tokenNo || "—"}
                         </span>
-                    </button>
+                    </span>
+                    {v.createdAt && (
+                        <>
+                            <span aria-hidden="true">·</span>
+                            <span>Created {formatDateTime(v.createdAt)}</span>
+                        </>
+                    )}
+                </span>
+            }
+            footer={
+                <div className="flex justify-end gap-2">
+                    <CommonButton variant="secondary" onClick={onClose}>
+                        Close
+                    </CommonButton>
 
-                    <div
-                        className={`grid overflow-hidden transition-all duration-300 ease-in-out ${isQuickStatsExpanded
-                            ? "mt-3 grid-rows-[1fr] opacity-100"
-                            : "mt-0 grid-rows-[0fr] opacity-0"
-                            }`}
-                    >
-                        <div className="min-h-0">
-                            <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-orange-200 bg-white/80 shadow-sm sm:grid-cols-4">
-                                <div className="border-b border-r border-orange-200">
-                                    <QuickStat
-                                        label="Vehicle No"
-                                        value={
-                                            normalizedVehicle.vehicleNo
-                                        }
-                                    />
-                                </div>
+                    {onEdit && (
+                        <CommonButton icon={Pencil} onClick={onEdit}>
+                            Edit vehicle
+                        </CommonButton>
+                    )}
+                </div>
+            }
+        >
+            <div className="space-y-4 bg-gray-50 p-4 sm:p-6">
+                {/* ================= SUMMARY STRIP ================= */}
 
-                                <div className="border-b border-orange-200 sm:border-r">
-                                    <QuickStat
-                                        label="ETP No"
-                                        value={
-                                            normalizedVehicle.etpNo
-                                        }
-                                    />
-                                </div>
+                <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 sm:grid-cols-4">
+                    <SummaryTile label="Buyer" value={v.buyerDetails} />
+                    <SummaryTile label="Destination" value={v.destination} />
+                    <SummaryTile label="Net weight" value={formatWeight(v.netWeight)} />
+                    <SummaryTile label="Transporter" value={v.transporterName} />
+                </div>
 
-                                <div className="border-b border-r border-orange-200">
-                                    <QuickStat
-                                        label="Buyer"
-                                        value={
-                                            normalizedVehicle.buyerDetails
-                                        }
-                                    />
-                                </div>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    {/* ================= MAIN COLUMN ================= */}
 
-                                <div className="border-b border-orange-200">
-                                    <QuickStat
-                                        label="Transporter"
-                                        value={
-                                            normalizedVehicle.transporterName
-                                        }
-                                    />
-                                </div>
+                    <div className="space-y-4 lg:col-span-2">
+                        <ModalSection title="Vehicle & driver" icon={Truck}>
+                            <DetailGrid>
+                                <DetailItem
+                                    label="Vehicle number"
+                                    value={v.vehicleNo}
+                                    mono
+                                    action={<CopyButton value={v.vehicleNo} label="vehicle number" />}
+                                />
+                                <DetailItem label="Token number" value={v.tokenNo} />
+                                <DetailItem label="Driver name" value={v.driverName} />
+                                <DetailItem
+                                    label="Driver contact"
+                                    value={
+                                        v.driverContact && (
+                                            <a
+                                                href={`tel:${v.driverContact}`}
+                                                className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-700"
+                                            >
+                                                <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                                                {v.driverContact}
+                                            </a>
+                                        )
+                                    }
+                                    action={<CopyButton value={v.driverContact} label="driver contact" />}
+                                />
+                                <DetailItem label="Transporter" value={v.transporterName} />
+                                <DetailItem label="Tyre" value={v.tyre} />
+                            </DetailGrid>
+                        </ModalSection>
 
-                                <div className="border-b border-r border-orange-200">
-                                    <QuickStat
-                                        label="Driver Contact No"
-                                        value={
-                                            normalizedVehicle.driverContact
-                                        }
-                                    />
-                                </div>
+                        <ModalSection title="Material & dispatch" icon={Package}>
+                            <DetailGrid>
+                                <DetailItem label="Buyer" value={v.buyerDetails} />
+                                <DetailItem label="Destination" value={v.destination} />
+                                <DetailItem label="Material" value={v.materialName} />
+                                <DetailItem label="Grade" value={v.materialGrade} />
+                                <DetailItem label="Net weight" value={formatWeight(v.netWeight)} />
+                                <DetailItem label="Route" value={v.route} />
+                                <DetailItem
+                                    label="ETP number"
+                                    value={v.etpNo}
+                                    action={<CopyButton value={v.etpNo} label="ETP number" />}
+                                />
+                                <DetailItem label="ETP date" value={formatDateTime(v.etpDate)} />
+                            </DetailGrid>
+                        </ModalSection>
 
-                                <div className="border-b border-orange-200 sm:border-r">
-                                    <QuickStat
-                                        label="ETP Date"
-                                        value={
-                                            normalizedVehicle.etpNo
-                                        }
+                        <ModalSection
+                            title="Documents"
+                            icon={FileText}
+                            action={
+                                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-600">
+                                    {uploadedCount} of {DOCUMENTS.length} uploaded
+                                </span>
+                            }
+                        >
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                {DOCUMENTS.map(({ key, label }) => (
+                                    <DocumentItem
+                                        key={key}
+                                        label={label}
+                                        value={v.documents?.[key] || null}
                                     />
-                                </div>
-
-                                <div className="border-b border-r border-orange-200">
-                                    <QuickStat
-                                        label="Destination"
-                                        value={
-                                            normalizedVehicle.destination
-                                        }
-                                    />
-                                </div>
-
-                                <div className="border-b border-orange-200">
-                                    <QuickStat
-                                        label="Weight"
-                                        value={
-                                            normalizedVehicle.netWeight !==
-                                                undefined
-                                                ? `${normalizedVehicle.netWeight} MT`
-                                                : "-"
-                                        }
-                                    />
-                                </div>
-
-                                {/* ROUTE */}
-                                <div className="col-span-2 border-orange-200 sm:col-span-4">
-                                    <QuickStat
-                                        label="Route"
-                                        value={
-                                            normalizedVehicle.route
-                                        }
-                                    />
-                                </div>
+                                ))}
                             </div>
-                        </div>
+                        </ModalSection>
+                    </div>
+
+                    {/* ================= SIDE COLUMN ================= */}
+
+                    <div className="space-y-4">
+                        <ModalSection title="Timing" icon={Clock}>
+                            <dl className="space-y-3">
+                                <DetailItem label="In time" value={formatDateTime(v.inTime)} />
+                                <DetailItem label="Out time" value={formatDateTime(v.outTime)} />
+                                <DetailItem label="Created" value={formatDateTime(v.createdAt)} />
+                                <DetailItem label="Last updated" value={formatDateTime(v.updatedAt)} />
+                            </dl>
+                        </ModalSection>
+
+                        <ModalSection
+                            title="Current location"
+                            icon={MapPin}
+                            action={
+                                mapsUrl && (
+                                    <a
+                                        href={mapsUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700"
+                                    >
+                                        Open map
+                                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                                    </a>
+                                )
+                            }
+                        >
+                            {location ? (
+                                <dl className="space-y-3">
+                                    <DetailItem label="Address" value={location.address} />
+                                    <DetailItem
+                                        label="Coordinates"
+                                        mono
+                                        value={
+                                            Number.isFinite(location.latitude)
+                                                ? `${location.latitude}, ${location.longitude}`
+                                                : ""
+                                        }
+                                    />
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <DetailItem label="Speed" value={location.speed} />
+                                        <DetailItem label="Heading" value={location.heading} />
+                                        <DetailItem label="Accuracy" value={location.accuracy} />
+                                    </div>
+                                    <DetailItem
+                                        label="Recorded"
+                                        value={formatDateTime(location.recordedAt)}
+                                    />
+                                </dl>
+                            ) : (
+                                <EmptyNote>Location not available</EmptyNote>
+                            )}
+                        </ModalSection>
+
+                        <ModalSection title="People" icon={Users}>
+                            <div className="space-y-4">
+                                <PersonCard heading="Created by" person={v.createdBy} />
+                                <PersonCard heading="Last updated by" person={v.updatedBy} />
+                            </div>
+                        </ModalSection>
                     </div>
                 </div>
 
-                {/* =================================================
-                    BODY
-                ================================================= */}
+                {/* ================= ACTIVITY ================= */}
 
-                <main
-                    className="
-                        min-h-0
-                        flex-1
-                        overflow-y-auto
-                        bg-gradient-to-b
-                        from-orange-50/30
-                        via-slate-100
-                        to-slate-100
-                        px-4
-                        py-6
-                        sm:px-7
-                    "
+                <ModalSection
+                    title="Activity"
+                    description="Most recent first"
+                    icon={Activity}
+                    action={
+                        tracking.length > 0 && (
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-600">
+                                {tracking.length}
+                            </span>
+                        )
+                    }
                 >
-                    <div className="mx-auto max-w-[1100px] space-y-8">
-
-                        {/* =================================================
-                            VEHICLE
-                        ================================================= */}
-
-                        <Section
-                            number="01"
-                            title="Vehicle Information"
-                        >
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                <VehicleDetailItem
-                                    label="S.No."
-                                    value={normalizedVehicle.sno}
+                    {tracking.length > 0 ? (
+                        <ol>
+                            {tracking.map((item, index) => (
+                                <TimelineEntry
+                                    key={`${item.createdAt}-${index}`}
+                                    item={item}
+                                    isLast={index === tracking.length - 1}
                                 />
-
-                                <VehicleDetailItem
-                                    label="Vehicle Number"
-                                    value={
-                                        normalizedVehicle.vehicleNo
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Token Number"
-                                    value={
-                                        normalizedVehicle.tokenNo
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Driver Name"
-                                    value={
-                                        normalizedVehicle.driverName
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Driver Contact"
-                                    value={
-                                        normalizedVehicle.driverContact
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Transporter"
-                                    value={
-                                        normalizedVehicle.transporterName
-                                    }
-                                />
-                            </div>
-                        </Section>
-
-                        {/* =================================================
-                            MATERIAL
-                        ================================================= */}
-
-                        <Section
-                            number="02"
-                            title="Material & Dispatch"
-                        >
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                <VehicleDetailItem
-                                    label="Buyer"
-                                    value={
-                                        normalizedVehicle.buyerDetails
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Material"
-                                    value={
-                                        normalizedVehicle.materialName
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Grade"
-                                    value={
-                                        normalizedVehicle.materialGrade
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Net Weight"
-                                    value={
-                                        normalizedVehicle.netWeight !==
-                                            undefined
-                                            ? `${normalizedVehicle.netWeight} MT`
-                                            : undefined
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Destination"
-                                    value={
-                                        normalizedVehicle.destination
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Route"
-                                    value={
-                                        normalizedVehicle.route
-                                    }
-                                />
-                            </div>
-                        </Section>
-
-                        {/* =================================================
-                            MOVEMENT
-                        ================================================= */}
-
-                        <Section
-                            number="03"
-                            title="Movement & Timing"
-                        >
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                <VehicleDetailItem
-                                    label="Tyre"
-                                    value={
-                                        normalizedVehicle.tyre
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="In Time"
-                                    value={
-                                        normalizedVehicle.inTime
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Out Time"
-                                    value={
-                                        normalizedVehicle.outTime
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Created At"
-                                    value={
-                                        normalizedVehicle.createdAt
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Updated At"
-                                    value={
-                                        normalizedVehicle.updatedAt
-                                    }
-                                />
-
-                                <VehicleDetailItem
-                                    label="Current Status"
-                                    value={
-                                        normalizedVehicle.status
-                                    }
-                                />
-                            </div>
-                        </Section>
-
-                        {/* =================================================
-                            DOCUMENTS
-                        ================================================= */}
-
-                        <Section
-                            number="04"
-                            title="Documents"
-                        >
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                <CommonFileUpload
-                                    label="Vehicle Image"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.vehicleImage ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100}
-                                    disabled={
-                                        true
-                                    }
-
-                                />
-
-                                <CommonFileUpload
-                                    label="Vehicle Registration"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.vehicleRegistrationImage ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100}
-                                    disabled={
-                                        true
-                                    }
-                                />
-
-                                <CommonFileUpload
-                                    label="Weight Slip"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.weightSlip ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100} disabled={
-                                        true
-                                    }
-                                />
-
-                                <CommonFileUpload
-                                    label="ETP"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.etp || null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100} disabled={
-                                        true
-                                    }
-                                />
-
-                                <CommonFileUpload
-                                    label="Invoice"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.invoiceImage ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100} disabled={
-                                        true
-                                    }
-                                />
-
-                                <CommonFileUpload
-                                    label="E-Way Bill"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.EWayBill ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100} disabled={
-                                        true
-                                    }
-                                />
-
-                                <CommonFileUpload
-                                    label="LR Slip"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.LRSlip ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100} disabled={
-                                        true
-                                    }
-                                />
-
-                                <CommonFileUpload
-                                    label="Driver License"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.driverLicenseImage ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100} disabled={
-                                        true
-                                    }
-                                />
-                                <CommonFileUpload
-                                    label="Loading Video"
-                                    value={
-                                        normalizedVehicle.documents
-                                            ?.loadingVideo ||
-                                        null
-                                    }
-                                    onChange={() => { }}
-                                    maxSizeMB={100} disabled={
-                                        true
-                                    }
-                                />
-                            </div>
-                        </Section>
-
-                        {/* =================================================
-                            LOCATION
-                        ================================================= */}
-
-                        <Section
-                            number="05"
-                            title="Current Location"
-                        >
-                            {normalizedVehicle.currentLocation ? (
-                                <div
-                                    className="
-                                        overflow-hidden
-                                        rounded-2xl
-                                        border
-                                        border-orange-200
-                                        bg-white
-                                        shadow-sm
-                                    "
-                                >
-                                    <div
-                                        className="
-                                            flex
-                                            items-center
-                                            justify-between
-                                            bg-gradient-to-r
-                                            from-orange-700
-                                            via-orange-600
-                                            to-amber-500
-                                            px-4
-                                            py-3
-                                            text-white
-                                        "
-                                    >
-                                        <div>
-                                            <p className="text-[9px] font-bold uppercase tracking-widest text-orange-100">
-                                                Live Location
-                                            </p>
-
-                                            <p className="mt-1 text-xs font-semibold">
-                                                {vehicle?.currentLocation?.address ||
-                                                    "Coordinates available"}
-                                            </p>
-                                        </div>
-
-                                        <span
-                                            className="
-                                                h-2.5
-                                                w-2.5
-                                                animate-pulse
-                                                rounded-full
-                                                bg-green-300
-                                                ring-4
-                                                ring-green-300/20
-                                            "
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                                        <VehicleDetailItem
-                                            label="Latitude"
-                                            value={
-                                                vehicle?.currentLocation?.latitude
-                                            }
-                                        />
-
-                                        <VehicleDetailItem
-                                            label="Longitude"
-                                            value={
-                                                vehicle?.currentLocation?.longitude
-                                            }
-                                        />
-
-                                        <VehicleDetailItem
-                                            label="Address"
-                                            value={
-                                                vehicle?.currentLocation?.address
-                                            }
-                                        />
-
-                                        <VehicleDetailItem
-                                            label="Accuracy"
-                                            value={
-                                                vehicle?.currentLocation?.accuracy
-                                            }
-                                        />
-
-                                        <VehicleDetailItem
-                                            label="Speed"
-                                            value={
-                                                vehicle?.currentLocation?.speed
-                                            }
-                                        />
-
-                                        <VehicleDetailItem
-                                            label="Heading"
-                                            value={
-                                                vehicle?.currentLocation?.heading
-                                            }
-                                        />
-
-                                        <VehicleDetailItem
-                                            label="Recorded At"
-                                            value={
-                                                vehicle?.currentLocation?.recordedAt
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <EmptyState
-                                    text="Current location is not available"
-                                />
-                            )}
-                        </Section>
-
-                        {/* =================================================
-                            USERS
-                        ================================================= */}
-
-                        <Section
-                            number="06"
-                            title="User Information"
-                        >
-                            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-
-                                {/* CREATED BY */}
-                                <div
-                                    className="
-                                        rounded-2xl
-                                        border
-                                        border-orange-100
-                                        bg-white
-                                        p-4
-                                        shadow-sm
-                                    "
-                                >
-                                    <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-orange-500">
-                                        Created By
-                                    </p>
-
-                                    {normalizedVehicle.createdBy ? (
-                                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                                            <VehicleDetailItem
-                                                label="Name"
-                                                value={
-                                                    vehicle?.createdBy?.name
-                                                }
-                                            />
-
-                                            <VehicleDetailItem
-                                                label="Role"
-                                                value={
-                                                    vehicle?.createdBy?.role
-                                                }
-                                            />
-
-                                            <VehicleDetailItem
-                                                label="Email"
-                                                value={
-                                                    vehicle?.createdBy?.email
-                                                }
-                                            />
-
-                                            <VehicleDetailItem
-                                                label="User ID"
-                                                value={
-                                                    vehicle?.createdBy?.id
-                                                }
-                                            />
-                                        </div>
-                                    ) : (
-                                        <EmptyState
-                                            text="Created by information not available"
-                                        />
-                                    )}
-                                </div>
-
-                                {/* UPDATED BY */}
-                                <div
-                                    className="
-                                        rounded-2xl
-                                        border
-                                        border-orange-100
-                                        bg-white
-                                        p-4
-                                        shadow-sm
-                                    "
-                                >
-                                    <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-orange-500">
-                                        Updated By
-                                    </p>
-
-                                    {normalizedVehicle.updatedBy ? (
-                                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                                            <VehicleDetailItem
-                                                label="Name"
-                                                value={
-                                                    vehicle?.updatedBy?.name
-                                                }
-                                            />
-
-                                            <VehicleDetailItem
-                                                label="Role"
-                                                value={
-                                                    vehicle?.updatedBy?.role
-                                                }
-                                            />
-
-                                            <VehicleDetailItem
-                                                label="Email"
-                                                value={
-                                                    vehicle?.updatedBy?.email
-                                                }
-                                            />
-
-                                            <VehicleDetailItem
-                                                label="User ID"
-                                                value={
-                                                    vehicle?.updatedBy?.id
-                                                }
-                                            />
-                                        </div>
-                                    ) : (
-                                        <EmptyState
-                                            text="Updated by information not available"
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </Section>
-
-                        {/* =================================================
-                            TRACKING
-                        ================================================= */}
-
-                        <Section
-                            number="07"
-                            title="Activity Timeline"
-                        >
-                            {normalizedVehicle.tracking &&
-                                normalizedVehicle.tracking.length > 0 ? (
-                                <div className="relative">
-
-                                    {/* TIMELINE LINE */}
-                                    <div
-                                        className="
-                                            absolute
-                                            bottom-5
-                                            left-[15px]
-                                            top-5
-                                            w-px
-                                            bg-gradient-to-b
-                                            from-orange-400
-                                            via-orange-200
-                                            to-slate-200
-                                        "
-                                    />
-
-                                    <div className="space-y-5">
-                                        {normalizedVehicle.tracking
-                                            .slice()
-                                            .reverse()
-                                            .map(
-                                                (
-                                                    item,
-                                                    index,
-                                                ) => (
-                                                    <div
-                                                        key={`${item.createdAt}-${index}`}
-                                                        className="relative pl-10"
-                                                    >
-                                                        {/* DOT */}
-                                                        <div
-                                                            className="
-                                                                absolute
-                                                                left-[8px]
-                                                                top-4
-                                                                z-10
-                                                                h-4
-                                                                w-4
-                                                                rounded-full
-                                                                border-4
-                                                                border-orange-50
-                                                                bg-orange-500
-                                                                shadow-sm
-                                                            "
-                                                        />
-
-                                                        <div
-                                                            className="
-                                                                rounded-2xl
-                                                                border
-                                                                border-orange-100
-                                                                bg-white
-                                                                p-4
-                                                                shadow-sm
-                                                            "
-                                                        >
-                                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                                <div>
-                                                                    <div className="flex flex-wrap items-center gap-2">
-                                                                        <span
-                                                                            className="
-                                                                                rounded-full
-                                                                                bg-gradient-to-r
-                                                                                from-orange-100
-                                                                                to-amber-50
-                                                                                px-3
-                                                                                py-1.5
-                                                                                text-[10px]
-                                                                                font-bold
-                                                                                text-orange-700
-                                                                            "
-                                                                        >
-                                                                            {
-                                                                                item.action
-                                                                            }
-                                                                        </span>
-
-                                                                        {item.fromStatus &&
-                                                                            item.toStatus ? (
-                                                                            <span className="text-[10px] font-medium text-slate-400">
-                                                                                {
-                                                                                    item.fromStatus
-                                                                                }
-                                                                                {" → "}
-                                                                                {
-                                                                                    item.toStatus
-                                                                                }
-                                                                            </span>
-                                                                        ) : null}
-                                                                    </div>
-                                                                </div>
-
-                                                                <span
-                                                                    className="
-                                                                        shrink-0
-                                                                        text-[10px]
-                                                                        font-medium
-                                                                        text-slate-400
-                                                                    "
-                                                                >
-                                                                    {
-                                                                        item.createdAt
-                                                                            ? new Date(item.createdAt).toLocaleString("en-IN", {
-                                                                                day: "2-digit",
-                                                                                month: "2-digit",
-                                                                                year: "numeric",
-                                                                                hour: "2-digit",
-                                                                                minute: "2-digit",
-                                                                                hour12: true,
-                                                                            })
-                                                                            : "-"
-                                                                    }
-                                                                </span>
-                                                            </div>
-
-                                                            {/* USER */}
-                                                            <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                                                                <VehicleDetailItem
-                                                                    label="User"
-                                                                    value={
-                                                                        item
-                                                                            .user
-                                                                            .name
-                                                                    }
-                                                                />
-
-                                                                <VehicleDetailItem
-                                                                    label="Email"
-                                                                    value={
-                                                                        item
-                                                                            .user
-                                                                            .email
-                                                                    }
-                                                                />
-
-                                                                <VehicleDetailItem
-                                                                    label="Role"
-                                                                    value={
-                                                                        item
-                                                                            .user
-                                                                            .role
-                                                                    }
-                                                                />
-                                                            </div>
-
-                                                            {/* CHANGES */}
-                                                            {item.changes &&
-                                                                item.changes.length >
-                                                                0 ? (
-                                                                <div className="mt-4 border-t border-orange-100 pt-4">
-                                                                    <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-orange-500">
-                                                                        Field
-                                                                        Changes
-                                                                    </p>
-
-                                                                    <div className="space-y-2">
-                                                                        {item.changes.map(
-                                                                            (
-                                                                                change,
-                                                                                changeIndex,
-                                                                            ) => (
-                                                                                <div
-                                                                                    key={
-                                                                                        changeIndex
-                                                                                    }
-                                                                                    className="
-                                                                                        rounded-xl
-                                                                                        border
-                                                                                        border-slate-200
-                                                                                        bg-slate-50
-                                                                                        p-3
-                                                                                    "
-                                                                                >
-                                                                                    <p className="mb-2 text-xs font-bold text-slate-700">
-                                                                                        {
-                                                                                            change.field
-                                                                                        }
-                                                                                    </p>
-
-                                                                                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                                                                                        <div className="rounded-lg border border-red-100 bg-red-50 p-3">
-                                                                                            <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-red-400">
-                                                                                                Previous
-                                                                                            </p>
-
-                                                                                            <pre className="whitespace-pre-wrap break-all font-sans text-xs text-slate-600">
-                                                                                                {formatTrackingValue(
-                                                                                                    change.oldValue,
-                                                                                                )}
-                                                                                            </pre>
-                                                                                        </div>
-
-                                                                                        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3">
-                                                                                            <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-emerald-500">
-                                                                                                Updated
-                                                                                            </p>
-
-                                                                                            <pre className="whitespace-pre-wrap break-all font-sans text-xs text-slate-600">
-                                                                                                {formatTrackingValue(
-                                                                                                    change.newValue,
-                                                                                                )}
-                                                                                            </pre>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            ),
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            ) : null}
-
-                                                            {/* LOCATION */}
-                                                            {item.location ? (
-                                                                <div className="mt-4 border-t border-orange-100 pt-4">
-                                                                    <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-orange-500">
-                                                                        Activity
-                                                                        Location
-                                                                    </p>
-
-                                                                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                                                                        <VehicleDetailItem
-                                                                            label="Latitude"
-                                                                            value={
-                                                                                item
-                                                                                    .location
-                                                                                    .latitude
-                                                                            }
-                                                                        />
-
-                                                                        <VehicleDetailItem
-                                                                            label="Longitude"
-                                                                            value={
-                                                                                item
-                                                                                    .location
-                                                                                    .longitude
-                                                                            }
-                                                                        />
-
-                                                                        <VehicleDetailItem
-                                                                            label="Address"
-                                                                            value={
-                                                                                item
-                                                                                    .location
-                                                                                    .address
-                                                                            }
-                                                                        />
-
-                                                                        <VehicleDetailItem
-                                                                            label="Speed"
-                                                                            value={
-                                                                                item
-                                                                                    .location
-                                                                                    .speed
-                                                                            }
-                                                                        />
-
-                                                                        <VehicleDetailItem
-                                                                            label="Heading"
-                                                                            value={
-                                                                                item
-                                                                                    .location
-                                                                                    .heading
-                                                                            }
-                                                                        />
-
-                                                                        <VehicleDetailItem
-                                                                            label="Accuracy"
-                                                                            value={
-                                                                                item
-                                                                                    .location
-                                                                                    .accuracy
-                                                                            }
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            ) : null}
-
-                                                            {/* COMMENT */}
-                                                            {item.comment ? (
-                                                                <div
-                                                                    className="
-                                                                        mt-4
-                                                                        rounded-xl
-                                                                        border
-                                                                        border-orange-200
-                                                                        bg-gradient-to-r
-                                                                        from-orange-50
-                                                                        to-amber-50
-                                                                        p-3
-                                                                    "
-                                                                >
-                                                                    <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-orange-600">
-                                                                        Comment
-                                                                    </p>
-
-                                                                    <p className="text-xs leading-5 text-slate-700">
-                                                                        {
-                                                                            item.comment
-                                                                        }
-                                                                    </p>
-                                                                </div>
-                                                            ) : null}
-                                                        </div>
-                                                    </div>
-                                                ),
-                                            )}
-                                    </div>
-                                </div>
-                            ) : (
-                                <EmptyState
-                                    text="No activity history available"
-                                />
-                            )}
-                        </Section>
-                    </div>
-                </main>
-
-                {/* =================================================
-                    FOOTER
-                ================================================= */}
-
-                <footer
-                    className="
-                        flex
-                        shrink-0
-                        items-center
-                        justify-between
-                        border-t
-                        border-orange-100
-                        bg-gradient-to-r
-                        from-white
-                        to-orange-50
-                        px-5
-                        py-3
-                        sm:px-7
-                    "
-                >
-                    <div className="hidden sm:block">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-orange-500">
-                            Vehicle ID
-                        </p>
-
-                        <p
-                            className="
-                                mt-0.5
-                                max-w-[350px]
-                                truncate
-                                text-[10px]
-                                text-slate-500
-                            "
-                        >
-                            {normalizedVehicle._id || "-"}
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="
-                            ml-auto
-                            rounded-xl
-                            bg-gradient-to-r
-                            from-orange-600
-                            to-amber-500
-                            px-6
-                            py-2.5
-                            text-xs
-                            font-bold
-                            text-white
-                            shadow-md
-                            shadow-orange-200
-                            transition-all
-                            duration-200
-                            hover:from-orange-700
-                            hover:to-amber-600
-                            hover:shadow-lg
-                            active:scale-[0.98]
-                        "
-                    >
-                        Close
-                    </button>
-                </footer>
+                            ))}
+                        </ol>
+                    ) : (
+                        <EmptyNote>No activity recorded yet</EmptyNote>
+                    )}
+                </ModalSection>
             </div>
-        </div>
+        </CommonModal>
     );
 };
 

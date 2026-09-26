@@ -14,6 +14,7 @@ export interface StatusMeta {
 
 export const STATUS_META: Record<string, StatusMeta> = {
     WAITING_FOR_DETAILS: { pill: "bg-red-50 text-red-700 ring-red-600/15", dot: "bg-red-500" },
+    WAITING_FOR_TOKEN: { pill: "bg-yellow-50 text-yellow-800 ring-yellow-600/20", dot: "bg-yellow-500" },
     ENTRY_DONE: { pill: "bg-blue-50 text-blue-700 ring-blue-600/15", dot: "bg-blue-500" },
     LOADING_STARTED: { pill: "bg-orange-50 text-orange-700 ring-orange-600/15", dot: "bg-orange-500" },
     LOADING_DONE: { pill: "bg-purple-50 text-purple-700 ring-purple-600/15", dot: "bg-purple-500" },

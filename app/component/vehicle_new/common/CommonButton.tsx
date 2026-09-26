@@ -8,6 +8,7 @@ export type CommonButtonVariant =
     | "secondary"
     | "ghost"
     | "danger"
+    | "destructive"
     | "success";
 
 export type CommonButtonSize = "sm" | "md";
@@ -33,6 +34,8 @@ const VARIANT_CLASS: Record<CommonButtonVariant, string> = {
         "text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-orange-200",
     danger:
         "border border-red-200 bg-white text-red-700 hover:bg-red-50 focus-visible:ring-red-200",
+    destructive:
+        "bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-300",
     success:
         "border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 focus-visible:ring-green-200",
 };

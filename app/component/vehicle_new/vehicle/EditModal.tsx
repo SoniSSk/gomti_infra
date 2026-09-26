@@ -8,10 +8,23 @@ import toast from "react-hot-toast";
 
 import { Vehicle_new } from "@/app/types/vehicle_new";
 import { normalizeVehicle } from "@/app/utils/vehicleMapper";
+import {
+    Clock,
+    FileText,
+    Lock,
+    Package,
+    Save,
+    Trash2,
+    TriangleAlert,
+    Truck,
+} from "lucide-react";
+
+import CommonButton from "../common/CommonButton";
 import CommonInput from "../common/CommonInput";
 import CommonFileUpload from "../common/CommonFileUpload";
-
-
+import CommonModal from "../common/CommonModal";
+import { FIELD_CLASS, FormField, ModalSection } from "../common/ModalParts";
+import { StatusBadge, formatStatus } from "../common/vehicleStatus";
 
 interface EditVehicleModalProps {
     vehicle: Vehicle_new | null;
@@ -1063,1018 +1076,662 @@ export default function EditVehicleModal({
        RENDER
     ========================================================= */
 
+    const canDelete =
+        isSuperAdmin &&
+        formData.status === "WAITING_FOR_DETAILS";
+
+    const currentStatus = formData.status || vehicle.status;
+
     return (
-        <div
-            className="
-                fixed
-                inset-0
-                z-[9999]
-                flex
-                items-center
-                justify-center
-                bg-slate-950/70
-                p-2
-                sm:p-5
-            "
-            onClick={onClose}
-        >
-            <div
-                className="
-                    flex
-                    h-[96vh]
-                    w-full
-                    max-w-[1200px]
-                    flex-col
-                    overflow-hidden
-                    rounded-2xl
-                    border
-                    border-orange-200
-                    bg-slate-50
-                    shadow-2xl
-                "
-                onClick={(e) =>
-                    e.stopPropagation()
+        <>
+            <CommonModal
+                isOpen={isOpen}
+                onClose={onClose}
+                size="xl"
+                closeOnOutsideClick={false}
+                title={
+                    <span className="flex min-w-0 items-center gap-3">
+                        <span className="truncate tracking-wide">
+                            Edit {vehicle.vehicleNo}
+                        </span>
+                        {currentStatus && (
+                            <StatusBadge status={currentStatus} />
+                        )}
+                    </span>
                 }
-            >
-                {/* =================================================
-                    HEADER — SAME STYLE AS VIEW MODAL
-                ================================================= */}
-
-                <header
-                    className="
-                        relative
-                        shrink-0
-                        overflow-hidden
-                        bg-gradient-to-br
-                        from-orange-500
-                        via-orange-400
-                        to-amber-300
-                        px-5
-                        py-4
-                        text-white
-                        sm:px-7
-                    "
-                >
-                    <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-yellow-300/25 blur-3xl" />
-
-                    <div className="pointer-events-none absolute -bottom-24 left-1/3 h-48 w-48 rounded-full bg-orange-900/20 blur-3xl" />
-
-                    <div className="relative flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                                <span
-                                    className="
-                                        inline-flex
-                                        items-center
-                                        gap-1.5
-                                        rounded-md
-                                        bg-white
-                                        px-2.5
-                                        py-1
-                                        text-[9px]
-                                        font-black
-                                        tracking-widest
-                                        text-orange-600
-                                        shadow-sm
-                                    "
+                description="Update vehicle details, status and documents"
+                footer={
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                            {isSuperAdmin && (
+                                <CommonButton
+                                    variant="danger"
+                                    icon={Trash2}
+                                    onClick={() =>
+                                        setShowDeleteConfirm(true)
+                                    }
+                                    disabled={!canDelete || updateLoading}
                                 >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        className="h-3 w-3"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M12 20h9"
-                                        />
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4L16.5 3.5z"
-                                        />
-                                    </svg>
-                                    EDIT VEHICLE
-                                </span>
+                                    Delete
+                                </CommonButton>
+                            )}
 
-                                <span className="text-[10px] font-medium uppercase tracking-widest text-orange-100">
-                                    Vehicle Details
-                                </span>
-                            </div>
-
-                            <h2 className="mt-1.5 truncate text-2xl font-black tracking-tight text-white sm:text-3xl">
-                                {vehicle.vehicleNo}
-                            </h2>
-
-                            {isEmployee && (
-                                <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1 backdrop-blur-sm">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-yellow-200" />
-                                    <p className="text-[10px] font-medium text-orange-50">
-                                        Employee Access — Restricted Fields
-                                    </p>
-                                </div>
+                            {isSuperAdmin && !canDelete && (
+                                <p className="text-xs text-gray-500">
+                                    Only vehicles waiting for details can be deleted.
+                                </p>
                             )}
                         </div>
 
-                        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                            <div className="hidden sm:block">
-                                <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-[10px] font-bold text-white backdrop-blur-sm">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-green-300 shadow-[0_0_8px_rgba(134,239,172,0.8)]" />
-                                    {formData.status || vehicle.status || "UNKNOWN"}
-                                </span>
-                            </div>
-
-                            <button
-                                type="button"
+                        <div className="flex justify-end gap-2">
+                            <CommonButton
+                                variant="secondary"
                                 onClick={onClose}
-                                className="
-                                    flex
-                                    h-9
-                                    w-9
-                                    items-center
-                                    justify-center
-                                    rounded-xl
-                                    border
-                                    border-white/20
-                                    bg-white/10
-                                    text-xl
-                                    text-white
-                                    backdrop-blur-sm
-                                    transition-all
-                                    duration-200
-                                    hover:border-white/40
-                                    hover:bg-white
-                                    hover:text-orange-600
-                                    hover:shadow-lg
-                                    active:scale-95
-                                "
-                                aria-label="Close"
+                                disabled={updateLoading}
                             >
-                                ×
-                            </button>
+                                Cancel
+                            </CommonButton>
+
+                            <CommonButton
+                                icon={Save}
+                                onClick={handleUpdate}
+                                loading={updateLoading}
+                                loadingText="Saving..."
+                            >
+                                Save changes
+                            </CommonButton>
                         </div>
                     </div>
+                }
+            >
+                <div className="space-y-4 bg-gray-50 p-4 sm:p-6">
+                    {isEmployee && (
+                        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                            <p className="text-sm text-amber-800">
+                                <span className="font-medium">Restricted access.</span>{" "}
+                                Vehicle number, buyer, transporter, destination, ETP details and the ETP, invoice, e-way bill and loading-video documents can only be changed by an admin.
+                            </p>
+                        </div>
+                    )}
 
-                    <div className="relative mt-3 sm:hidden">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-[10px] font-bold text-white backdrop-blur-sm">
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-300" />
-                            {formData.status || vehicle.status || "UNKNOWN"}
-                        </span>
-                    </div>
-
-                    <div className="absolute bottom-0 left-0 h-[3px] w-full bg-gradient-to-r from-yellow-300 via-white/70 to-orange-900/30" />
-                </header>
-
-                {/* =================================================
-                    BODY
-                ================================================= */}
-
-                <main
-                    className="
-                        min-h-0
-                        flex-1
-                        overflow-y-auto
-                        bg-slate-50
-                        px-4
-                        py-6
-                        sm:px-7
-                    "
-                >
-                    <div className="mx-auto max-w-[1100px] space-y-8">
-
-                        {/* =================================================
-                            BASIC INFORMATION
-                        ================================================= */}
-
-                        <section>
-                            <SectionTitle
-                                number="01"
-                                title="Vehicle Information"
+                    <ModalSection title="Vehicle & driver" icon={Truck}>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <CommonInput
+                                label="Vehicle Number"
+                                placeholder="Enter vehicle number"
+                                value={
+                                    formData.vehicleNo ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "vehicleNo",
+                                        e,
+                                    )
+                                }
+                                disabled={
+                                    isEmployee
+                                }
                             />
 
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-
-                                <CommonInput
-                                    label="Vehicle Number"
-                                    placeholder="Enter vehicle number"
-                                    value={
-                                        formData.vehicleNo ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "vehicleNo",
-                                            e,
-                                        )
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Token Number"
-                                    placeholder="Enter token number"
-                                    value={
-                                        formData.tokenNo ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "tokenNo",
-                                            e,
-                                        )
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Driver Name"
-                                    placeholder="Enter driver name"
-                                    value={
-                                        formData.driverName ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "driverName",
-                                            e,
-                                        )
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Driver Contact"
-                                    placeholder="Enter driver contact"
-                                    value={
-                                        formData.driverContact ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "driverContact",
-                                            e,
-                                        )
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Material Name"
-                                    placeholder="Enter material name"
-                                    value={
-                                        formData.materialName ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "materialName",
-                                            e,
-                                        )
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Material Grade"
-                                    placeholder="Enter material grade"
-                                    value={
-                                        formData.materialGrade ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "materialGrade",
-                                            e,
-                                        )
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Destination"
-                                    placeholder="Enter destination"
-                                    value={
-                                        formData.destination ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "destination",
-                                            e,
-                                        )
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Net Weight"
-                                    type="number"
-                                    placeholder="Enter net weight"
-                                    value={
-                                        formData.netWeight !==
-                                            undefined
-                                            ? String(
-                                                formData.netWeight,
-                                            )
-                                            : ""
-                                    }
-                                    onChange={(e) =>
-                                        handleNumberChange(
-                                            "netWeight",
-                                            e,
-                                        )
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Route"
-                                    placeholder="Enter route"
-                                    value={
-                                        formData.route ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "route",
-                                            e,
-                                        )
-                                    }
-                                />
-
-                                {/* TYRE */}
-
-                                <SelectField
-                                    label="Tyre"
-                                    value={
-                                        formData.tyre ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "tyre",
-                                            e,
-                                        )
-                                    }
-                                    name="tyre"
-                                    options={
-                                        tyreOptions
-                                    }
-                                />
-
-                                {/* BUYER */}
-
-                                <SelectField
-                                    label="Buyer"
-                                    value={
-                                        formData.buyerDetails ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "buyerDetails",
-                                            e,
-                                        )
-                                    }
-                                    name="buyerDetails"
-                                    options={
-                                        buyers
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                />
-
-                                {/* TRANSPORTER */}
-
-                                <SelectField
-                                    label="Transporter"
-                                    value={
-                                        formData.transporterName ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "transporterName",
-                                            e,
-                                        )
-                                    }
-                                    name="transporterName"
-                                    options={
-                                        transporters
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                />
-                            </div>
-                        </section>
-
-                        {/* =================================================
-                            STATUS & ETP
-                        ================================================= */}
-
-                        <section>
-                            <SectionTitle
-                                number="02"
-                                title="Status & ETP"
+                            <CommonInput
+                                label="Token Number"
+                                placeholder="Enter token number"
+                                value={
+                                    formData.tokenNo ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "tokenNo",
+                                        e,
+                                    )
+                                }
                             />
 
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-
-                                <SelectField
-                                    label="Status"
-                                    value={
-                                        formData.status ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "status",
-                                            e,
-                                        )
-                                    }
-                                    name="status"
-                                    options={
-                                        statuses
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="ETP Number"
-                                    type="number"
-                                    placeholder="Enter ETP number"
-                                    value={
-                                        formData.etpNo !==
-                                            undefined
-                                            ? String(
-                                                formData.etpNo,
-                                            )
-                                            : ""
-                                    }
-                                    onChange={(e) =>
-                                        handleNumberChange(
-                                            "etpNo",
-                                            e,
-                                        )
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="ETP Date"
-                                    type="date"
-                                    value={
-                                        formData.etpDate ||
-                                        ""
-                                    }
-                                    onChange={(e) =>
-                                        handleFieldChange(
-                                            "etpDate",
-                                            e,
-                                        )
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="In Time"
-                                    type="datetime-local"
-                                    value={toDateTimeLocal(
-                                        formData.inTime,
-                                    )}
-                                    onChange={(e) =>
-                                        handleDateTimeChange(
-                                            "inTime",
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-
-                                <CommonInput
-                                    label="Out Time"
-                                    type="datetime-local"
-                                    value={toDateTimeLocal(
-                                        formData.outTime,
-                                    )}
-                                    onChange={(e) =>
-                                        handleDateTimeChange(
-                                            "outTime",
-                                            e.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                        </section>
-
-                        {/* =================================================
-                            DOCUMENTS
-                        ================================================= */}
-
-                        <section>
-                            <SectionTitle
-                                number="03"
-                                title="Documents"
+                            <CommonInput
+                                label="Driver Name"
+                                placeholder="Enter driver name"
+                                value={
+                                    formData.driverName ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "driverName",
+                                        e,
+                                    )
+                                }
                             />
 
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <CommonInput
+                                label="Driver Contact"
+                                placeholder="Enter driver contact"
+                                value={
+                                    formData.driverContact ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "driverContact",
+                                        e,
+                                    )
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="Vehicle Image"
-                                    value={
-                                        formData.documents
-                                            ?.vehicleImage ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "vehicleImage",
-                                            file,
+                            <SelectField
+                                label="Transporter"
+                                value={
+                                    formData.transporterName ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "transporterName",
+                                        e,
+                                    )
+                                }
+                                name="transporterName"
+                                options={
+                                    transporters
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                            />
+
+                            <SelectField
+                                label="Tyre"
+                                value={
+                                    formData.tyre ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "tyre",
+                                        e,
+                                    )
+                                }
+                                name="tyre"
+                                options={
+                                    tyreOptions
+                                }
+                            />
+                        </div>
+                    </ModalSection>
+
+                    <ModalSection title="Material & dispatch" icon={Package}>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <SelectField
+                                label="Buyer"
+                                value={
+                                    formData.buyerDetails ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "buyerDetails",
+                                        e,
+                                    )
+                                }
+                                name="buyerDetails"
+                                options={
+                                    buyers
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                            />
+
+                            <CommonInput
+                                label="Destination"
+                                placeholder="Enter destination"
+                                value={
+                                    formData.destination ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "destination",
+                                        e,
+                                    )
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                            />
+
+                            <CommonInput
+                                label="Material Name"
+                                placeholder="Enter material name"
+                                value={
+                                    formData.materialName ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "materialName",
+                                        e,
+                                    )
+                                }
+                            />
+
+                            <CommonInput
+                                label="Material Grade"
+                                placeholder="Enter material grade"
+                                value={
+                                    formData.materialGrade ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "materialGrade",
+                                        e,
+                                    )
+                                }
+                            />
+
+                            <CommonInput
+                                label="Net Weight"
+                                type="number"
+                                placeholder="Enter net weight"
+                                value={
+                                    formData.netWeight !==
+                                        undefined
+                                        ? String(
+                                            formData.netWeight,
                                         )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("vehicleImage", url)
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                                        : ""
+                                }
+                                onChange={(e) =>
+                                    handleNumberChange(
+                                        "netWeight",
+                                        e,
+                                    )
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="Vehicle Registration"
-                                    value={
-                                        formData.documents
-                                            ?.vehicleRegistrationImage ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "vehicleRegistrationImage",
-                                            file,
+                            <CommonInput
+                                label="Route"
+                                placeholder="Enter route"
+                                value={
+                                    formData.route ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "route",
+                                        e,
+                                    )
+                                }
+                            />
+                        </div>
+                    </ModalSection>
+
+                    <ModalSection title="Status & timing" icon={Clock}>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <SelectField
+                                label="Status"
+                                value={
+                                    formData.status ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "status",
+                                        e,
+                                    )
+                                }
+                                name="status"
+                                options={
+                                    statuses
+                                }
+                            />
+
+                            <CommonInput
+                                label="ETP Number"
+                                type="number"
+                                placeholder="Enter ETP number"
+                                value={
+                                    formData.etpNo !==
+                                        undefined
+                                        ? String(
+                                            formData.etpNo,
                                         )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("vehicleRegistrationImage", url)
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                                        : ""
+                                }
+                                onChange={(e) =>
+                                    handleNumberChange(
+                                        "etpNo",
+                                        e,
+                                    )
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="Driver License"
-                                    value={
-                                        formData.documents
-                                            ?.driverLicenseImage ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "driverLicenseImage",
-                                            file,
-                                        )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("driverLicenseImage", url)
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                            <CommonInput
+                                label="ETP Date"
+                                type="date"
+                                value={
+                                    formData.etpDate ||
+                                    ""
+                                }
+                                onChange={(e) =>
+                                    handleFieldChange(
+                                        "etpDate",
+                                        e,
+                                    )
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="Weight Slip"
-                                    value={
-                                        formData.documents
-                                            ?.weightSlip ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "weightSlip",
-                                            file,
-                                        )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("weightSlip", url)
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                            <CommonInput
+                                label="In Time"
+                                type="datetime-local"
+                                value={toDateTimeLocal(
+                                    formData.inTime,
+                                )}
+                                onChange={(e) =>
+                                    handleDateTimeChange(
+                                        "inTime",
+                                        e.target.value,
+                                    )
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="LR Slip"
-                                    value={
-                                        formData.documents
-                                            ?.LRSlip ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "LRSlip",
-                                            file,
-                                        )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("LRSlip", url)
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                            <CommonInput
+                                label="Out Time"
+                                type="datetime-local"
+                                value={toDateTimeLocal(
+                                    formData.outTime,
+                                )}
+                                onChange={(e) =>
+                                    handleDateTimeChange(
+                                        "outTime",
+                                        e.target.value,
+                                    )
+                                }
+                            />
+                        </div>
+                    </ModalSection>
 
-                                <CommonFileUpload
-                                    label="ETP"
-                                    value={
-                                        formData.documents
-                                            ?.etp ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "etp",
-                                            file,
-                                        )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("etp", url)
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                    <ModalSection title="Documents" icon={FileText}>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <CommonFileUpload
+                                label="Vehicle Image"
+                                value={
+                                    formData.documents
+                                        ?.vehicleImage ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "vehicleImage",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("vehicleImage", url)
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="Invoice"
-                                    value={
-                                        formData.documents
-                                            ?.invoiceImage ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "invoiceImage",
-                                            file,
-                                        )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("invoiceImage", url)
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                            <CommonFileUpload
+                                label="Vehicle Registration"
+                                value={
+                                    formData.documents
+                                        ?.vehicleRegistrationImage ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "vehicleRegistrationImage",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("vehicleRegistrationImage", url)
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="E-Way Bill"
-                                    value={
-                                        formData.documents
-                                            ?.EWayBill ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "EWayBill",
-                                            file,
-                                        )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload("EWayBill", url)
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                    maxSizeMB={
-                                        100
-                                    }
-                                />
+                            <CommonFileUpload
+                                label="Driver License"
+                                value={
+                                    formData.documents
+                                        ?.driverLicenseImage ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "driverLicenseImage",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("driverLicenseImage", url)
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
 
-                                <CommonFileUpload
-                                    label="Loading Video"
-                                    value={
-                                        formData.documents
-                                            ?.loadingVideo ||
-                                        null
-                                    }
-                                    onChange={(
-                                        file: File | null,
-                                    ) =>
-                                        handleDocumentChange(
-                                            "loadingVideo",
-                                            file,
-                                        )
-                                    }
-                                    onUpload={(url: string) =>
-                                        handleDocumentUpload(
-                                            "loadingVideo",
-                                            url,
-                                        )
-                                    }
-                                    disabled={
-                                        isEmployee
-                                    }
-                                    maxSizeMB={100}
-                                />
-                            </div>
-                        </section>
-                    </div>
-                </main>
+                            <CommonFileUpload
+                                label="Weight Slip"
+                                value={
+                                    formData.documents
+                                        ?.weightSlip ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "weightSlip",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("weightSlip", url)
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
 
-                {/* =================================================
-                    FOOTER
-                ================================================= */}
+                            <CommonFileUpload
+                                label="LR Slip"
+                                value={
+                                    formData.documents
+                                        ?.LRSlip ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "LRSlip",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("LRSlip", url)
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
 
-                <footer
-                    className="
-                        flex
-                        shrink-0
-                        flex-col
-                        gap-3
-                        border-t
-                        border-orange-200
-                        bg-white
-                        px-5
-                        py-3
-                        sm:flex-row
-                        sm:items-center
-                        sm:justify-between
-                        sm:px-7
-                    "
-                >
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setShowDeleteConfirm(
-                                true,
-                            )
-                        }
-                        disabled={
-                            !isSuperAdmin ||
-                            updateLoading ||
-                            formData.status !==
-                            "WAITING_FOR_DETAILS"
-                        }
-                        className="
-                            rounded-lg
-                            border
-                            border-red-200
-                            bg-red-50
-                            px-5
-                            py-2.5
-                            text-xs
-                            font-bold
-                            text-red-600
-                            transition
-                            hover:bg-red-100
-                            disabled:cursor-not-allowed
-                            disabled:border-slate-200
-                            disabled:bg-slate-100
-                            disabled:text-slate-400
-                        "
-                    >
-                        Delete Vehicle
-                    </button>
+                            <CommonFileUpload
+                                label="ETP"
+                                value={
+                                    formData.documents
+                                        ?.etp ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "etp",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("etp", url)
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
 
-                    <div className="flex justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="
-                                rounded-lg
-                                border
-                                border-slate-200
-                                bg-white
-                                px-5
-                                py-2.5
-                                text-xs
-                                font-bold
-                                text-slate-600
-                                hover:bg-slate-50
-                            "
+                            <CommonFileUpload
+                                label="Invoice"
+                                value={
+                                    formData.documents
+                                        ?.invoiceImage ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "invoiceImage",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("invoiceImage", url)
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
+
+                            <CommonFileUpload
+                                label="E-Way Bill"
+                                value={
+                                    formData.documents
+                                        ?.EWayBill ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "EWayBill",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload("EWayBill", url)
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                                maxSizeMB={
+                                    100
+                                }
+                            />
+
+                            <CommonFileUpload
+                                label="Loading Video"
+                                value={
+                                    formData.documents
+                                        ?.loadingVideo ||
+                                    null
+                                }
+                                onChange={(
+                                    file: File | null,
+                                ) =>
+                                    handleDocumentChange(
+                                        "loadingVideo",
+                                        file,
+                                    )
+                                }
+                                onUpload={(url: string) =>
+                                    handleDocumentUpload(
+                                        "loadingVideo",
+                                        url,
+                                    )
+                                }
+                                disabled={
+                                    isEmployee
+                                }
+                                maxSizeMB={100}
+                            />
+                        </div>
+                    </ModalSection>
+                </div>
+            </CommonModal>
+
+            {/* ================= DELETE CONFIRMATION ================= */}
+
+            <CommonModal
+                isOpen={showDeleteConfirm && isSuperAdmin}
+                onClose={() => setShowDeleteConfirm(false)}
+                size="sm"
+                showCloseButton={false}
+                closeOnOutsideClick={!deleteLoading}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <CommonButton
+                            variant="secondary"
+                            onClick={() => setShowDeleteConfirm(false)}
+                            disabled={deleteLoading}
                         >
                             Cancel
-                        </button>
+                        </CommonButton>
 
-                        <button
-                            type="button"
-                            onClick={
-                                handleUpdate
-                            }
-                            disabled={updateLoading}
-                            className="
-                                rounded-lg
-                                bg-orange-600
-                                px-5
-                                py-2.5
-                                text-xs
-                                font-bold
-                                text-white
-                                hover:bg-orange-700
-                                disabled:cursor-not-allowed
-                                disabled:opacity-50
-                            "
+                        <CommonButton
+                            variant="destructive"
+                            icon={Trash2}
+                            onClick={() => handleDelete(Number(formData.sno))}
+                            loading={deleteLoading}
+                            loadingText="Deleting..."
                         >
-                            {updateLoading
-                                ? "Updating..."
-                                : "Update Vehicle"}
-                        </button>
+                            Delete vehicle
+                        </CommonButton>
                     </div>
-                </footer>
-            </div>
-
-            {/* =================================================
-                DELETE CONFIRMATION
-            ================================================= */}
-
-            {showDeleteConfirm &&
-                !isEmployee && (
-                    <div
-                        className="
-                            fixed
-                            inset-0
-                            z-[10000]
-                            flex
-                            items-center
-                            justify-center
-                            bg-slate-950/70
-                            p-4
-                        "
-                        onClick={() =>
-                            setShowDeleteConfirm(
-                                false,
-                            )
-                        }
-                    >
-                        <div
-                            className="
-                                w-full
-                                max-w-md
-                                rounded-2xl
-                                border
-                                border-orange-200
-                                bg-white
-                                p-6
-                                shadow-2xl
-                            "
-                            onClick={(e) =>
-                                e.stopPropagation()
-                            }
-                        >
-                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-red-200 bg-red-50">
-                                <span className="text-2xl">
-                                    ⚠️
-                                </span>
-                            </div>
-
-                            <h3 className="text-center text-xl font-bold text-slate-800">
-                                Delete Vehicle?
-                            </h3>
-
-                            <p className="mt-2 text-center text-sm text-slate-500">
-                                Are you sure you want
-                                to delete{" "}
-                                <span className="font-semibold text-slate-700">
-                                    {
-                                        vehicle.vehicleNo
-                                    }
-                                </span>
-                                ?
-                                <br />
-                                This action cannot be
-                                undone.
-                            </p>
-
-                            <div className="mt-6 flex justify-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowDeleteConfirm(
-                                            false,
-                                        )
-                                    }
-                                    disabled={
-                                        deleteLoading
-                                    }
-                                    className="
-                                        rounded-lg
-                                        border
-                                        border-slate-200
-                                        px-6
-                                        py-2.5
-                                        text-sm
-                                        font-bold
-                                        text-slate-600
-                                        hover:bg-slate-50
-                                    "
-                                >
-                                    Cancel
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        isSuperAdmin ? handleDelete(
-                                            Number(
-                                                formData.sno,
-                                            ),
-                                        ) : {}
-                                    }
-
-                                    }
-                                    disabled={
-                                        deleteLoading
-                                    }
-                                    className="
-                                rounded-lg
-                                bg-red-600
-                                px-6
-                                py-2.5
-                                text-sm
-                                font-bold
-                                text-white
-                                hover:bg-red-700
-                                disabled:opacity-50
-                                "
-                                >
-                                    {deleteLoading
-                                        ? "Deleting..."
-                                        : "Yes, Delete"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-        </div >
-    );
-}
-
-/* =============================================================
-   SECTION TITLE
-============================================================= */
-
-function SectionTitle({
-    number,
-    title,
-}: {
-    number: string;
-    title: string;
-}) {
-    return (
-        <div className="mb-4 flex items-center gap-3">
-            <div
-                className="
-                    flex
-                    h-7
-                    w-7
-                    shrink-0
-                    items-center
-                    justify-center
-                    rounded-lg
-                    bg-orange-600
-                    text-[10px]
-                    font-bold
-                    text-white
-                "
+                }
             >
-                {number}
-            </div>
+                <div className="flex gap-4 p-5 sm:p-6">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                        <TriangleAlert className="h-5 w-5" aria-hidden="true" />
+                    </span>
 
-            <div>
-                <h3 className="text-sm font-bold text-slate-800">
-                    {title}
-                </h3>
-
-                <div className="mt-1 h-[2px] w-10 rounded-full bg-orange-500" />
-            </div>
-        </div>
+                    <div>
+                        <h3 className="text-base font-semibold text-gray-900">
+                            Delete {vehicle.vehicleNo}?
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                            This permanently removes the vehicle, its documents and activity history. This action cannot be undone.
+                        </p>
+                    </div>
+                </div>
+            </CommonModal>
+        </>
     );
 }
 
@@ -2095,61 +1752,30 @@ function SelectField({
     value: string;
     options: string[];
     onChange: (
-        e: React.ChangeEvent<
-            HTMLSelectElement
-        >,
+        e: React.ChangeEvent<HTMLSelectElement>,
     ) => void;
     disabled?: boolean;
 }) {
     return (
-        <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                {label}
-            </label>
-
+        <FormField label={label} htmlFor={`edit-${name}`}>
             <select
+                id={`edit-${name}`}
                 name={name}
                 value={value}
                 onChange={onChange}
                 disabled={disabled}
-                className="
-                    w-full
-                    rounded-lg
-                    border
-                    border-slate-200
-                    bg-white
-                    px-3
-                    py-2.5
-                    text-sm
-                    text-slate-700
-                    outline-none
-                    transition
-                    focus:border-orange-500
-                    focus:ring-2
-                    focus:ring-orange-100
-                    disabled:cursor-not-allowed
-                    disabled:bg-slate-100
-                    disabled:text-slate-400
-                "
+                className={`${FIELD_CLASS} cursor-pointer`}
             >
-                <option value="">
-                    Select {label}
-                </option>
+                <option value="">Select {label.toLowerCase()}</option>
 
-                {options.map(
-                    (option) => (
-                        <option
-                            key={option}
-                            value={option}
-                        >
-                            {option.replaceAll(
-                                "_",
-                                " ",
-                            )}
-                        </option>
-                    ),
-                )}
+                {options.map((option) => (
+                    <option key={option} value={option}>
+                        {name === "status"
+                            ? formatStatus(option)
+                            : option.replaceAll("_", " ")}
+                    </option>
+                ))}
             </select>
-        </div>
+        </FormField>
     );
 }

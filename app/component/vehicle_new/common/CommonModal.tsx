@@ -1,11 +1,19 @@
 "use client";
 
-import React, { ReactNode, useEffect } from "react";
+import React, { ReactNode, useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 
-interface CommonModalProps {
+import CommonButton from "./CommonButton";
+
+export interface CommonModalProps {
     isOpen: boolean;
     onClose: () => void;
-    title?: string;
+    title?: ReactNode;
+    /** Secondary line under the title. */
+    description?: ReactNode;
+    /** Extra header content next to the close button (badges, actions). */
+    headerActions?: ReactNode;
     children: ReactNode;
     footer?: ReactNode;
     size?: "sm" | "md" | "lg" | "xl" | "full";
@@ -14,10 +22,26 @@ interface CommonModalProps {
     className?: string;
 }
 
+const SIZE_CLASS = {
+    sm: "sm:max-w-md",
+    md: "sm:max-w-lg",
+    lg: "sm:max-w-2xl",
+    xl: "sm:max-w-5xl",
+    full: "sm:max-w-[96vw]",
+} as const;
+
+/*
+ * Stack of open modals so Escape / scroll-lock only affect the
+ * top-most one (e.g. a file preview opened from Vehicle Details).
+ */
+const openModals: symbol[] = [];
+
 const CommonModal: React.FC<CommonModalProps> = ({
     isOpen,
     onClose,
     title,
+    description,
+    headerActions,
     children,
     footer,
     size = "lg",
@@ -25,12 +49,27 @@ const CommonModal: React.FC<CommonModalProps> = ({
     closeOnOutsideClick = true,
     className = "",
 }) => {
+    const titleId = useId();
+    const descriptionId = useId();
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const onCloseRef = useRef(onClose);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
     useEffect(() => {
         if (!isOpen) return;
 
+        const token = Symbol("modal");
+        openModals.push(token);
+
+        const isTop = () => openModals[openModals.length - 1] === token;
+
         const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                onClose();
+            if (event.key === "Escape" && isTop()) {
+                event.stopPropagation();
+                onCloseRef.current();
             }
         };
 
@@ -39,34 +78,38 @@ const CommonModal: React.FC<CommonModalProps> = ({
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
 
+        const previouslyFocused = document.activeElement as HTMLElement | null;
+        dialogRef.current?.focus();
+
         return () => {
             document.removeEventListener("keydown", handleEscape);
-            document.body.style.overflow = previousOverflow;
+            openModals.splice(openModals.indexOf(token), 1);
+
+            if (openModals.length === 0) {
+                document.body.style.overflow = previousOverflow;
+            }
+
+            previouslyFocused?.focus?.();
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
-    if (!isOpen) return null;
+    if (!isOpen || typeof document === "undefined") return null;
 
-    const sizeClasses = {
-        sm: "max-w-md",
-        md: "max-w-lg",
-        lg: "max-w-2xl",
-        xl: "max-w-6xl",
-        full: "max-w-[96vw]",
-    };
+    const hasHeader = title || description || headerActions || showCloseButton;
 
-    return (
+    return createPortal(
         <div
             className="
                 fixed
                 inset-0
                 z-[9999]
                 flex
-                items-center
+                items-end
                 justify-center
-                bg-black/70
-                p-3
-                sm:p-5
+                bg-gray-900/50
+                backdrop-blur-[2px]
+                sm:items-center
+                sm:p-6
             "
             onMouseDown={(event) => {
                 if (
@@ -78,128 +121,86 @@ const CommonModal: React.FC<CommonModalProps> = ({
             }}
         >
             <div
+                ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={title ? titleId : undefined}
+                aria-describedby={description ? descriptionId : undefined}
+                tabIndex={-1}
                 className={`
                     flex
-                    max-h-[95vh]
+                    max-h-[92vh]
                     w-full
-                    ${sizeClasses[size]}
                     flex-col
                     overflow-hidden
-                    rounded-2xl
+                    rounded-t-2xl
                     bg-white
                     shadow-2xl
+                    ring-1
+                    ring-black/5
+                    outline-none
+                    sm:max-h-[90vh]
+                    sm:rounded-2xl
+                    ${SIZE_CLASS[size]}
                     ${className}
                 `}
-                onMouseDown={(event) => event.stopPropagation()}
             >
                 {/* ================= HEADER ================= */}
 
-                {(title || showCloseButton) && (
-                    <div
-                        className="
-                            flex
-                            min-h-[60px]
-                            shrink-0
-                            items-center
-                            justify-between
-                            gap-3
-                            border-b
-                            border-gray-200
-                            bg-white
-                            px-4
-                            py-3
-                            sm:px-5
-                        "
-                    >
+                {hasHeader && (
+                    <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6">
                         <div className="min-w-0 flex-1">
                             {title && (
                                 <h2
-                                    className="
-                                        truncate
-                                        text-base
-                                        font-semibold
-                                        text-gray-800
-                                        sm:text-lg
-                                    "
-                                    title={title}
+                                    id={titleId}
+                                    className="truncate text-lg font-semibold text-gray-900"
                                 >
                                     {title}
                                 </h2>
                             )}
+
+                            {description && (
+                                <div
+                                    id={descriptionId}
+                                    className="mt-0.5 text-sm text-gray-500"
+                                >
+                                    {description}
+                                </div>
+                            )}
                         </div>
 
-                        {showCloseButton && (
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                aria-label="Close modal"
-                                className="
-                                    inline-flex
-                                    h-9
-                                    w-9
-                                    shrink-0
-                                    cursor-pointer
-                                    items-center
-                                    justify-center
-                                    rounded-lg
-                                    text-gray-500
-                                    transition
-                                    hover:bg-gray-100
-                                    hover:text-gray-700
-                                "
-                            >
-                                <svg
-                                    className="h-5 w-5"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        )}
+                        <div className="flex shrink-0 items-center gap-2">
+                            {headerActions}
+
+                            {showCloseButton && (
+                                <CommonButton
+                                    variant="ghost"
+                                    icon={X}
+                                    onClick={onClose}
+                                    aria-label="Close"
+                                    title="Close"
+                                />
+                            )}
+                        </div>
                     </div>
                 )}
 
                 {/* ================= CONTENT ================= */}
 
-                <div
-                    className="
-                        min-h-0
-                        flex-1
-                        overflow-y-auto
-                        overscroll-contain
-                    "
-                >
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                     {children}
                 </div>
 
-                {/* ================= FIXED BOTTOM FOOTER ================= */}
+                {/* ================= FOOTER ================= */}
 
                 {footer && (
-                    <div
-                        className="
-                            shrink-0
-                            border-t
-                            border-gray-200
-                            bg-white
-                            px-4
-                            py-3
-                            shadow-[0_-4px_12px_rgba(0,0,0,0.06)]
-                            sm:px-5
-                            sm:py-4
-                        "
-                    >
+                    <div className="shrink-0 border-t border-gray-200 bg-gray-50 px-5 py-3 sm:px-6">
                         {footer}
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 

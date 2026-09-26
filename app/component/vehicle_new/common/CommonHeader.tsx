@@ -242,11 +242,12 @@ rounded-lg
                 onClose={() =>
                     setIsAddVehicleOpen(false)
                 }
-                title="Add Vehicle"
+title="Add vehicle"
+                description="Register a new vehicle for dispatch. All fields are required."
                 size="xl"
                 closeOnOutsideClick={false}
             >
-                <div className="p-4 sm:p-6">
+<div className="bg-gray-50 p-4 sm:p-6">
                     <AddVehicle
                         onSuccess={
                             handleAddVehicleSuccess

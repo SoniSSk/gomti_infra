@@ -12,6 +12,18 @@ import {
 } from "@/app/redux/loaderSlice";
 
 import toast from "react-hot-toast";
+import {
+    CircleCheck,
+    CircleX,
+    Package,
+    Plus,
+    TriangleAlert,
+    Truck,
+} from "lucide-react";
+
+import CommonButton from "../common/CommonButton";
+import { FIELD_CLASS, FormField, ModalSection } from "../common/ModalParts";
+import { StatusBadge } from "../common/vehicleStatus";
 
 import { Vehicle_new } from "@/app/types/vehicle_new";
 
@@ -56,13 +68,6 @@ const MATERIALS = [
     "Iron Ore Fines",
     "Iron Ore Lumps",
 ];
-
-/* =========================================================
-   INPUT CLASS
-========================================================= */
-
-const inputClass =
-    "w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500";
 
 /* =========================================================
    FORM DATA
@@ -717,425 +722,197 @@ export default function AddVehicle({
        UI
     ======================================================= */
 
+    const remainingFields = [
+        normalizedVehicleNo,
+        normalizedVehicleNoConfirm,
+        formData.transporterName,
+        formData.buyerDetails,
+        formData.materialName,
+        formData.materialGrade,
+        formData.destination,
+    ].filter((value) => !String(value).trim()).length;
+
+    const renderSelect = (
+        name: "transporterName" | "buyerDetails" | "materialName",
+        label: string,
+        options: string[],
+    ) => (
+        <FormField label={label} htmlFor={`add-${name}`} required>
+            <select
+                id={`add-${name}`}
+                name={name}
+                value={formData[name]}
+                onChange={handleChange}
+                className={`${FIELD_CLASS} cursor-pointer`}
+                required
+                disabled={submitting}
+            >
+                <option value="">Select {label.toLowerCase()}</option>
+                {options.map((option) => (
+                    <option key={option} value={option}>
+                        {option}
+                    </option>
+                ))}
+            </select>
+        </FormField>
+    );
+
+    const confirmStateClass = vehicleNumbersMismatch
+        ? "border-red-500 focus:border-red-500 focus:ring-red-100"
+        : vehicleNumbersMatch
+            ? "border-green-500 focus:border-green-500 focus:ring-green-100"
+            : "border-gray-300 focus:border-orange-500 focus:ring-orange-100";
+
     return (
-        <form
-            onSubmit={handleSubmit}
-            className="mb-6 rounded-2xl"
-        >
-            {/* =================================================
-               NOTICE
-            ================================================= */}
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+            {/* ================= NOTICE ================= */}
 
-            <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-                <p className="text-sm font-medium text-orange-800">
-                    ⚠️ Driver se boliye ki{" "}
-                    <span className="font-bold">
-                        transporter se WhatsApp
-                        group par vehicle
-                        number update
-                        karwayein.
-                    </span>
-                </p>
+            <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
 
-                <p className="mt-1 text-sm font-bold text-red-700">
-                    Bina transporter details ke
-                    kisi bhi vehicle ko load nahi
-                    kiya jayega.
-                </p>
-            </div>
-
-            {/* =================================================
-               REQUIRED NOTICE
-            ================================================= */}
-
-            <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                <p className="text-xs text-gray-600">
-                    <span className="font-bold text-red-600">
-                        *
-                    </span>{" "}
-                    All fields are mandatory.
-                </p>
-            </div>
-
-            {/* =================================================
-               FORM
-            ================================================= */}
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* =============================================
-                   VEHICLE NUMBER
-                ============================================= */}
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700">
-                        Vehicle Number{" "}
-                        <span className="text-red-500">
-                            *
+                <div className="text-sm">
+                    <p className="text-amber-900">
+                        Driver se boliye ki{" "}
+                        <span className="font-semibold">
+                            transporter se WhatsApp group par vehicle number update karwayein.
                         </span>
-                    </label>
-
-                    <input
-                        name="vehicleNo"
-                        value={
-                            formData.vehicleNo
-                        }
-                        onChange={
-                            handleChange
-                        }
-                        className={
-                            inputClass
-                        }
-                        placeholder="Enter vehicle number"
-                        required
-                        disabled={
-                            submitting
-                        }
-                        autoComplete="off"
-                        style={{
-                            textTransform:
-                                "uppercase",
-                        }}
-                    />
-                </div>
-
-                {/* =============================================
-                   CONFIRM VEHICLE NUMBER
-                ============================================= */}
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700">
-                        Confirm Vehicle Number{" "}
-                        <span className="text-red-500">
-                            *
-                        </span>
-                    </label>
-
-                    <input
-                        name="vehicleNoConfirm"
-                        value={
-                            formData.vehicleNoConfirm
-                        }
-                        onChange={
-                            handleChange
-                        }
-                        className={`${inputClass} ${vehicleNumbersMismatch
-                            ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-                            : vehicleNumbersMatch
-                                ? "border-green-500 focus:border-green-500 focus:ring-green-200"
-                                : ""
-                            }`}
-                        placeholder="Re-enter vehicle number"
-                        required
-                        disabled={
-                            submitting
-                        }
-                        autoComplete="off"
-                        style={{
-                            textTransform:
-                                "uppercase",
-                        }}
-                    />
-
-                    {vehicleNumbersMatch && (
-                        <p className="mt-1 text-xs font-medium text-green-600">
-                            ✓ Vehicle numbers
-                            match
-                        </p>
-                    )}
-
-                    {vehicleNumbersMismatch && (
-                        <p className="mt-1 text-xs font-medium text-red-600">
-                            ✕ Vehicle numbers do
-                            not match
-                        </p>
-                    )}
-                </div>
-
-                {/* =============================================
-                   TRANSPORTER
-                ============================================= */}
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700">
-                        Transporter Name{" "}
-                        <span className="text-red-500">
-                            *
-                        </span>
-                    </label>
-
-                    <select
-                        name="transporterName"
-                        value={
-                            formData.transporterName
-                        }
-                        onChange={
-                            handleChange
-                        }
-                        className={
-                            inputClass
-                        }
-                        required
-                        disabled={
-                            submitting
-                        }
-                    >
-                        <option value="">
-                            Select Transporter
-                        </option>
-
-                        {TRANSPORTERS.map(
-                            (
-                                transporter,
-                            ) => (
-                                <option
-                                    key={
-                                        transporter
-                                    }
-                                    value={
-                                        transporter
-                                    }
-                                >
-                                    {
-                                        transporter
-                                    }
-                                </option>
-                            ),
-                        )}
-                    </select>
-                </div>
-
-                {/* =============================================
-                   BUYER
-                ============================================= */}
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700">
-                        Buyer{" "}
-                        <span className="text-red-500">
-                            *
-                        </span>
-                    </label>
-
-                    <select
-                        name="buyerDetails"
-                        value={
-                            formData.buyerDetails
-                        }
-                        onChange={
-                            handleChange
-                        }
-                        className={
-                            inputClass
-                        }
-                        required
-                        disabled={
-                            submitting
-                        }
-                    >
-                        <option value="">
-                            Select Buyer
-                        </option>
-
-                        {BUYERS.map(
-                            (buyer) => (
-                                <option
-                                    key={
-                                        buyer
-                                    }
-                                    value={
-                                        buyer
-                                    }
-                                >
-                                    {buyer}
-                                </option>
-                            ),
-                        )}
-                    </select>
-                </div>
-
-                {/* =============================================
-                   MATERIAL
-                ============================================= */}
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700">
-                        Material{" "}
-                        <span className="text-red-500">
-                            *
-                        </span>
-                    </label>
-
-                    <select
-                        name="materialName"
-                        value={
-                            formData.materialName
-                        }
-                        onChange={
-                            handleChange
-                        }
-                        className={
-                            inputClass
-                        }
-                        required
-                        disabled={
-                            submitting
-                        }
-                    >
-                        <option value="">
-                            Select Material
-                        </option>
-
-                        {MATERIALS.map(
-                            (
-                                material,
-                            ) => (
-                                <option
-                                    key={
-                                        material
-                                    }
-                                    value={
-                                        material
-                                    }
-                                >
-                                    {
-                                        material
-                                    }
-                                </option>
-                            ),
-                        )}
-                    </select>
-                </div>
-
-                {/* =============================================
-                   MATERIAL GRADE
-                ============================================= */}
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700">
-                        Material Grade{" "}
-                        <span className="text-red-500">
-                            *
-                        </span>
-                    </label>
-
-                    <input
-                        type="text"
-                        name="materialGrade"
-                        value={
-                            formData.materialGrade
-                        }
-                        onChange={
-                            handleChange
-                        }
-                        className={
-                            inputClass
-                        }
-                        placeholder="e.g. 53-60"
-                        required
-                        disabled={
-                            submitting
-                        }
-                        autoComplete="off"
-                    />
-                </div>
-
-                {/* =============================================
-                   DESTINATION
-                ============================================= */}
-
-                <div>
-                    <label className="mb-1 block text-sm font-semibold text-gray-700">
-                        Destination{" "}
-                        <span className="text-red-500">
-                            *
-                        </span>
-                    </label>
-
-                    <input
-                        type="text"
-                        name="destination"
-                        value={
-                            formData.destination
-                        }
-                        onChange={
-                            handleChange
-                        }
-                        className={
-                            inputClass
-                        }
-                        placeholder="Enter destination"
-                        required
-                        disabled={
-                            submitting
-                        }
-                        autoComplete="off"
-                    />
-                </div>
-            </div>
-
-            {/* =================================================
-               INITIAL STATUS
-            ================================================= */}
-
-            <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                <div className="text-xs font-medium uppercase text-gray-500">
-                    Initial Status
-                </div>
-
-                <div className="mt-1 text-sm font-semibold text-gray-800">
-                    Waiting For Details
-                </div>
-            </div>
-
-            {/* =================================================
-               VALIDATION STATUS
-            ================================================= */}
-
-            {!isFormValid && (
-                <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
-                    <p className="text-sm font-medium text-yellow-800">
-                        Please fill all
-                        mandatory fields
-                        before adding the
-                        vehicle.
+                    </p>
+                    <p className="mt-1 font-semibold text-red-700">
+                        Bina transporter details ke kisi bhi vehicle ko load nahi kiya jayega.
                     </p>
                 </div>
-            )}
+            </div>
 
-            {/* =================================================
-               BUTTON
-            ================================================= */}
+            {/* ================= VEHICLE NUMBER ================= */}
 
-            <div className="mt-8 flex justify-end">
-                <button
-                    type="submit"
-                    disabled={
-                        submitting ||
-                        !isFormValid
-                    }
-                    className="
-                        w-full
-                        rounded-lg
-                        bg-orange-600
-                        px-8
-                        py-3
-                        font-medium
-                        text-white
-                        shadow-md
-                        transition-all
-                        duration-200
-                        hover:bg-orange-700
-                        hover:shadow-lg
-                        active:scale-95
-                        disabled:cursor-not-allowed
-                        disabled:opacity-60
-                        sm:w-auto
-                    "
-                >
-                    {submitting
-                        ? "Saving Vehicle..."
-                        : "Add Vehicle"}
-                </button>
+            <ModalSection
+                title="Vehicle number"
+                description="Enter it twice to avoid typos"
+                icon={Truck}
+            >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField label="Vehicle number" htmlFor="add-vehicleNo" required>
+                        <input
+                            id="add-vehicleNo"
+                            name="vehicleNo"
+                            value={formData.vehicleNo}
+                            onChange={handleChange}
+                            className={`${FIELD_CLASS} font-medium uppercase tracking-wide`}
+                            placeholder="e.g. MH12AB1234"
+                            required
+                            disabled={submitting}
+                            autoComplete="off"
+                        />
+                    </FormField>
+
+                    <FormField
+                        label="Confirm vehicle number"
+                        htmlFor="add-vehicleNoConfirm"
+                        required
+                        error={
+                            vehicleNumbersMismatch && (
+                                <span className="inline-flex items-center gap-1">
+                                    <CircleX className="h-3.5 w-3.5" aria-hidden="true" />
+                                    Vehicle numbers don&apos;t match
+                                </span>
+                            )
+                        }
+                        hint={
+                            vehicleNumbersMatch && (
+                                <span className="inline-flex items-center gap-1 font-medium text-green-600">
+                                    <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                                    Vehicle numbers match
+                                </span>
+                            )
+                        }
+                    >
+                        <input
+                            id="add-vehicleNoConfirm"
+                            name="vehicleNoConfirm"
+                            value={formData.vehicleNoConfirm}
+                            onChange={handleChange}
+                            className={`h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium uppercase tracking-wide text-gray-900 outline-none transition placeholder:text-gray-400 placeholder:normal-case focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-50 ${confirmStateClass}`}
+                            placeholder="Re-enter vehicle number"
+                            required
+                            disabled={submitting}
+                            autoComplete="off"
+                            aria-invalid={vehicleNumbersMismatch || undefined}
+                        />
+                    </FormField>
+                </div>
+            </ModalSection>
+
+            {/* ================= DISPATCH DETAILS ================= */}
+
+            <ModalSection title="Dispatch details" icon={Package}>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {renderSelect("transporterName", "Transporter", TRANSPORTERS)}
+                    {renderSelect("buyerDetails", "Buyer", BUYERS)}
+                    {renderSelect("materialName", "Material", MATERIALS)}
+
+                    <FormField label="Material grade" htmlFor="add-materialGrade" required>
+                        <input
+                            id="add-materialGrade"
+                            type="text"
+                            name="materialGrade"
+                            value={formData.materialGrade}
+                            onChange={handleChange}
+                            className={FIELD_CLASS}
+                            placeholder="e.g. 53-60"
+                            required
+                            disabled={submitting}
+                            autoComplete="off"
+                        />
+                    </FormField>
+
+                    <FormField
+                        label="Destination"
+                        htmlFor="add-destination"
+                        required
+                        className="sm:col-span-2"
+                    >
+                        <input
+                            id="add-destination"
+                            type="text"
+                            name="destination"
+                            value={formData.destination}
+                            onChange={handleChange}
+                            className={FIELD_CLASS}
+                            placeholder="Enter destination"
+                            required
+                            disabled={submitting}
+                            autoComplete="off"
+                        />
+                    </FormField>
+                </div>
+            </ModalSection>
+
+            {/* ================= SUBMIT ================= */}
+
+            <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                    Starts as <StatusBadge status="WAITING_FOR_DETAILS" />
+                </p>
+
+                <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center">
+                    {!isFormValid && (
+                        <p className="text-center text-xs text-gray-500 sm:text-right">
+                            {vehicleNumbersMismatch
+                                ? "Fix the vehicle number to continue"
+                                : `${remainingFields} required field${remainingFields === 1 ? "" : "s"} left`}
+                        </p>
+                    )}
+
+                    <CommonButton
+                        type="submit"
+                        icon={Plus}
+                        disabled={!isFormValid}
+                        loading={submitting}
+                        loadingText="Saving vehicle..."
+                    >
+                        Add vehicle
+                    </CommonButton>
+                </div>
             </div>
         </form>
     );

@@ -1,9 +1,10 @@
 import React from "react";
-import { Eye, Pencil } from "lucide-react";
+import { Eye, MapPin, Pencil } from "lucide-react";
 import { Vehicle_new } from "@/app/types/vehicle_new";
-import { TableColumn } from "../common/CommonTable";
+import { TableColumn, formatWeight } from "../common/CommonTable";
 import CommonButton from "../common/CommonButton";
 import { StatusBadge } from "../common/vehicleStatus";
+import { parseDateTime, type ParsedDateTime } from "../common/dateTime";
 
 /* =========================================================
    MODAL CALLBACK TYPES
@@ -56,10 +57,6 @@ export const vehicleColumns = ({
 
     const userRole = getUserRoleFromLocalStorage();
 
-
-
-
-
     /* =====================================================
        CHECK READ ONLY ROLE
     ===================================================== */
@@ -69,116 +66,137 @@ export const vehicleColumns = ({
 
     /* =====================================================
        BASE COLUMNS
+
+       Grouped by what a dispatcher scans for:
+       identity -> status -> parties -> timing -> weight.
     ===================================================== */
 
     const columns: TableColumn<Vehicle_new>[] = [
-        /* =========================
-           S.NO
-        ========================= */
-
         {
             key: "sno",
-            label: "S.No",
+            label: "#",
+            width: "56px",
         },
 
-        /* =========================
-           TOKEN NO
-        ========================= */
-
+        /* Vehicle No + Token No */
         {
-            key: "tokenNo",
-            label: "Token No",
-        },
-
-        /* =========================
-           DATE & TIME
-        ========================= */
-
-        {
-            key: "createdAt",
-            label: "Date & Time",
-        },
-
-        /* =========================
-           IN TIME
-        ========================= */
-
-        {
-            key: "inTime",
-            label: "In Time",
-        },
-
-        /* =========================
-           OUT TIME
-        ========================= */
-
-        {
-            key: "outTime",
-            label: "Out Time",
-        },
-
-        /* =========================
-           VEHICLE NO
-        ========================= */
-
-{
             key: "vehicleNo",
-            label: "Vehicle No",
+            label: "Vehicle",
             render: (row) => (
-                <span className="font-semibold tracking-wide text-gray-900">
-                    {row.vehicleNo || "-"}
-                </span>
+                <div className="flex flex-col">
+                    <span className="font-semibold tracking-wide text-gray-900">
+                        {row.vehicleNo || "-"}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                        Token{" "}
+                        <span className="font-medium tabular-nums text-gray-700">
+                            {row.tokenNo || "-"}
+                        </span>
+                    </span>
+                </div>
             ),
         },
-
-        /* =========================
-           TRANSPORTER
-        ========================= */
-
-        {
-            key: "transporterName",
-            label: "Transporter",
-        },
-
-        /* =========================
-           BUYER
-        ========================= */
-
-        {
-            key: "buyerDetails",
-            label: "Buyer",
-        },
-
-        /* =========================
-           NET WEIGHT
-        ========================= */
-
-{
-            key: "netWeight",
-            label: "Weight (MT)",
-            align: "right",
-        },
-
-        /* =========================
-           DESTINATION
-        ========================= */
-
-        {
-            key: "destination",
-            label: "Destination",
-        },
-
-        /* =========================
-           STATUS
-        ========================= */
 
         {
             key: "status",
             label: "Status",
-
             render: (row) => (
                 <StatusBadge status={String(row.status ?? "")} />
             ),
+        },
+
+        /* Buyer + Destination */
+        {
+            key: "buyerDetails",
+            label: "Buyer",
+            render: (row) => (
+                <div className="flex max-w-[240px] flex-col">
+                    <span
+                        className="truncate text-gray-900"
+                        title={row.buyerDetails || undefined}
+                    >
+                        {row.buyerDetails || "-"}
+                    </span>
+                    {row.destination && (
+                        <span
+                            className="flex items-center gap-1 truncate text-xs text-gray-500"
+                            title={row.destination}
+                        >
+                            <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{row.destination}</span>
+                        </span>
+                    )}
+                </div>
+            ),
+        },
+
+        {
+            key: "transporterName",
+            label: "Transporter",
+            hideOnMobile: true,
+            render: (row) => (
+                <span
+                    className="block max-w-[200px] truncate"
+                    title={row.transporterName || undefined}
+                >
+                    {row.transporterName || "-"}
+                </span>
+            ),
+        },
+
+        /* Entry date + In / Out */
+        {
+            key: "createdAt",
+            label: "Timeline",
+            render: (row) => {
+                const created = parseDateTime(row.createdAt);
+                const inTime = parseDateTime(row.inTime);
+                const outTime = parseDateTime(row.outTime);
+
+                const showTime = (value: ParsedDateTime | null) => {
+                    if (!value) {
+                        return <span className="text-gray-300">—</span>;
+                    }
+
+                    return value.date === created?.date
+                        ? value.time
+                        : `${value.date}, ${value.time}`;
+                };
+
+                return (
+                    <div className="flex flex-col">
+                        <span className="text-gray-900">
+                            {created
+                                ? `${created.date}, ${created.time}`
+                                : "-"}
+                        </span>
+                        <span className="text-xs tabular-nums text-gray-500">
+                            In{" "}
+                            <span className="text-gray-700">{showTime(inTime)}</span>
+                            <span className="mx-1.5 text-gray-300">·</span>
+                            Out{" "}
+                            <span className="text-gray-700">{showTime(outTime)}</span>
+                        </span>
+                    </div>
+                );
+            },
+        },
+
+        {
+            key: "netWeight",
+            label: "Weight (MT)",
+            align: "right",
+            render: (row) => {
+                const weight = Number(row.netWeight);
+
+                return Number.isFinite(weight) && row.netWeight !== ""
+                    ? (
+                        <span className="font-medium text-gray-900">
+                            {formatWeight(weight)}
+                        </span>
+                    )
+                    : <span className="text-gray-300">—</span>;
+            },
         },
     ];
 
@@ -208,11 +226,12 @@ export const vehicleColumns = ({
 
     columns.push({
         key: "action",
-        label: "Action",
+        label: "Actions",
+        align: "right",
 
         render: (row) => (
             <div
-                className="flex items-center gap-1.5"
+                className="flex items-center justify-end gap-1.5"
                 onClick={(event) => {
                     event.stopPropagation();
                 }}

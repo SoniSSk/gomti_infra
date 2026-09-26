@@ -159,18 +159,15 @@ const NO_ALERT_ROLES = [
    GET USER ROLE
 ========================================================= */
 
+const normalizeRole = (role?: string | null): string =>
+    role?.trim().toLowerCase().replace(/\s+/g, "") ?? "";
+
 const getUserRole = (): string => {
     if (typeof window === "undefined") {
         return "";
     }
 
-    return (
-        localStorage
-            .getItem("userRole")
-            ?.trim()
-            .toLowerCase()
-            .replace(/\s+/g, "") ?? ""
-    );
+    return normalizeRole(localStorage.getItem("userRole"));
 };
 
 /* =========================================================
@@ -206,7 +203,17 @@ const convertVehicleToVehicleNew = (
    COMPONENT
 ========================================================= */
 
-const VehicleStats = () => {
+interface VehicleStatsProps {
+    /** Change this value to force a refetch (e.g. after adding a vehicle). */
+    refreshKey?: number;
+    /** Role from the session; falls back to localStorage when omitted. */
+    userRole?: string;
+}
+
+const VehicleStats = ({
+    refreshKey = 0,
+    userRole: sessionRole,
+}: VehicleStatsProps) => {
     /* =====================================================
        STATS
     ===================================================== */
@@ -237,12 +244,21 @@ const VehicleStats = () => {
     const [loading, setLoading] =
         useState(true);
 
+    const [error, setError] =
+        useState<string | null>(null);
+
+    const [retryKey, setRetryKey] =
+        useState(0);
+
     /* =====================================================
        ROLE READY
     ===================================================== */
 
     const [userRole, setUserRole] =
-        useState("");
+        useState(() => normalizeRole(sessionRole));
+
+    const [roleReady, setRoleReady] =
+        useState(() => Boolean(normalizeRole(sessionRole)));
 
     /* =====================================================
        SELECTED VEHICLE
@@ -270,7 +286,9 @@ const VehicleStats = () => {
     ===================================================== */
 
     useEffect(() => {
-        const role = getUserRole();
+        const role =
+            normalizeRole(sessionRole) ||
+            getUserRole();
 
         console.log(
             "VehicleStats User Role:",
@@ -278,7 +296,13 @@ const VehicleStats = () => {
         );
 
         setUserRole(role);
-    }, []);
+
+        /*
+         * Fetch even when no role is known, so the cards never
+         * wait forever; alerts stay hidden in that case.
+         */
+        setRoleReady(true);
+    }, [sessionRole]);
 
     /* =====================================================
        CHECK ALERT PERMISSION
@@ -298,6 +322,7 @@ const VehicleStats = () => {
         const fetchStats = async () => {
             try {
                 setLoading(true);
+                setError(null);
 
                 const response = await fetch(
                     "/api/vehicles/stats",
@@ -363,6 +388,10 @@ const VehicleStats = () => {
                 );
 
                 if (!cancelled) {
+                    setError(
+                        "Couldn't load vehicle stats.",
+                    );
+
                     setStats(
                         DEFAULT_STATS,
                     );
@@ -385,14 +414,14 @@ const VehicleStats = () => {
          * loaded before fetching stats.
          */
 
-        if (userRole !== "") {
+        if (roleReady) {
             fetchStats();
         }
 
         return () => {
             cancelled = true;
         };
-    }, [userRole, showVehicleAlerts]);
+    }, [roleReady, showVehicleAlerts, refreshKey, retryKey]);
 
     /* =====================================================
        GET CARD DISPLAY VALUE
@@ -559,9 +588,10 @@ const VehicleStats = () => {
                             <CommonCard
                                 key={key}
                                 heading={heading}
+                                loading={loading}
                                 number={
-                                    loading
-                                        ? 0
+                                    error
+                                        ? "—"
                                         : getCardValue(
                                             key,
                                             offset,
@@ -571,6 +601,27 @@ const VehicleStats = () => {
                         ),
                     )}
                 </div>
+
+                {error && !loading && (
+                    <div
+                        role="alert"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+                    >
+                        <p className="text-sm font-medium text-red-700">
+                            {error}
+                        </p>
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setRetryKey((key) => key + 1)
+                            }
+                            className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-200"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
 
                 {/* =================================================
                     VEHICLE ALERTS

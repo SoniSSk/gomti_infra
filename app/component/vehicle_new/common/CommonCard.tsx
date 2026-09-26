@@ -11,6 +11,9 @@ export interface CommonCardProps {
     numberClassName?: string;
 
     onClick?: () => void;
+
+    /** Shows a placeholder instead of the number (avoids a misleading 0). */
+    loading?: boolean;
 }
 
 const CommonCard: React.FC<CommonCardProps> = ({
@@ -20,7 +23,10 @@ const CommonCard: React.FC<CommonCardProps> = ({
     headingClassName = "",
     numberClassName = "",
     onClick,
+    loading = false,
 }) => {
+    const interactive = Boolean(onClick);
+
     const displayNumber =
         number === null ||
             number === "undefined" ||
@@ -35,7 +41,6 @@ const CommonCard: React.FC<CommonCardProps> = ({
                 group
                 relative
                 min-h-[65px]
-                cursor-pointer
                 overflow-hidden
                 rounded-2xl
                 border
@@ -48,9 +53,9 @@ const CommonCard: React.FC<CommonCardProps> = ({
                 transition-all
                 duration-300
                 ease-in-out
-                hover:-translate-y-1
-                hover:border-orange-200
-                hover:shadow-xl
+                ${interactive
+                    ? "cursor-pointer hover:-translate-y-1 hover:border-orange-200 hover:shadow-xl"
+                    : ""}
                 ${className}
             `}
         >
@@ -100,7 +105,14 @@ const CommonCard: React.FC<CommonCardProps> = ({
                         ${numberClassName}
                     `}
                 >
-                    {displayNumber}
+                    {loading ? (
+                        <span
+                            className="mx-auto block h-7 w-12 animate-pulse rounded bg-gray-200"
+                            aria-label="Loading"
+                        />
+                    ) : (
+                        displayNumber
+                    )}
                 </h3>
             </div>
         </div>

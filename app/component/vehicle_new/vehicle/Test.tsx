@@ -12,6 +12,8 @@ import CommonTable, {
     TableFilter,
 } from "../common/CommonTable";
 
+import toast from "react-hot-toast";
+
 import { Vehicle_new } from "@/app/types/vehicle_new";
 
 import ViewModal from "./ViewModal";
@@ -40,6 +42,8 @@ interface VehicleTableProps {
     pagination?: boolean;
     pageSize?: number;
     emptyMessage?: string;
+    /** Change this value to force a refetch (e.g. after adding a vehicle). */
+    refreshKey?: number;
 }
 
 /* =========================================================
@@ -117,6 +121,7 @@ export default function Test({
     pagination = true,
     pageSize = 50,
     emptyMessage = "No vehicles found",
+    refreshKey = 0,
 }: VehicleTableProps) {
     /* =====================================================
        STATE
@@ -130,6 +135,9 @@ export default function Test({
 
     const [refreshing, setRefreshing] =
         useState(false);
+
+    const [error, setError] =
+        useState<string | null>(null);
 
     const [search, setSearch] =
         useState("");
@@ -212,6 +220,7 @@ export default function Test({
 
             try {
                 setLoading(true);
+                setError(null);
 
                 const url =
                     buildApiUrl(
@@ -294,6 +303,10 @@ export default function Test({
 
                 setVehicles([]);
 
+                setError(
+                    "Couldn't load vehicles. Check your connection and try again.",
+                );
+
                 onDataChange?.([]);
             } finally {
                 if (!cancelled) {
@@ -313,6 +326,7 @@ export default function Test({
         customDate,
         buildApiUrl,
         onDataChange,
+        refreshKey,
     ]);
 
     /* =====================================================
@@ -634,6 +648,8 @@ export default function Test({
                         sortedVehicles,
                     );
 
+                    setError(null);
+
                     onDataChange?.(
                         sortedVehicles,
                     );
@@ -641,6 +657,10 @@ export default function Test({
                     console.error(
                         "Vehicle Refresh Error:",
                         error,
+                    );
+
+                    toast.error(
+                        "Couldn't refresh vehicles. Please try again.",
                     );
                 } finally {
                     setRefreshing(
@@ -791,6 +811,14 @@ export default function Test({
 
                 loading={
                     loading
+                }
+
+                error={
+                    error
+                }
+
+                onRetry={
+                    handleRefresh
                 }
 
                 searchable

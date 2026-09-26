@@ -10,6 +10,10 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth?.user;
 
+  console.log(
+    `[proxy] ${req.method} ${pathname} isLoggedIn=${isLoggedIn} user=${req.auth?.user?.email ?? "none"}`,
+  );
+
   // NextAuth's own routes (session, csrf, callback/credentials, ...)
   // and the public signup endpoint must stay reachable.
   if (pathname.startsWith("/api/auth")) {
@@ -20,6 +24,7 @@ export default auth((req) => {
 
   if (isApiRoute) {
     if (!isLoggedIn) {
+      console.log(`[proxy] blocking API route ${pathname} -> 401`);
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 },
@@ -29,12 +34,19 @@ export default auth((req) => {
   }
 
   const isLoginPage = pathname === "/login";
+  const isHomePage = pathname === "/";
 
-  if (!isLoggedIn && !isLoginPage) {
+  if (!isLoggedIn && !isLoginPage && !isHomePage) {
+    console.log(
+      `[proxy] not logged in, redirecting ${pathname} -> /login`,
+    );
     return NextResponse.redirect(new URL("/login", req.nextUrl));
   }
 
   if (isLoggedIn && isLoginPage) {
+    console.log(
+      `[proxy] already logged in, redirecting /login -> /dispatch/vehicle`,
+    );
     return NextResponse.redirect(new URL("/dispatch/vehicle", req.nextUrl));
   }
 

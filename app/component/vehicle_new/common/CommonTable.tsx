@@ -50,6 +50,11 @@ export interface CommonTableProps<T> {
 
     loading?: boolean;
 
+    /** When set, the body shows this error with a Retry button. */
+    error?: string | null;
+
+    onRetry?: () => void;
+
     /* =====================================================
        SEARCH
     ===================================================== */
@@ -177,6 +182,8 @@ export interface CommonTableProps<T> {
    DATE FORMATTER
 ========================================================= */
 
+const SKELETON_ROWS = 6;
+
 const formatDateTime = (
     value: unknown,
 ): string => {
@@ -280,6 +287,9 @@ const CommonTable = <
     data,
 
     loading = false,
+
+    error = null,
+    onRetry,
 
     searchable = true,
     searchPlaceholder = "Search...",
@@ -724,36 +734,6 @@ const CommonTable = <
 
         onAdd();
     };
-
-    /* =====================================================
-       LOADING
-    ===================================================== */
-
-    if (loading) {
-        return (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                <div className="flex min-h-[250px] items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                        <div
-                            className="
-                                h-8
-                                w-8
-                                animate-spin
-                                rounded-full
-                                border-4
-                                border-orange-100
-                                border-t-orange-500
-                            "
-                        />
-
-                        <p className="text-sm font-medium text-gray-500">
-                            Loading data...
-                        </p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     /* =====================================================
        RENDER
@@ -1326,8 +1306,93 @@ const CommonTable = <
 
                     {/* ================= BODY ================= */}
 
-                    <tbody className="divide-y divide-gray-100">
-                        {paginatedData.length ===
+                    <tbody
+                        className="divide-y divide-gray-100"
+                        aria-busy={loading}
+                    >
+                        {loading ? (
+                            Array.from(
+                                { length: SKELETON_ROWS },
+                                (_, rowIndex) => (
+                                    <tr
+                                        key={rowIndex}
+                                        className="animate-pulse"
+                                    >
+                                        {expandable && (
+                                            <td className="px-2 py-3" />
+                                        )}
+
+                                        {columns.map(
+                                            (_, colIndex) => (
+                                                <td
+                                                    key={colIndex}
+                                                    className="px-4 py-3"
+                                                >
+                                                    <div
+                                                        className="h-3.5 rounded bg-gray-200"
+                                                        style={{
+                                                            width: `${55 + ((rowIndex + colIndex) % 4) * 12}%`,
+                                                        }}
+                                                    />
+                                                </td>
+                                            ),
+                                        )}
+                                    </tr>
+                                ),
+                            )
+                        ) : error ? (
+                            <tr>
+                                <td
+                                    colSpan={
+                                        columns.length +
+                                        (expandable
+                                            ? 1
+                                            : 0)
+                                    }
+                                    className="px-4 py-16 text-center"
+                                >
+                                    <div
+                                        role="alert"
+                                        className="flex flex-col items-center justify-center"
+                                    >
+                                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                strokeWidth={1.5}
+                                                stroke="currentColor"
+                                                className="h-6 w-6"
+                                                aria-hidden="true"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+                                                />
+                                            </svg>
+                                        </div>
+
+                                        <p className="text-sm font-semibold text-gray-700">
+                                            {error}
+                                        </p>
+
+                                        {onRetry && (
+                                            <button
+                                                type="button"
+                                                onClick={onRetry}
+                                                disabled={refreshing}
+                                                className="mt-3 inline-flex h-9 cursor-pointer items-center rounded-lg bg-orange-600 px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {refreshing
+                                                    ? "Retrying..."
+                                                    : "Retry"}
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : paginatedData.length ===
                             0 ? (
                             <tr>
                                 <td
@@ -1613,6 +1678,7 @@ const CommonTable = <
                         TOTAL WEIGHT ROW
                     ================================================= */}
 
+                    {!loading && !error && (
                     <tfoot>
                         <tr className="border-t-2 border-orange-200 bg-orange-50">
                             {expandable && (
@@ -1689,6 +1755,7 @@ const CommonTable = <
                             )}
                         </tr>
                     </tfoot>
+                    )}
 
                 </table>
             </div>
@@ -1697,7 +1764,7 @@ const CommonTable = <
                 PAGINATION
             ================================================= */}
 
-            {pagination && (
+            {pagination && !loading && !error && (
                 <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     {/* ================= LEFT ================= */}
 

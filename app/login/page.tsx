@@ -152,11 +152,14 @@ export default function LoginPage() {
         redirect: false,
       });
 
+      console.log("[login] signIn result:", result);
+
       // =================================================
       // LOGIN ERROR
       // =================================================
 
       if (!result || result.error) {
+        console.log("[login] signIn failed, aborting redirect");
         setError("Invalid email or password");
         return;
       }
@@ -172,17 +175,28 @@ export default function LoginPage() {
 
       const session = await getSession();
 
+      console.log("[login] getSession() ->", session);
+
       if (session?.user) {
         localStorage.setItem("userRole", session.user.role || "");
         localStorage.setItem("userName", session.user.name || "");
         localStorage.setItem("userEmail", session.user.email || "");
+        console.log("[login] localStorage set:", {
+          userRole: localStorage.getItem("userRole"),
+          userName: localStorage.getItem("userName"),
+          userEmail: localStorage.getItem("userEmail"),
+        });
+      } else {
+        console.warn("[login] session has no user, localStorage NOT set");
       }
 
       // =================================================
       // LOGIN SUCCESS
       // =================================================
 
+      console.log("[login] calling router.replace('/dispatch/vehicle')");
       router.replace("/dispatch/vehicle");
+      console.log("[login] router.replace() call returned");
     } catch (error) {
       console.error(
         "Login Error:",

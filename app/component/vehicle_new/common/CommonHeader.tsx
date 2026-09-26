@@ -6,6 +6,8 @@ import React, {
     useSyncExternalStore,
 } from "react";
 
+import { signOut } from "next-auth/react";
+
 import CommonModal from "../common/CommonModal";
 import AddVehicle from "../vehicle/AddVehicle";
 
@@ -13,7 +15,11 @@ export interface CommonHeaderProps {
     title: string;
     subtitle?: string;
     userName?: string;
-    onLogout: () => void;
+    userRole?: string;
+    /** Overrides the default logout (clear localStorage + next-auth signOut). */
+    onLogout?: () => void;
+    /** Called after a vehicle is added, e.g. to refresh the table. */
+    onVehicleAdded?: () => void;
     loading?: boolean;
 }
 
@@ -29,11 +35,16 @@ const getUserName = () => {
     }
 };
 
+const formatRole = (role: string) =>
+    role.replace(/[_-]+/g, " ").trim();
+
 const CommonHeader: React.FC<CommonHeaderProps> = ({
     title,
     subtitle,
     userName,
+    userRole,
     onLogout,
+    onVehicleAdded,
     loading = false,
 }) => {
     const storedUserName = useSyncExternalStore(
@@ -50,14 +61,38 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
     const [isAddVehicleOpen, setIsAddVehicleOpen] =
         useState(false);
 
-    const handleLogout = useCallback(() => {
-        if (!loading) {
-            onLogout();
+    const [loggingOut, setLoggingOut] = useState(false);
+
+    const isLoggingOut = loading || loggingOut;
+
+    const handleLogout = useCallback(async () => {
+        if (isLoggingOut) {
+            return;
         }
-    }, [loading, onLogout]);
+
+        if (onLogout) {
+            onLogout();
+            return;
+        }
+
+        setLoggingOut(true);
+
+        try {
+            localStorage.clear();
+        } catch {
+            // Storage may be unavailable; the session is what matters.
+        }
+
+        /*
+         * The session cookie must be cleared too, otherwise proxy.ts
+         * sends /login straight back to the dashboard.
+         */
+        await signOut({ redirectTo: "/login" });
+    }, [isLoggingOut, onLogout]);
 
     const handleAddVehicleSuccess = () => {
         setIsAddVehicleOpen(false);
+        onVehicleAdded?.();
     };
 
     return (
@@ -216,6 +251,7 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
                                         sm:flex
                                     "
                                 >
+                                    {userRole && (
                                     <div
                                         className="
                                             flex
@@ -235,8 +271,9 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
                                             shadow-sm
                                         "
                                     >
-                                        Admin
+                                        {formatRole(userRole)}
                                     </div>
+                                    )}
 
                                     <div className="text-right">
                                         <p
@@ -251,34 +288,6 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
                                             {displayUserName}
                                         </p>
 
-                                        <div
-                                            className="
-                                                mt-0.5
-                                                flex
-                                                items-center
-                                                justify-end
-                                                gap-1.5
-                                            "
-                                        >
-                                            <span
-                                                className="
-                                                    h-1.5
-                                                    w-1.5
-                                                    rounded-full
-                                                    bg-green-500
-                                                "
-                                            />
-
-                                            <span
-                                                className="
-                                                    text-[10px]
-                                                    font-medium
-                                                    text-gray-500
-                                                "
-                                            >
-                                                Online
-                                            </span>
-                                        </div>
                                     </div>
                                 </div>
 
@@ -299,9 +308,10 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
                         <button
                             type="button"
                             onClick={handleLogout}
-                            disabled={loading}
+                            disabled={isLoggingOut}
+                            title="Logout"
                             aria-label={
-                                loading
+                                isLoggingOut
                                     ? "Logging out"
                                     : "Logout"
                             }
@@ -356,7 +366,7 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
                             </svg>
 
                             <span className="hidden sm:inline">
-                                {loading
+                                {isLoggingOut
                                     ? "Logging out..."
                                     : "Logout"}
                             </span>
@@ -374,7 +384,7 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
                 }
                 title="Add Vehicle"
                 size="xl"
-                closeOnOutsideClick={!loading}
+                closeOnOutsideClick={false}
             >
                 <div className="p-4 sm:p-6">
                     <AddVehicle

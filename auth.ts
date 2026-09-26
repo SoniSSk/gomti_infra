@@ -20,6 +20,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = credentials?.password;
 
         if (typeof email !== "string" || typeof password !== "string") {
+          console.warn(
+            "[authorize] missing/invalid email or password field on credentials",
+          );
           return null;
         }
 
@@ -31,11 +34,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: normalizedEmail,
         });
 
+        console.log(
+          `[authorize] lookup email="${normalizedEmail}" found=${!!user} hasPasswordField=${typeof user?.password === "string"} status=${user?.status} role=${user?.role}`,
+        );
+
         if (!user) {
+          console.warn("[authorize] no user found for that email");
+          return null;
+        }
+
+        if (typeof user.password !== "string") {
+          console.warn(
+            "[authorize] user document has no string 'password' field, cannot compare",
+          );
           return null;
         }
 
         const passwordMatch = await bcrypt.compare(password, user.password);
+
+        console.log(`[authorize] passwordMatch=${passwordMatch}`);
 
         if (!passwordMatch) {
           return null;

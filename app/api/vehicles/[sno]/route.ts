@@ -2,16 +2,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
+  canEditVehicles,
   canModifyVehicle,
-  isReadOnlyRole,
 } from "@/app/utils/vehiclePermissions";
 import clientPromise from "../../../lib/mongodb";
 
-/** Customers can only view vehicles, never change them. */
-async function rejectIfCustomer() {
+/** Customers and employees can only view vehicles, never change them. */
+async function rejectIfNoEditAccess() {
   const session = await auth();
 
-  if (!isReadOnlyRole(session?.user?.role)) {
+  if (canEditVehicles(session?.user?.role)) {
     return null;
   }
 
@@ -54,7 +54,7 @@ export async function PUT(
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
-    const forbidden = await rejectIfCustomer();
+    const forbidden = await rejectIfNoEditAccess();
     if (forbidden) {
       return forbidden;
     }
@@ -159,7 +159,7 @@ export async function DELETE(
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
-    const forbidden = await rejectIfCustomer();
+    const forbidden = await rejectIfNoEditAccess();
     if (forbidden) {
       return forbidden;
     }

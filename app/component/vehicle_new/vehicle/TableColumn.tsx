@@ -4,14 +4,13 @@ import { Vehicle_new } from "@/app/types/vehicle_new";
 import { TableColumn, formatWeight } from "../common/CommonTable";
 import CommonButton from "../common/CommonButton";
 import { StatusBadge, formatStatus } from "../common/vehicleStatus";
-import CommonTooltip from "../common/CommonTooltip";
-import { formatDateTime } from "../common/dateTime";
+import { formatDateTime, formatRelativeTime } from "../common/dateTime";
 import type { ExportColumn } from "@/app/utils/tableExport";
 import { getLastStatusChange } from "@/app/utils/lastStatusChange";
 import {
     canModifyVehicle,
+    canViewVehicle,
     getStoredUserRole,
-    isReadOnlyRole,
 } from "@/app/utils/vehiclePermissions";
 
 /* =========================================================
@@ -69,36 +68,33 @@ export const vehicleExportColumns: ExportColumn<Vehicle_new>[] = [
 /* =========================================================
    TIMELINE CELL
 
-   Shows the entry date & time; In / Out appear on hover.
+   Entry / In / Out stacked as relative times ("15m ago");
+   the full timestamp shows on hover.
 ========================================================= */
 
-const TimelineCell = ({ row }: { row: Vehicle_new }) => {
-    const created = formatDateTime(row.createdAt);
-    const inTime = formatDateTime(row.inTime) || "—";
-    const outTime = formatDateTime(row.outTime) || "—";
+const TIMELINE_ROWS: { label: string; value: (row: Vehicle_new) => string | undefined }[] = [
+    { label: "Entry", value: (row) => row.createdAt },
+    { label: "In", value: (row) => row.inTime },
+    { label: "Out", value: (row) => row.outTime },
+];
 
-    if (!created) {
-        return <span className="text-gray-300">—</span>;
-    }
+const TimelineCell = ({ row }: { row: Vehicle_new }) => (
+    <div className="flex flex-col whitespace-nowrap text-xs leading-4 tabular-nums">
+        {TIMELINE_ROWS.map(({ label, value }) => {
+            const raw = value(row);
+            const relative = formatRelativeTime(raw);
 
-    return (
-        <CommonTooltip
-            content={
-                <span className="flex flex-col gap-0.5 tabular-nums">
-                    <span>In: {inTime}</span>
-                    <span>Out: {outTime}</span>
+            return (
+                <span key={label} title={formatDateTime(raw) || undefined}>
+                    <span className="inline-block w-9 text-gray-400">{label}</span>
+                    <span className={relative ? "text-gray-800" : "text-gray-300"}>
+                        {relative || "—"}
+                    </span>
                 </span>
-            }
-        >
-            <span
-                tabIndex={0}
-                className="cursor-help tabular-nums text-gray-900 underline decoration-gray-300 decoration-dotted underline-offset-4"
-            >
-                {created}
-            </span>
-        </CommonTooltip>
-    );
-};
+            );
+        })}
+    </div>
+);
 
 /* =========================================================
    VEHICLE COLUMNS
@@ -209,7 +205,7 @@ export const vehicleColumns = ({
             ),
         },
 
-        /* Entry date & time; In / Out on hover */
+        /* Entry / In / Out as relative times; full timestamp on hover */
         {
             key: "createdAt",
             label: "Timeline",
@@ -237,15 +233,20 @@ export const vehicleColumns = ({
     /* =====================================================
        ACTION COLUMN
 
-       Read only users (welspun, evonith, shreecement):
-       - View only (they only get their own vehicles)
+       Customers (welspun, evonith, shreecement):
+       - No actions (they only get their own vehicles)
 
-       Other roles:
+       Employees:
+       - View
+
+       Admins / super admins:
        - View
        - Edit (dispatched vehicles: super admin only)
     ===================================================== */
 
-    const readOnly = isReadOnlyRole(userRole);
+    if (!canViewVehicle(userRole)) {
+        return columns;
+    }
 
     columns.push({
         key: "action",
@@ -271,8 +272,8 @@ export const vehicleColumns = ({
                     View
                 </CommonButton>
 
-                {/* Dispatched vehicles: super admin only */}
-                {!readOnly && canModifyVehicle(row.status, userRole) && (
+                {/* Employees can't edit; dispatched vehicles: super admin only */}
+                {canModifyVehicle(row.status, userRole) && (
                     <CommonButton
                         variant="secondary"
                         size="sm"

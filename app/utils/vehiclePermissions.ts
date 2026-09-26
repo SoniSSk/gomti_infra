@@ -26,6 +26,14 @@ const READ_ONLY_ROLES = ["welspun", "evonith", "shreecement"];
 export const isReadOnlyRole = (role?: string | null): boolean =>
     READ_ONLY_ROLES.includes(normalizeRole(role));
 
+/** Customers only see the list; everyone else can open a vehicle. */
+export const canViewVehicle = (role?: string | null): boolean =>
+    !isReadOnlyRole(role);
+
+/** Customers and employees can't edit or delete vehicles. */
+export const canEditVehicles = (role?: string | null): boolean =>
+    !isReadOnlyRole(role) && normalizeRole(role) !== "employee";
+
 /** Customer role -> the buyer name stored on their vehicles. */
 const CUSTOMER_BUYERS: Record<string, string> = {
     welspun: "WELSPUN",
@@ -50,10 +58,12 @@ export const customerVehicleFilter = (role?: string | null) => {
 };
 
 /**
- * Once a vehicle is dispatched it is locked: only a super admin
- * can edit or delete it.
+ * Needs edit access, and once a vehicle is dispatched it is locked:
+ * only a super admin can edit or delete it.
  */
 export const canModifyVehicle = (
     status: VehicleStatus | string | undefined,
     role?: string | null,
-): boolean => status !== "DISPATCH_DONE" || isSuperAdminRole(role);
+): boolean =>
+    canEditVehicles(role) &&
+    (status !== "DISPATCH_DONE" || isSuperAdminRole(role));

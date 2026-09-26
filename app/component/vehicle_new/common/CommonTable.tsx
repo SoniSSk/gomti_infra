@@ -128,6 +128,16 @@ export interface CommonTableProps<T> {
         row: T,
     ) => void;
 
+    /** Stable row identity; defaults to the row index. */
+    getRowKey?: (
+        row: T,
+    ) => React.Key;
+
+    /** Extra classes for a row, e.g. to highlight it. */
+    rowClassName?: (
+        row: T,
+    ) => string;
+
     /* =====================================================
        ROW MODAL
     ===================================================== */
@@ -366,6 +376,8 @@ const CommonTable = <
     onSearchChange,
 
     onRowClick,
+    getRowKey,
+    rowClassName,
 
     rowModal = false,
     rowModalTitle = "Details",
@@ -1389,6 +1401,7 @@ className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : "
                                     return (
                                         <React.Fragment
                                             key={
+                                                getRowKey?.(row) ??
                                                 rowIndex
                                             }
                                         >
@@ -1411,6 +1424,7 @@ className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : "
                                                         ? "cursor-pointer hover:bg-orange-50"
                                                         : "hover:bg-gray-50"
                                                     }
+                                                    ${rowClassName?.(row) ?? ""}
                                                 `}
                                             >
                                                 {/* ================= EXPAND ================= */}

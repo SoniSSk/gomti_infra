@@ -36,6 +36,7 @@ import { useEtpGeneratingVehicles } from "@/app/hooks/useEtpGeneratingVechiles";
 import { useEtpDoneVehicles } from "@/app/hooks/useEtpDoneVechiles";
 import { useInvoiceGeneratingVehicle } from "@/app/hooks/useInvoiceGeneratingVechile";
 import { useAutoRefresh } from "@/app/hooks/useAutoRefresh";
+import PulseDot from "../common/PulseDot";
 
 
 type DateFilter =
@@ -56,6 +57,50 @@ const DEFAULT_AUTO_REFRESH_MS = 60_000;
 
 const AUTO_REFRESH_STORAGE_KEY =
   "vehicleAutoRefreshMs";
+
+// How long new / updated rows stay highlighted
+const HIGHLIGHT_MS = 2 * 60_000;
+
+type Highlight = {
+  type: "new" | "updated";
+  expiresAt: number;
+};
+
+// Rows missing from `prev` are new,
+// rows with a changed updatedAt are updated
+const diffVehicles = (
+  prev: Vehicle[],
+  next: Vehicle[]
+) => {
+  const prevById = new Map(
+    prev.map((v) => [v._id, v])
+  );
+
+  const expiresAt =
+    Date.now() + HIGHLIGHT_MS;
+
+  const changes: Record<string, Highlight> = {};
+
+  for (const vehicle of next) {
+    const old = prevById.get(vehicle._id);
+
+    if (!old) {
+      changes[vehicle._id] = {
+        type: "new",
+        expiresAt,
+      };
+    } else if (
+      old.updatedAt !== vehicle.updatedAt
+    ) {
+      changes[vehicle._id] = {
+        type: "updated",
+        expiresAt,
+      };
+    }
+  }
+
+  return changes;
+};
 
 const getToday = () => {
   const today = new Date();
@@ -92,6 +137,44 @@ export default function VehicleTable() {
   const requestIdRef = useRef(0);
 
   const inFlightRef = useRef(false);
+
+  // =====================================
+  // CHANGE HIGHLIGHTS
+  // =====================================
+
+  const [highlights, setHighlights] =
+    useState<Record<string, Highlight>>({});
+
+  // Last loaded list + its query, to diff
+  // only between loads of the same filter
+  const lastVehiclesRef =
+    useRef<Vehicle[]>([]);
+
+  const lastLoadKeyRef =
+    useRef<string | null>(null);
+
+  // Drop highlights as they expire
+  useEffect(() => {
+    const expiries = Object.values(
+      highlights
+    ).map((h) => h.expiresAt);
+
+    if (!expiries.length) return;
+
+    const timer = setTimeout(() => {
+      const now = Date.now();
+
+      setHighlights((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).filter(
+            ([, h]) => h.expiresAt > now
+          )
+        )
+      );
+    }, Math.max(0, Math.min(...expiries) - Date.now()));
+
+    return () => clearTimeout(timer);
+  }, [highlights]);
 
   // =====================================
   // AUTO REFRESH
@@ -240,9 +323,32 @@ export default function VehicleTable() {
 
       if (requestId !== requestIdRef.current) return;
 
-      setVehicles(
-        data.vehicles || []
-      );
+      const nextVehicles: Vehicle[] =
+        data.vehicles || [];
+
+      const loadKey = params.toString();
+
+      if (lastLoadKeyRef.current === loadKey) {
+        const changes = diffVehicles(
+          lastVehiclesRef.current,
+          nextVehicles
+        );
+
+        if (Object.keys(changes).length) {
+          setHighlights((prev) => ({
+            ...prev,
+            ...changes,
+          }));
+        }
+      } else {
+        // Filter changed: nothing is "new"
+        setHighlights({});
+      }
+
+      lastLoadKeyRef.current = loadKey;
+      lastVehiclesRef.current = nextVehicles;
+
+      setVehicles(nextVehicles);
 
       setLastUpdated(new Date());
     } catch (error) {
@@ -256,6 +362,10 @@ export default function VehicleTable() {
         requestId === requestIdRef.current
       ) {
         setVehicles([]);
+
+        // Don't diff the next load against
+        // an emptied list
+        lastLoadKeyRef.current = null;
       }
     } finally {
       if (requestId === requestIdRef.current) {
@@ -546,6 +656,26 @@ export default function VehicleTable() {
       search,
     ]);
 
+  // Only count rows this role can see
+  const highlightCounts =
+    useMemo(() => {
+      let newCount = 0;
+      let updatedCount = 0;
+
+      for (const vehicle of roleFilteredVehicles) {
+        const type =
+          highlights[vehicle._id]?.type;
+
+        if (type === "new") newCount++;
+        else if (type === "updated") updatedCount++;
+      }
+
+      return { newCount, updatedCount };
+    }, [
+      roleFilteredVehicles,
+      highlights,
+    ]);
+
   // =====================================
   // VIEW VEHICLE
   // ALL ROLES (read only)
@@ -628,6 +758,37 @@ export default function VehicleTable() {
       {
         key: "vehicleNo",
         label: "Vehicle No",
+        render: (row: Vehicle) => {
+          const highlight =
+            highlights[row._id];
+
+          return (
+            <span className="inline-flex items-center gap-2">
+              {row.vehicleNo}
+
+              {highlight && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${highlight.type === "new"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-amber-100 text-amber-700"
+                    }`}
+                >
+                  <PulseDot
+                    tone={
+                      highlight.type === "new"
+                        ? "green"
+                        : "amber"
+                    }
+                  />
+
+                  {highlight.type === "new"
+                    ? "New"
+                    : "Updated"}
+                </span>
+              )}
+            </span>
+          );
+        },
       },
 
       {
@@ -1237,6 +1398,35 @@ export default function VehicleTable() {
             TABLE
         ================================= */}
 
+        {/* CHANGE BANNER */}
+
+        {(highlightCounts.newCount > 0 ||
+          highlightCounts.updatedCount > 0) && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+              <span className="inline-flex items-center gap-2 font-medium">
+                <PulseDot />
+
+                {[
+                  highlightCounts.newCount > 0 &&
+                  `${highlightCounts.newCount} new vehicle${highlightCounts.newCount > 1 ? "s" : ""}`,
+                  highlightCounts.updatedCount > 0 &&
+                  `${highlightCounts.updatedCount} updated`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+
+              <button
+                onClick={() =>
+                  setHighlights({})
+                }
+                className="cursor-pointer text-xs font-medium text-green-700 hover:underline"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
         <CommonTable<Vehicle>
           columns={
             columns
@@ -1244,6 +1434,19 @@ export default function VehicleTable() {
           data={
             filteredData
           }
+          getRowKey={(row) =>
+            row._id
+          }
+          rowClassName={(row) => {
+            const highlight =
+              highlights[row._id];
+
+            if (!highlight) return "";
+
+            return highlight.type === "new"
+              ? "bg-green-50"
+              : "bg-amber-50";
+          }}
           loading={
             loading
           }

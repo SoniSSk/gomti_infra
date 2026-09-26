@@ -235,28 +235,17 @@ export const vehicleColumns = ({
     ];
 
     /* =====================================================
-       READ ONLY USERS
-       
-       welspun
-       evonith
-       shreecement
-       
-       No Action column
-       No View
-       No Edit
-    ===================================================== */
-
-    if (isReadOnlyRole(userRole)) {
-        return columns;
-    }
-
-    /* =====================================================
        ACTION COLUMN
-       
+
+       Read only users (welspun, evonith, shreecement):
+       - View only (they only get their own vehicles)
+
        Other roles:
        - View
        - Edit (dispatched vehicles: super admin only)
     ===================================================== */
+
+    const readOnly = isReadOnlyRole(userRole);
 
     columns.push({
         key: "action",
@@ -283,7 +272,7 @@ export const vehicleColumns = ({
                 </CommonButton>
 
                 {/* Dispatched vehicles: super admin only */}
-                {canModifyVehicle(row.status, userRole) && (
+                {!readOnly && canModifyVehicle(row.status, userRole) && (
                     <CommonButton
                         variant="secondary"
                         size="sm"

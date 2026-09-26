@@ -13,6 +13,8 @@ interface CommonTableProps<T> {
   columns: TableColumn<T>[];
   data: T[];
   onRowClick?: (row: T) => void;
+  getRowKey?: (row: T) => React.Key;
+  rowClassName?: (row: T) => string;
   loading?: boolean;
   emptyMessage?: string;
 }
@@ -21,6 +23,8 @@ export default function CommonTable<T>({
   columns,
   data,
   onRowClick,
+  getRowKey,
+  rowClassName,
   loading = false,
   emptyMessage = "No Data Found",
 }: CommonTableProps<T>) {
@@ -92,14 +96,17 @@ export default function CommonTable<T>({
           ) : (
             data.map((row, index) => (
               <tr
-                key={index}
+                key={
+                  getRowKey?.(row) ??
+                  index
+                }
                 onClick={() =>
                   onRowClick?.(row)
                 }
                 className={`border-b transition hover:bg-orange-50 ${onRowClick
                     ? "cursor-pointer"
                     : ""
-                  }`}
+                  } ${rowClassName?.(row) ?? ""}`}
               >
                 {columns.map((column) => (
                   <td

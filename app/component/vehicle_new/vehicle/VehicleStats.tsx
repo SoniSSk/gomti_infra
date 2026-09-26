@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ChevronDown, RefreshCw } from "lucide-react";
 
 import CommonButton from "../common/CommonButton";
@@ -234,12 +234,15 @@ const convertVehicleToVehicleNew = (
 interface VehicleStatsProps {
     /** Change this value to force a refetch (e.g. after adding a vehicle). */
     refreshKey?: number;
+    /** Change this value for a background refetch (auto refresh): no skeleton, keeps stats on failure. */
+    pollKey?: number;
     /** Role from the session; falls back to localStorage when omitted. */
     userRole?: string;
 }
 
 const VehicleStats = ({
     refreshKey = 0,
+    pollKey = 0,
     userRole: sessionRole,
 }: VehicleStatsProps) => {
     /* =====================================================
@@ -274,6 +277,12 @@ const VehicleStats = ({
 
     const [error, setError] =
         useState<string | null>(null);
+
+    // Stats + alerts from the last successful load
+    const hasStatsRef = useRef(false);
+
+    // Last pollKey seen, to tell a poll from other refetches
+    const lastPollKeyRef = useRef(pollKey);
 
 const [retryKey, setRetryKey] =
         useState(0);
@@ -357,10 +366,18 @@ const [retryKey, setRetryKey] =
     useEffect(() => {
         let cancelled = false;
 
+        const isPoll =
+            pollKey !== lastPollKeyRef.current &&
+            hasStatsRef.current;
+
+        lastPollKeyRef.current = pollKey;
+
         const fetchStats = async () => {
             try {
-                setLoading(true);
-                setError(null);
+                if (!isPoll) {
+                    setLoading(true);
+                    setError(null);
+                }
 
                 const response = await fetch(
                     "/api/vehicles/stats",
@@ -417,6 +434,10 @@ const [retryKey, setRetryKey] =
                             DEFAULT_ALERT_COUNTS,
                         );
                     }
+
+                    hasStatsRef.current = true;
+
+                    setError(null);
                 }
             } catch (error) {
                 console.error(
@@ -424,7 +445,8 @@ const [retryKey, setRetryKey] =
                     error,
                 );
 
-                if (!cancelled) {
+                // Background poll failed: keep current stats
+                if (!cancelled && !isPoll) {
                     setError(
                         "Couldn't load vehicle stats.",
                     );
@@ -440,7 +462,7 @@ const [retryKey, setRetryKey] =
                     );
                 }
             } finally {
-                if (!cancelled) {
+                if (!cancelled && !isPoll) {
                     setLoading(false);
                 }
             }
@@ -458,7 +480,7 @@ const [retryKey, setRetryKey] =
         return () => {
             cancelled = true;
         };
-    }, [roleReady, showVehicleAlerts, refreshKey, retryKey]);
+    }, [roleReady, showVehicleAlerts, refreshKey, pollKey, retryKey]);
 
     /* =====================================================
        GET CARD DISPLAY VALUE

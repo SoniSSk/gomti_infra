@@ -68,31 +68,37 @@ export const vehicleExportColumns: ExportColumn<Vehicle_new>[] = [
 /* =========================================================
    TIMELINE CELL
 
-   Entry / In / Out stacked, each with its full timestamp.
+   Entry timestamp on top; smaller In / Out stacked below.
 ========================================================= */
 
-const TIMELINE_ROWS: { label: string; value: (row: Vehicle_new) => string | undefined }[] = [
-    { label: "Entry", value: (row) => row.createdAt },
+const IN_OUT_ROWS: { label: string; value: (row: Vehicle_new) => string | undefined }[] = [
     { label: "In", value: (row) => row.inTime },
     { label: "Out", value: (row) => row.outTime },
 ];
 
-const TimelineCell = ({ row }: { row: Vehicle_new }) => (
-    <div className="flex flex-col whitespace-nowrap text-xs leading-4 tabular-nums">
-        {TIMELINE_ROWS.map(({ label, value }) => {
-            const formatted = formatDateTime(value(row));
+const TimelineCell = ({ row }: { row: Vehicle_new }) => {
+    const created = formatDateTime(row.createdAt);
 
-            return (
-                <span key={label}>
-                    <span className="inline-block w-9 text-gray-400">{label}</span>
-                    <span className={formatted ? "text-gray-800" : "text-gray-300"}>
-                        {formatted || "—"}
+    return (
+        <div className="flex flex-col whitespace-nowrap tabular-nums">
+            <span className={created ? "text-gray-900" : "text-gray-300"}>
+                {created || "—"}
+            </span>
+            {IN_OUT_ROWS.map(({ label, value }) => {
+                const formatted = formatDateTime(value(row));
+
+                return (
+                    <span key={label} className="text-[11px] leading-4 text-gray-400">
+                        <span className="inline-block w-6">{label}</span>
+                        <span className={formatted ? "text-gray-400" : "text-gray-300"}>
+                            {formatted || "—"}
+                        </span>
                     </span>
-                </span>
-            );
-        })}
-    </div>
-);
+                );
+            })}
+        </div>
+    );
+};
 
 /* =========================================================
    VEHICLE COLUMNS
@@ -116,7 +122,7 @@ export const vehicleColumns = ({
         {
             key: "sno",
             label: "#",
-            width: "56px",
+            width: "72px",
         },
 
         /* Vehicle No + Token No */
@@ -203,7 +209,7 @@ export const vehicleColumns = ({
             ),
         },
 
-        /* Entry / In / Out full timestamps, stacked */
+        /* Entry timestamp, with smaller In / Out below */
         {
             key: "createdAt",
             label: "Timeline",

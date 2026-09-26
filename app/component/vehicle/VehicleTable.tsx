@@ -5,6 +5,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -34,6 +35,7 @@ import {
 import { useEtpGeneratingVehicles } from "@/app/hooks/useEtpGeneratingVechiles";
 import { useEtpDoneVehicles } from "@/app/hooks/useEtpDoneVechiles";
 import { useInvoiceGeneratingVehicle } from "@/app/hooks/useInvoiceGeneratingVechile";
+import { useAutoRefresh } from "@/app/hooks/useAutoRefresh";
 
 
 type DateFilter =
@@ -41,6 +43,19 @@ type DateFilter =
   | "today"
   | "7days"
   | "custom";
+
+const AUTO_REFRESH_OPTIONS = [
+  { label: "Off", value: 0 },
+  { label: "30 sec", value: 30_000 },
+  { label: "1 min", value: 60_000 },
+  { label: "2 min", value: 120_000 },
+  { label: "5 min", value: 300_000 },
+];
+
+const DEFAULT_AUTO_REFRESH_MS = 60_000;
+
+const AUTO_REFRESH_STORAGE_KEY =
+  "vehicleAutoRefreshMs";
 
 const getToday = () => {
   const today = new Date();
@@ -68,6 +83,37 @@ export default function VehicleTable() {
 
   const [loading, setLoading] =
     useState(true);
+
+  const [lastUpdated, setLastUpdated] =
+    useState<Date | null>(null);
+
+  // Latest request id, so stale responses
+  // (e.g. after a filter change) are ignored
+  const requestIdRef = useRef(0);
+
+  const inFlightRef = useRef(false);
+
+  // =====================================
+  // AUTO REFRESH
+  // =====================================
+
+  const [autoRefreshMs, setAutoRefreshMs] =
+    useState(DEFAULT_AUTO_REFRESH_MS);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(
+      AUTO_REFRESH_STORAGE_KEY
+    );
+
+    const option =
+      AUTO_REFRESH_OPTIONS.find(
+        (o) => String(o.value) === saved
+      );
+
+    if (option) {
+      setAutoRefreshMs(option.value);
+    }
+  }, []);
 
   // =====================================
   // SEARCH
@@ -126,10 +172,17 @@ export default function VehicleTable() {
   const loadVehicles = async (
     filter: DateFilter = dateFilter,
     startDate: string = customStartDate,
-    endDate: string = customEndDate
+    endDate: string = customEndDate,
+    // Background refresh: no loading state,
+    // keep existing rows on failure
+    { silent = false }: { silent?: boolean } = {}
   ) => {
+    const requestId = ++requestIdRef.current;
+
     try {
-      setLoading(true);
+      inFlightRef.current = true;
+
+      if (!silent) setLoading(true);
 
       const params = new URLSearchParams();
 
@@ -185,20 +238,59 @@ export default function VehicleTable() {
       //   vehicles: []
       // }
 
+      if (requestId !== requestIdRef.current) return;
+
       setVehicles(
         data.vehicles || []
       );
+
+      setLastUpdated(new Date());
     } catch (error) {
       console.error(
         "Vehicle Fetch Error:",
         error
       );
 
-      setVehicles([]);
+      if (
+        !silent &&
+        requestId === requestIdRef.current
+      ) {
+        setVehicles([]);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+      }
     }
   };
+
+  const isCustomRangeInvalid =
+    dateFilter === "custom" &&
+    (!customStartDate ||
+      !customEndDate ||
+      customStartDate > customEndDate);
+
+  // Paused while editing, so the list
+  // doesn't shift under the open modal
+  useAutoRefresh(
+    () => {
+      if (inFlightRef.current) return;
+
+      loadVehicles(
+        dateFilter,
+        customStartDate,
+        customEndDate,
+        { silent: true }
+      );
+    },
+    {
+      intervalMs: autoRefreshMs,
+      enabled:
+        !editVehicle &&
+        !isCustomRangeInvalid,
+    }
+  );
 
   // =====================================
   // INITIAL LOAD
@@ -456,13 +548,13 @@ export default function VehicleTable() {
 
   // =====================================
   // VIEW VEHICLE
-  // ADMIN + EMPLOYEE ONLY
+  // ALL ROLES (read only)
   // =====================================
 
   const handleViewDetails = (
     vehicle: Vehicle
   ) => {
-    if (!canManageVehicles) {
+    if (!canViewVehicles) {
       return;
     }
 
@@ -495,6 +587,11 @@ export default function VehicleTable() {
   const canManageVehicles =
     userRole === "admin" ||
     userRole === "employee";
+
+  // Customers only see their own vehicles
+  // (roleFilteredVehicles), so viewing is safe
+  const canViewVehicles =
+    !!userRole;
 
   // =====================================
   // TABLE COLUMNS
@@ -615,10 +712,11 @@ export default function VehicleTable() {
 
       // =====================================
       // ACTIONS
-      // ADMIN + EMPLOYEE ONLY
+      // VIEW: ALL ROLES
+      // EDIT: ADMIN + EMPLOYEE ONLY
       // =====================================
 
-      ...(canManageVehicles
+      ...(canViewVehicles
         ? [
           {
             key: "actions",
@@ -645,18 +743,20 @@ export default function VehicleTable() {
 
                 {/* EDIT */}
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                {canManageVehicles && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
 
-                    handleEditVehicle(
-                      row
-                    );
-                  }}
-                  className="cursor-pointer rounded-lg bg-green-500 px-3 py-1 text-sm text-white transition hover:bg-green-600"
-                >
-                  Edit
-                </button>
+                      handleEditVehicle(
+                        row
+                      );
+                    }}
+                    className="cursor-pointer rounded-lg bg-green-500 px-3 py-1 text-sm text-white transition hover:bg-green-600"
+                  >
+                    Edit
+                  </button>
+                )}
               </div>
             ),
           },
@@ -933,6 +1033,61 @@ export default function VehicleTable() {
                 : "Refresh"}
             </button>
 
+            {/* AUTO REFRESH */}
+
+            <div className="relative">
+
+              <select
+                aria-label="Auto refresh interval"
+                value={
+                  autoRefreshMs
+                }
+                onChange={(e) => {
+                  const value =
+                    Number(
+                      e.target.value
+                    );
+
+                  setAutoRefreshMs(
+                    value
+                  );
+
+                  localStorage.setItem(
+                    AUTO_REFRESH_STORAGE_KEY,
+                    String(value)
+                  );
+                }}
+                className="h-10 min-w-[140px] cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 pr-10 text-sm font-medium text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              >
+                {AUTO_REFRESH_OPTIONS.map(
+                  (option) => (
+                    <option
+                      key={
+                        option.value
+                      }
+                      value={
+                        option.value
+                      }
+                    >
+                      Auto: {option.label}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                ▼
+              </div>
+
+            </div>
+
+            {lastUpdated && (
+              <span className="text-xs text-gray-500">
+                Updated{" "}
+                {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+
             {/* DATE FILTER */}
 
             <div className="relative">
@@ -1099,10 +1254,10 @@ export default function VehicleTable() {
 
       {/* =====================================
           VIEW MODAL
-          ADMIN + EMPLOYEE ONLY
+          ALL ROLES (read only)
       ===================================== */}
 
-      {canManageVehicles &&
+      {canViewVehicles &&
         viewVehicle && (
           <VehicleDetailsModal
             vehicle={

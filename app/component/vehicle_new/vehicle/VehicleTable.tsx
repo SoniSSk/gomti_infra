@@ -21,6 +21,14 @@ const VehicleTable = ({
         setPollKey((key) => key + 1);
     }, []);
 
+    // Bumped after an edit so the table refetches in the background
+    const [syncKey, setSyncKey] = useState(0);
+
+    const handleVehicleUpdated = useCallback(() => {
+        setPollKey((key) => key + 1);
+        setSyncKey((key) => key + 1);
+    }, []);
+
     return (
         <section className="w-full">
 <div className="w-full space-y-6">
@@ -28,11 +36,14 @@ const VehicleTable = ({
                     refreshKey={refreshKey}
                     pollKey={pollKey}
                     userRole={userRole}
+                    onVehicleUpdated={handleVehicleUpdated}
                 />
 
                 <Test
                     refreshKey={refreshKey}
                     onAutoRefresh={handleAutoRefresh}
+                    syncKey={syncKey}
+                    onVehicleUpdated={handleVehicleUpdated}
                 />
             </div>
         </section>

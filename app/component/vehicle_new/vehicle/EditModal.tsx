@@ -576,11 +576,6 @@ export default function EditVehicleModal({
             onSuccess(savedVehicle);
             toast.success("Vehicle updated successfully");
             onClose();
-
-            // Refresh only after the update API has completed successfully.
-            setTimeout(() => {
-                window.location.reload();
-            }, 500);
         } catch (error) {
             console.error("PUT vehicle update error:", error);
 
@@ -666,11 +661,6 @@ export default function EditVehicleModal({
 
     /* ---------------- RENDER ---------------- */
 
-    const canDelete =
-        isSuperAdmin &&
-        (vehicle.status === "WAITING_FOR_DETAILS" ||
-            vehicle.status === "DISPATCH_DONE");
-
     const currentStatus = formData.status || vehicle.status;
     const isOnHold = formData.status === "ON_HOLD";
 
@@ -700,16 +690,10 @@ export default function EditVehicleModal({
                                     variant="danger"
                                     icon={Trash2}
                                     onClick={() => setShowDeleteConfirm(true)}
-                                    disabled={!canDelete || updateLoading}
+                                    disabled={updateLoading}
                                 >
                                     Delete
                                 </CommonButton>
-                            )}
-
-                            {isSuperAdmin && !canDelete && (
-                                <p className="text-xs text-gray-500">
-                                    Only vehicles waiting for details or dispatched can be deleted.
-                                </p>
                             )}
                         </div>
 

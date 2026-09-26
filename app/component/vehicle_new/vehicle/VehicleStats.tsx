@@ -238,12 +238,15 @@ interface VehicleStatsProps {
     pollKey?: number;
     /** Role from the session; falls back to localStorage when omitted. */
     userRole?: string;
+    /** Called after a vehicle is saved from the alert edit modal. */
+    onVehicleUpdated?: () => void;
 }
 
 const VehicleStats = ({
     refreshKey = 0,
     pollKey = 0,
     userRole: sessionRole,
+    onVehicleUpdated,
 }: VehicleStatsProps) => {
     /* =====================================================
        STATS
@@ -606,13 +609,11 @@ const [retryKey, setRetryKey] =
     ===================================================== */
 
     const handleEditSuccess = () => {
-        console.log(
-            "Vehicle updated successfully",
-        );
-
         setIsEditModalOpen(false);
 
         setSelectedVehicle(null);
+
+        onVehicleUpdated?.();
     };
 
     const filteredAlertVehicles = alertFilter

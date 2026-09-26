@@ -55,6 +55,10 @@ interface VehicleTableProps {
     refreshKey?: number;
     /** Called on every auto refresh tick, e.g. to refresh stats too. */
     onAutoRefresh?: () => void;
+    /** Change this value for a background refetch (e.g. after an edit elsewhere). */
+    syncKey?: number;
+    /** Called after a vehicle is saved from the edit modal. */
+    onVehicleUpdated?: () => void;
 }
 
 /* =========================================================
@@ -197,6 +201,8 @@ export default function Test({
     emptyMessage = "No vehicles found",
     refreshKey = 0,
     onAutoRefresh,
+    syncKey = 0,
+    onVehicleUpdated,
 }: VehicleTableProps) {
     /* =====================================================
        STATE
@@ -997,6 +1003,20 @@ export default function Test({
             [refetch],
         );
 
+    /*
+     * Background refetch when syncKey changes (e.g. after
+     * an edit), keeping rows, filters and scroll in place.
+     */
+    const lastSyncKeyRef = useRef(syncKey);
+
+    useEffect(() => {
+        if (syncKey === lastSyncKeyRef.current) return;
+
+        lastSyncKeyRef.current = syncKey;
+
+        void refetch({ silent: true });
+    }, [syncKey, refetch]);
+
     /* =====================================================
        AUTO REFRESH
 
@@ -1184,10 +1204,15 @@ export default function Test({
                     null,
                 );
 
-                await handleRefresh();
+                if (onVehicleUpdated) {
+                    onVehicleUpdated();
+                } else {
+                    await refetch({ silent: true });
+                }
             },
             [
-                handleRefresh,
+                onVehicleUpdated,
+                refetch,
             ],
         );
 

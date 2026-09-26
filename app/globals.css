@@ -1,18 +1,35 @@
 @import "tailwindcss";
 
-@import "tailwindcss";
+/*
+ * Brand palette sampled from the Gomti logo (public/logo.png).
+ * The `orange-*` scale is remapped to the logo's brown so every existing
+ * `orange-*` utility follows the brand color.
+ */
+@theme {
+  --color-orange-50: #faf5f3;
+  --color-orange-100: #f3e7e3;
+  --color-orange-200: #e6cdc5;
+  --color-orange-300: #d3aa9d;
+  --color-orange-400: #b98170;
+  --color-orange-500: #a0604e;
+  --color-orange-600: #8a4d3e;
+  --color-orange-700: #6f4136;
+  --color-orange-800: #593930;
+  --color-orange-900: #402e2a;
+  --color-orange-950: #2a1e1b;
+}
 
 :root {
-  --primary: #ff6b00;
-  --secondary: #ff8c00;
+  --primary: #8a4d3e;
+  --secondary: #402e2a;
 }
 
 .orange-gradient {
   background: linear-gradient(
     135deg,
-    #ff6b00 0%,
-    #ff8c00 50%,
-    #ffb347 100%
+    #8a4d3e 0%,
+    #6f4136 50%,
+    #402e2a 100%
   );
 }
 
@@ -23,11 +40,11 @@
 .orange-hover:hover {
   background: linear-gradient(
     135deg,
-    #ff6b00,
-    #ff8c00
+    #8a4d3e,
+    #402e2a
   );
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(255, 107, 0, 0.4);
+  box-shadow: 0 10px 25px rgba(138, 77, 62, 0.4);
 }
 
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } } .animate-ticker { animation: ticker linear infinite; }

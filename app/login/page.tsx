@@ -6,6 +6,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
+import Logo from "../component/common/Logo";
 
 type Mode = "login" | "signup";
 
@@ -387,8 +388,8 @@ export default function LoginPage() {
 
             {/* Logo */}
 
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500 text-2xl font-bold text-white shadow-lg shadow-orange-200">
-              G
+            <div className="mb-5 flex justify-center">
+              <Logo height={72} priority />
             </div>
 
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">

@@ -22,6 +22,29 @@ const READ_ONLY_ROLES = ["welspun", "evonith", "shreecement"];
 export const isReadOnlyRole = (role?: string | null): boolean =>
     READ_ONLY_ROLES.includes(normalizeRole(role));
 
+/** Customer role -> the buyer name stored on their vehicles. */
+const CUSTOMER_BUYERS: Record<string, string> = {
+    welspun: "WELSPUN",
+    evonith: "EVONITH",
+    shreecement: "SHREE CEMENT",
+};
+
+/** Buyer a customer is limited to, or null for internal roles. */
+export const getCustomerBuyer = (role?: string | null): string | null =>
+    CUSTOMER_BUYERS[normalizeRole(role)] ?? null;
+
+/**
+ * Mongo filter that limits a customer to their own vehicles.
+ * Empty for internal roles, so they still see everything.
+ */
+export const customerVehicleFilter = (role?: string | null) => {
+    const buyer = getCustomerBuyer(role);
+
+    return buyer
+        ? { buyerDetails: { $regex: buyer, $options: "i" } }
+        : {};
+};
+
 /**
  * Once a vehicle is dispatched it is locked: only a super admin
  * can edit or delete it.

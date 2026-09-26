@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import clientPromise from "@/app/lib/mongodb";
+import { auth } from "@/auth";
+import { customerVehicleFilter } from "@/app/utils/vehiclePermissions";
 import { NextRequest, NextResponse } from "next/server";
 
 const DB_NAME = "gomti_infra";
@@ -323,9 +325,12 @@ export async function GET(request: NextRequest) {
     // ============================================================
     // DATABASE QUERY
     // ============================================================
+    // Customers only see vehicles where they are the buyer.
+    const session = await auth();
+
     const vehicles = await db
       .collection("vehicles")
-      .find(query)
+      .find({ $and: [query, customerVehicleFilter(session?.user?.role)] })
       .sort({ createdAt: -1 })
       .toArray();
 

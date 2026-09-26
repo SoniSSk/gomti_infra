@@ -13,6 +13,7 @@ import CommonButton from "./CommonButton";
 import CommonModal from "./CommonModal";
 import CommonUserMenu from "./CommonUserMenu";
 import AddVehicle from "../vehicle/AddVehicle";
+import Logo from "../../common/Logo";
 
 export interface CommonHeaderProps {
     title: string;
@@ -125,24 +126,7 @@ className="
                     >
                         {/* Logo */}
 
-                        <div
-                            className="
-                                flex
-                                h-9
-                                w-9
-                                shrink-0
-                                items-center
-                                justify-center
-rounded-lg
-                                bg-orange-600
-                                text-white
-                                shadow-sm
-                            "
-                        >
-                            <span className="text-sm font-extrabold">
-                                G
-                            </span>
-                        </div>
+                        <Logo height={36} priority />
 
                         {/* Title */}
 

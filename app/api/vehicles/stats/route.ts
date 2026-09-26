@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/app/lib/mongodb";
+import { auth } from "@/auth";
+import { customerVehicleFilter } from "@/app/utils/vehiclePermissions";
 
 const DB_NAME = "gomti_infra";
 const COLLECTION_NAME = "vehicles";
@@ -384,9 +386,15 @@ export async function GET() {
 
     /* ========================================================
        GET ALL VEHICLES
+
+       Customers only see vehicles where they are the buyer.
     ======================================================== */
 
-    const rawVehicles = await collection.find({}).toArray();
+    const session = await auth();
+
+    const rawVehicles = await collection
+      .find(customerVehicleFilter(session?.user?.role))
+      .toArray();
 
     /* ========================================================
        SERIALIZE VEHICLES

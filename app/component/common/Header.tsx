@@ -1,12 +1,15 @@
 // components/common/Header.tsx
 
 import Link from "next/link";
+import Logo from "./Logo";
 
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-white shadow-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <h1 className="text-xl font-bold text-orange-600">Gomti Infra</h1>
+        <Link href="/" aria-label="Gomti Infra home">
+          <Logo height={44} priority />
+        </Link>
 
         <Link
           href="/login"

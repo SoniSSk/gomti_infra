@@ -1,8 +1,28 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { canModifyVehicle } from "@/app/utils/vehiclePermissions";
+import {
+  canModifyVehicle,
+  isReadOnlyRole,
+} from "@/app/utils/vehiclePermissions";
 import clientPromise from "../../../lib/mongodb";
+
+/** Customers can only view vehicles, never change them. */
+async function rejectIfCustomer() {
+  const session = await auth();
+
+  if (!isReadOnlyRole(session?.user?.role)) {
+    return null;
+  }
+
+  return NextResponse.json(
+    {
+      success: false,
+      message: "You don't have permission to modify vehicles",
+    },
+    { status: 403 },
+  );
+}
 
 /** Dispatched vehicles can only be changed by a super admin. */
 async function rejectIfLocked(db: any, vehicleSno: number) {
@@ -34,6 +54,11 @@ export async function PUT(
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
+    const forbidden = await rejectIfCustomer();
+    if (forbidden) {
+      return forbidden;
+    }
+
     const { sno } = await params;
     const body = await req.json();
 
@@ -134,6 +159,11 @@ export async function DELETE(
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
+    const forbidden = await rejectIfCustomer();
+    if (forbidden) {
+      return forbidden;
+    }
+
     const { sno } = await params;
 
     const vehicleSno = Number(sno);

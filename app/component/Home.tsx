@@ -2,6 +2,7 @@ import Link from "next/link";
 import Header from "./common/Header";
 import Footer from "./common/Footer";
 import StatCard from "./common/StatCard";
+import Logo from "./common/Logo";
 
 const FEATURES = [
   {
@@ -28,6 +29,9 @@ export default function Home() {
 
       {/* Hero */}
       <section className="orange-gradient px-4 py-20 text-center text-white">
+        <div className="mx-auto mb-6 inline-block rounded-2xl bg-white px-6 py-4 shadow-lg">
+          <Logo height={96} className="max-w-full" />
+        </div>
         <h2 className="text-4xl font-extrabold sm:text-5xl">
           Gomti Infra Mining
         </h2>

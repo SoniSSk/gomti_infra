@@ -43,6 +43,8 @@ interface VehicleStats {
 ========================================================= */
 
 interface VehicleAlertCounts {
+    ON_HOLD: number;
+    ETP_GENERATING: number;
     ETP_DONE: number;
     LOADING_SLIP_SENT: number;
     INVOICE_GENERATING: number;
@@ -61,7 +63,7 @@ interface VehicleStatsResponse {
 
     vehicleAlerts?: {
         total: number;
-        counts: VehicleAlertCounts;
+        counts: Partial<VehicleAlertCounts>;
         vehicles: Vehicle[];
     };
 
@@ -94,6 +96,8 @@ const DEFAULT_STATS: VehicleStats = {
 ========================================================= */
 
 const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
+    ON_HOLD: 0,
+    ETP_GENERATING: 0,
     ETP_DONE: 0,
     LOADING_SLIP_SENT: 0,
     INVOICE_GENERATING: 0,
@@ -132,6 +136,8 @@ const ALERT_CHIPS: {
     key: keyof VehicleAlertCounts;
     label: string;
 }[] = [
+    { key: "ON_HOLD", label: "On Hold" },
+    { key: "ETP_GENERATING", label: "ETP Generating" },
     { key: "ETP_DONE", label: "ETP Done" },
     { key: "LOADING_SLIP_SENT", label: "Loading Slip Sent" },
     { key: "INVOICE_GENERATING", label: "Invoice Generating" },
@@ -400,11 +406,10 @@ const [retryKey, setRetryKey] =
                                 ?.vehicles || [],
                         );
 
-                        setAlertCounts(
-                            result.vehicleAlerts
-                                ?.counts ||
-                            DEFAULT_ALERT_COUNTS,
-                        );
+                        setAlertCounts({
+                            ...DEFAULT_ALERT_COUNTS,
+                            ...(result.vehicleAlerts?.counts || {}),
+                        });
                     } else {
                         setAlertVehicles([]);
 

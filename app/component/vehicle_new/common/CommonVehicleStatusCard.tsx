@@ -1,7 +1,7 @@
 "use client";
 
 import { Vehicle } from "@/app/types/vehicle";
-import { Check, Copy, MessageSquare, Pencil } from "lucide-react";
+import { Check, CirclePause, Copy, MessageSquare, Pencil } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
@@ -52,6 +52,11 @@ const CommonVehicleStatusCard = ({
     };
 
     const hasActions = (showEdit && onEdit) || showGoogleChat;
+
+    const holdReason =
+        String(status ?? "").toUpperCase() === "ON_HOLD"
+            ? vehicle.holdReason?.trim()
+            : undefined;
 
     /* ================= COPY ================= */
 
@@ -226,6 +231,23 @@ const CommonVehicleStatusCard = ({
                     </dd>
                 </div>
             </dl>
+
+            {/* ================= HOLD REASON ================= */}
+            {holdReason && (
+                <p
+                    className="flex items-start gap-1.5 rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700"
+                    title={holdReason}
+                >
+                    <CirclePause
+                        className="mt-px h-3.5 w-3.5 shrink-0"
+                        aria-hidden="true"
+                    />
+                    <span className="line-clamp-2 min-w-0 break-words">
+                        <span className="font-medium">Reason:</span>{" "}
+                        {holdReason}
+                    </span>
+                </p>
+            )}
 
             {/* ================= ACTIONS ================= */}
             {hasActions && (

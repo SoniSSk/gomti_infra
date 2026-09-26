@@ -1,10 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import CommonCard from "../common/CommonCard";
 import CommonVehicleStatusCard from "../common/CommonVehicleStatusCard";
+import { getStatusMeta } from "../common/vehicleStatus";
 
 import ViewModal from "./ViewModal";
 import EditModal from "./EditModal";
@@ -13,10 +14,10 @@ import { Vehicle } from "@/app/types/vehicle";
 import { Vehicle_new } from "@/app/types/vehicle_new";
 
 /* =========================================================
-   VEHICLE STATS
+   TYPES
 ========================================================= */
 
-interface VehicleStats {
+interface VehicleStatCounts {
     totalVehicles: number;
     todayVehicles: number;
     previousPendingVehicles: number;
@@ -26,6 +27,7 @@ interface VehicleStats {
     loadingStarted: number;
     loadingDone: number;
     loadingSlipSent: number;
+    onHold: number;
     etpDone: number;
     etpInvoiceDone: number;
     invoiceGenerating: number;
@@ -33,41 +35,32 @@ interface VehicleStats {
     dispatchDone: number;
 }
 
-/* =========================================================
-   ALERT COUNTS
-========================================================= */
+type AlertStatus =
+    | "ON_HOLD"
+    | "ETP_DONE"
+    | "LOADING_SLIP_SENT"
+    | "INVOICE_GENERATING"
+    | "NOT_REGISTERED"
+    | "ETP_INVOICE_DONE";
 
-interface VehicleAlertCounts {
-    ETP_DONE: number;
-    LOADING_SLIP_SENT: number;
-    INVOICE_GENERATING: number;
-    NOT_REGISTERED: number;
-    ETP_INVOICE_DONE: number;
-}
-
-/* =========================================================
-   API RESPONSE
-========================================================= */
+type VehicleAlertCounts = Record<AlertStatus, number>;
 
 interface VehicleStatsResponse {
     success: boolean;
-
-    counts?: Partial<VehicleStats>;
-
+    counts?: Partial<VehicleStatCounts>;
     vehicleAlerts?: {
         total: number;
-        counts: VehicleAlertCounts;
+        counts: Partial<VehicleAlertCounts>;
         vehicles: Vehicle[];
     };
-
     message?: string;
 }
 
 /* =========================================================
-   DEFAULT STATS
+   CONFIG
 ========================================================= */
 
-const DEFAULT_STATS: VehicleStats = {
+const DEFAULT_STATS: VehicleStatCounts = {
     totalVehicles: 0,
     todayVehicles: 0,
     previousPendingVehicles: 0,
@@ -77,6 +70,7 @@ const DEFAULT_STATS: VehicleStats = {
     loadingStarted: 0,
     loadingDone: 0,
     loadingSlipSent: 0,
+    onHold: 0,
     etpDone: 0,
     etpInvoiceDone: 0,
     invoiceGenerating: 0,
@@ -84,11 +78,8 @@ const DEFAULT_STATS: VehicleStats = {
     dispatchDone: 0,
 };
 
-/* =========================================================
-   DEFAULT ALERT COUNTS
-========================================================= */
-
 const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
+    ON_HOLD: 0,
     ETP_DONE: 0,
     LOADING_SLIP_SENT: 0,
     INVOICE_GENERATING: 0,
@@ -96,50 +87,29 @@ const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
     ETP_INVOICE_DONE: 0,
 };
 
-/* =========================================================
-   STAT CARD TYPE
-========================================================= */
-
-interface StatCard {
-    heading: string;
-    key: keyof VehicleStats;
-}
-
-/* =========================================================
-   STAT CARDS
-========================================================= */
-
-const STAT_CARDS: StatCard[] = [
-    {
-        heading: "Today Vehicle's",
-        key: "todayVehicles",
-    },
-    {
-        heading: "Previous Day Vehicle's",
-        key: "previousPendingVehicles",
-    },
-    {
-        heading: "Dispatched",
-        key: "dispatchDone",
-    },
-    {
-        heading: "Waiting For Detail's",
-        key: "waitingForDetails",
-    },
+const STAT_CARDS: { heading: string; key: keyof VehicleStatCounts }[] = [
+    { heading: "Today Vehicle's", key: "todayVehicles" },
+    { heading: "Previous Day Vehicle's", key: "previousPendingVehicles" },
+    { heading: "Dispatched", key: "dispatchDone" },
+    { heading: "Waiting For Detail's", key: "waitingForDetails" },
+    { heading: "On Hold", key: "onHold" },
 ];
 
-/* =========================================================
-   READ ONLY ROLES
-========================================================= */
-
-const NO_ALERT_ROLES = [
-    "welspun",
-    "evonith",
-    "shreecement",
+/* Chip order in the alerts section. Colours come from STATUS_META. */
+const ALERT_CHIPS: { label: string; status: AlertStatus }[] = [
+    { label: "On Hold", status: "ON_HOLD" },
+    { label: "ETP Done", status: "ETP_DONE" },
+    { label: "Loading Slip", status: "LOADING_SLIP_SENT" },
+    { label: "Invoice Generating", status: "INVOICE_GENERATING" },
+    { label: "Not Registered", status: "NOT_REGISTERED" },
+    { label: "ETP Invoice Done", status: "ETP_INVOICE_DONE" },
 ];
 
+/* Roles that see the stat cards only - no alerts, no modals. */
+const NO_ALERT_ROLES = ["welspun", "evonith", "shreecement"];
+
 /* =========================================================
-   GET USER ROLE
+   HELPERS
 ========================================================= */
 
 const getUserRole = (): string => {
@@ -156,619 +126,287 @@ const getUserRole = (): string => {
     );
 };
 
-/* =========================================================
-   CHECK ALERT ACCESS
-========================================================= */
-
-const canShowVehicleAlerts = (): boolean => {
-    const role = getUserRole();
-
-    return !NO_ALERT_ROLES.includes(role);
-};
-
-/* =========================================================
-   CONVERT VEHICLE
-========================================================= */
-
-const convertVehicleToVehicleNew = (
-    vehicle: Vehicle,
-): Vehicle_new => {
-    return {
+const convertVehicleToVehicleNew = (vehicle: Vehicle): Vehicle_new =>
+    ({
         ...vehicle,
-
         netWeight:
             vehicle.netWeight !== undefined &&
-                vehicle.netWeight !== null &&
-                vehicle.netWeight !== ""
+            vehicle.netWeight !== null &&
+            vehicle.netWeight !== ""
                 ? Number(vehicle.netWeight)
                 : undefined,
-    } as Vehicle_new;
-};
+    }) as Vehicle_new;
+
+/* =========================================================
+   SUB COMPONENTS
+========================================================= */
+
+const AlertHeader = ({ total }: { total: number }) => (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h2 className="text-lg font-bold text-gray-900">
+                Vehicle Alerts
+            </h2>
+
+            <p className="text-xs text-gray-500">
+                Vehicles requiring attention
+            </p>
+        </div>
+
+        <div className="rounded-full bg-orange-50 px-3 py-1.5 text-xs font-bold text-orange-600">
+            Total: {total}
+        </div>
+    </div>
+);
+
+const AlertCountChips = ({ counts }: { counts: VehicleAlertCounts }) => (
+    <div className="mb-4 flex flex-wrap gap-2">
+        {ALERT_CHIPS.map(({ label, status }) => {
+            const meta = getStatusMeta(status);
+
+            return (
+                <div
+                    key={status}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${meta.pill}`}
+                >
+                    <span
+                        className={`h-1.5 w-1.5 rounded-full ${meta.dot}`}
+                        aria-hidden="true"
+                    />
+                    {label}: {counts[status]}
+                </div>
+            );
+        })}
+    </div>
+);
+
+const AlertMessage = ({
+    text,
+    dashed = false,
+}: {
+    text: string;
+    dashed?: boolean;
+}) => (
+    <div
+        className={`rounded-xl border bg-gray-50 px-4 py-10 text-center ${
+            dashed ? "border-dashed border-gray-200" : "border-gray-100"
+        }`}
+    >
+        <p className="text-sm font-medium text-gray-500">{text}</p>
+    </div>
+);
+
+const AlertVehicleGrid = ({
+    vehicles,
+    onVehicleClick,
+}: {
+    vehicles: Vehicle[];
+    onVehicleClick: (vehicle: Vehicle) => void;
+}) => (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {vehicles.map((vehicle, index) => (
+            <CommonVehicleStatusCard
+                key={vehicle._id || `${vehicle.vehicleNo}-${index}`}
+                sno={vehicle.sno ?? index + 1}
+                tokenNo={vehicle.tokenNo}
+                vehicleNo={vehicle.vehicleNo}
+                status={vehicle.status}
+                vehicle={vehicle}
+                onClick={() => onVehicleClick(vehicle)}
+                showEdit={false}
+                showGoogleChat={false}
+            />
+        ))}
+    </div>
+);
 
 /* =========================================================
    COMPONENT
 ========================================================= */
 
 const VehicleStats = () => {
-    /* =====================================================
-       STATS
-    ===================================================== */
-
-    const [stats, setStats] =
-        useState<VehicleStats>(DEFAULT_STATS);
-
-    /* =====================================================
-       ALERT VEHICLES
-    ===================================================== */
-
-    const [alertVehicles, setAlertVehicles] =
-        useState<Vehicle[]>([]);
-
-    /* =====================================================
-       ALERT COUNTS
-    ===================================================== */
-
+    const [stats, setStats] = useState<VehicleStatCounts>(DEFAULT_STATS);
+    const [alertVehicles, setAlertVehicles] = useState<Vehicle[]>([]);
     const [alertCounts, setAlertCounts] =
-        useState<VehicleAlertCounts>(
-            DEFAULT_ALERT_COUNTS,
-        );
+        useState<VehicleAlertCounts>(DEFAULT_ALERT_COUNTS);
+    const [loading, setLoading] = useState(true);
 
-    /* =====================================================
-       LOADING
-    ===================================================== */
-
-    const [loading, setLoading] =
-        useState(true);
-
-    /* =====================================================
-       ROLE READY
-    ===================================================== */
-
-    const [userRole, setUserRole] =
-        useState("");
-
-    /* =====================================================
-       SELECTED VEHICLE
-    ===================================================== */
+    /* null until localStorage has been read on the client. */
+    const [userRole, setUserRole] = useState<string | null>(null);
 
     const [selectedVehicle, setSelectedVehicle] =
         useState<Vehicle_new | null>(null);
-
-    /* =====================================================
-       VIEW MODAL
-    ===================================================== */
-
-    const [isViewModalOpen, setIsViewModalOpen] =
-        useState(false);
-
-    /* =====================================================
-       EDIT MODAL
-    ===================================================== */
-
-    const [isEditModalOpen, setIsEditModalOpen] =
-        useState(false);
-
-    /* =====================================================
-       CHECK USER ROLE
-    ===================================================== */
-
-    useEffect(() => {
-        const role = getUserRole();
-
-        console.log(
-            "VehicleStats User Role:",
-            role,
-        );
-
-        setUserRole(role);
-    }, []);
-
-    /* =====================================================
-       CHECK ALERT PERMISSION
-    ===================================================== */
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     const showVehicleAlerts =
-        userRole !== "" &&
-        !NO_ALERT_ROLES.includes(userRole);
+        userRole !== null && !NO_ALERT_ROLES.includes(userRole);
 
-    /* =====================================================
-       FETCH STATS
-    ===================================================== */
+    /* ---------------- ROLE ---------------- */
 
     useEffect(() => {
-        let cancelled = false;
+        setUserRole(getUserRole());
+    }, []);
 
-        const fetchStats = async () => {
+    /* ---------------- FETCH ---------------- */
+
+    const fetchStats = useCallback(
+        async (isCancelled: () => boolean = () => false) => {
             try {
                 setLoading(true);
 
-                const response = await fetch(
-                    "/api/vehicles/stats",
-                    {
-                        method: "GET",
-                        cache: "no-store",
-                    },
-                );
+                const response = await fetch("/api/vehicles/stats", {
+                    method: "GET",
+                    cache: "no-store",
+                });
 
-                const result: VehicleStatsResponse =
-                    await response.json();
+                const result: VehicleStatsResponse = await response.json();
 
                 if (!response.ok) {
                     throw new Error(
-                        result.message ||
-                        "Failed to fetch vehicle stats",
+                        result.message || "Failed to fetch vehicle stats",
                     );
                 }
 
-                if (
-                    !cancelled &&
-                    result.success
-                ) {
-                    /* =====================================
-                       MAIN STATS
-                    ===================================== */
+                if (isCancelled() || !result.success) {
+                    return;
+                }
 
-                    setStats({
-                        ...DEFAULT_STATS,
-                        ...(result.counts || {}),
+                setStats({ ...DEFAULT_STATS, ...(result.counts || {}) });
+
+                /* Only keep alert data for roles allowed to see it. */
+                if (showVehicleAlerts) {
+                    setAlertVehicles(result.vehicleAlerts?.vehicles || []);
+                    setAlertCounts({
+                        ...DEFAULT_ALERT_COUNTS,
+                        ...(result.vehicleAlerts?.counts || {}),
                     });
-
-                    /* =====================================
-                       ALERT VEHICLES
-                       
-                       Only store alerts for allowed
-                       roles.
-                    ===================================== */
-
-                    if (showVehicleAlerts) {
-                        setAlertVehicles(
-                            result.vehicleAlerts
-                                ?.vehicles || [],
-                        );
-
-                        setAlertCounts(
-                            result.vehicleAlerts
-                                ?.counts ||
-                            DEFAULT_ALERT_COUNTS,
-                        );
-                    } else {
-                        setAlertVehicles([]);
-                        setAlertCounts(
-                            DEFAULT_ALERT_COUNTS,
-                        );
-                    }
+                } else {
+                    setAlertVehicles([]);
+                    setAlertCounts(DEFAULT_ALERT_COUNTS);
                 }
             } catch (error) {
-                console.error(
-                    "Vehicle stats error:",
-                    error,
-                );
+                console.error("Vehicle stats error:", error);
 
-                if (!cancelled) {
+                if (!isCancelled()) {
                     setStats(DEFAULT_STATS);
-
                     setAlertVehicles([]);
-
-                    setAlertCounts(
-                        DEFAULT_ALERT_COUNTS,
-                    );
+                    setAlertCounts(DEFAULT_ALERT_COUNTS);
                 }
             } finally {
-                if (!cancelled) {
+                if (!isCancelled()) {
                     setLoading(false);
                 }
             }
-        };
+        },
+        [showVehicleAlerts],
+    );
 
-        /*
-         * Wait until localStorage role has been
-         * loaded before fetching stats.
-         */
-        if (userRole !== "") {
-            fetchStats();
+    useEffect(() => {
+        if (userRole === null) {
+            return;
         }
+
+        let cancelled = false;
+
+        fetchStats(() => cancelled);
 
         return () => {
             cancelled = true;
         };
-    }, [userRole]);
+    }, [userRole, fetchStats]);
 
-    /* =====================================================
-       CARD CLICK
-       
-       Only available for roles which can see alerts.
-    ===================================================== */
+    /* ---------------- MODAL HANDLERS ---------------- */
 
-    const handleVehicleClick = (
-        vehicle: Vehicle,
-    ) => {
+    const handleVehicleClick = (vehicle: Vehicle) => {
         if (!showVehicleAlerts) {
             return;
         }
 
-        const convertedVehicle =
-            convertVehicleToVehicleNew(vehicle);
-
-        setSelectedVehicle(convertedVehicle);
-
+        setSelectedVehicle(convertVehicleToVehicleNew(vehicle));
         setIsEditModalOpen(false);
-
         setIsViewModalOpen(true);
     };
 
-    /* =====================================================
-       CLOSE VIEW MODAL
-    ===================================================== */
-
+    /* Keep selectedVehicle so EditModal can open with it. */
     const handleCloseViewModal = () => {
         setIsViewModalOpen(false);
-
-        /*
-         * Do NOT clear selectedVehicle here.
-         *
-         * This allows EditModal to open using
-         * the same selected vehicle.
-         */
     };
 
-    /* =====================================================
-       EDIT VEHICLE
-    ===================================================== */
-
     const handleEditVehicle = () => {
-        if (!selectedVehicle) {
-            return;
-        }
-
-        /*
-         * Extra protection:
-         * readonly users can never open EditModal.
-         */
-
-        if (!showVehicleAlerts) {
+        if (!selectedVehicle || !showVehicleAlerts) {
             return;
         }
 
         setIsViewModalOpen(false);
-
         setIsEditModalOpen(true);
     };
 
-    /* =====================================================
-       CLOSE EDIT MODAL
-    ===================================================== */
-
     const handleCloseEditModal = () => {
         setIsEditModalOpen(false);
-
         setSelectedVehicle(null);
     };
 
-    /* =====================================================
-       EDIT SUCCESS
-    ===================================================== */
-
+    /* Refetch so counts and alerts reflect the new status. */
     const handleEditSuccess = () => {
-        console.log(
-            "Vehicle updated successfully",
-        );
-
         setIsEditModalOpen(false);
-
         setSelectedVehicle(null);
+        fetchStats();
     };
 
-    /* =====================================================
-       RENDER
-    ===================================================== */
+    /* ---------------- RENDER ---------------- */
 
     return (
         <>
             <div className="w-full space-y-5">
-
-                {/* =================================================
-                    MAIN STAT CARDS
-                ================================================= */}
-
-                <div
-                    className="
-                        grid
-                        w-full
-                        grid-cols-1
-                        gap-3
-                        sm:grid-cols-2
-                        lg:grid-cols-4
-                        xl:gap-4
-                    "
-                >
-                    {STAT_CARDS.map(
-                        ({ heading, key }) => (
-                            <CommonCard
-                                key={key}
-                                heading={heading}
-                                number={
-                                    loading
-                                        ? 0
-                                        : stats[key]
-                                }
-                            />
-                        ),
-                    )}
+                <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 xl:gap-4">
+                    {STAT_CARDS.map(({ heading, key }) => (
+                        <CommonCard
+                            key={key}
+                            heading={heading}
+                            number={loading ? 0 : stats[key]}
+                        />
+                    ))}
                 </div>
-
-                {/* =================================================
-                    VEHICLE ALERTS
-
-                    IMPORTANT:
-                    welspun
-                    evonith
-                    shreecement
-
-                    will NOT see this section.
-                ================================================= */}
 
                 {showVehicleAlerts && (
                     <div className="w-full">
+                        <AlertHeader
+                            total={loading ? 0 : alertVehicles.length}
+                        />
 
-                        {/* =============================================
-                            ALERT HEADER
-                        ============================================= */}
-
-                        <div
-                            className="
-                                mb-4
-                                flex
-                                flex-wrap
-                                items-center
-                                justify-between
-                                gap-3
-                            "
-                        >
-                            <div>
-                                <h2 className="text-lg font-bold text-gray-900">
-                                    Vehicle Alerts
-                                </h2>
-
-                                <p className="text-xs text-gray-500">
-                                    Vehicles requiring attention
-                                </p>
-                            </div>
-
-                            <div
-                                className="
-                                    rounded-full
-                                    bg-orange-50
-                                    px-3
-                                    py-1.5
-                                    text-xs
-                                    font-bold
-                                    text-orange-600
-                                "
-                            >
-                                Total:{" "}
-                                {loading
-                                    ? 0
-                                    : alertVehicles.length}
-                            </div>
-                        </div>
-
-                        {/* =============================================
-                            ALERT COUNTS
-                        ============================================= */}
-
-                        <div
-                            className="
-                                mb-4
-                                flex
-                                flex-wrap
-                                gap-2
-                            "
-                        >
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-yellow-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-yellow-700
-                                "
-                            >
-                                ETP Done:{" "}
-                                {alertCounts.ETP_DONE}
-                            </div>
-
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-indigo-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-indigo-700
-                                "
-                            >
-                                Loading Slip:{" "}
-                                {
-                                    alertCounts.LOADING_SLIP_SENT
-                                }
-                            </div>
-
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-sky-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-sky-700
-                                "
-                            >
-                                Invoice Generating:{" "}
-                                {
-                                    alertCounts.INVOICE_GENERATING
-                                }
-                            </div>
-
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-gray-100
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-gray-700
-                                "
-                            >
-                                Not Registered:{" "}
-                                {
-                                    alertCounts.NOT_REGISTERED
-                                }
-                            </div>
-
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-cyan-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-cyan-700
-                                "
-                            >
-                                ETP Invoice Done:{" "}
-                                {
-                                    alertCounts.ETP_INVOICE_DONE
-                                }
-                            </div>
-                        </div>
-
-                        {/* =============================================
-                            VEHICLE CARDS
-                        ============================================= */}
+                        <AlertCountChips counts={alertCounts} />
 
                         {loading ? (
-                            <div
-                                className="
-                                    rounded-xl
-                                    border
-                                    border-gray-100
-                                    bg-gray-50
-                                    px-4
-                                    py-10
-                                    text-center
-                                "
-                            >
-                                <p className="text-sm text-gray-500">
-                                    Loading vehicle alerts...
-                                </p>
-                            </div>
+                            <AlertMessage text="Loading vehicle alerts..." />
                         ) : alertVehicles.length === 0 ? (
-                            <div
-                                className="
-                                    rounded-xl
-                                    border
-                                    border-dashed
-                                    border-gray-200
-                                    bg-gray-50
-                                    px-4
-                                    py-10
-                                    text-center
-                                "
-                            >
-                                <p className="text-sm font-medium text-gray-500">
-                                    No vehicle alerts
-                                </p>
-                            </div>
+                            <AlertMessage text="No vehicle alerts" dashed />
                         ) : (
-                            <div
-                                className="
-                                    grid
-                                    grid-cols-1
-                                    gap-3
-                                    md:grid-cols-2
-                                    xl:grid-cols-3
-                                "
-                            >
-                                {alertVehicles.map(
-                                    (
-                                        vehicle,
-                                        index,
-                                    ) => (
-                                        <CommonVehicleStatusCard
-                                            key={
-                                                vehicle._id ||
-                                                `${vehicle.vehicleNo}-${index}`
-                                            }
-                                            sno={
-                                                vehicle.sno ??
-                                                index + 1
-                                            }
-                                            tokenNo={
-                                                vehicle.tokenNo
-                                            }
-                                            vehicleNo={
-                                                vehicle.vehicleNo
-                                            }
-                                            status={
-                                                vehicle.status
-                                            }
-                                            vehicle={
-                                                vehicle
-                                            }
-                                            onClick={() =>
-                                                handleVehicleClick(
-                                                    vehicle,
-                                                )
-                                            }
-                                            showEdit={false}
-                                            showGoogleChat={
-                                                false
-                                            }
-                                        />
-                                    ),
-                                )}
-                            </div>
+                            <AlertVehicleGrid
+                                vehicles={alertVehicles}
+                                onVehicleClick={handleVehicleClick}
+                            />
                         )}
                     </div>
                 )}
             </div>
 
-            {/* =====================================================
-                VIEW MODAL
-
-                Extra protection:
-                readonly roles cannot open it.
-            ===================================================== */}
-
             {showVehicleAlerts && (
-                <ViewModal
-                    vehicle={selectedVehicle}
-                    isOpen={isViewModalOpen}
-                    onClose={handleCloseViewModal}
-                    onEdit={handleEditVehicle}
-                />
-            )}
+                <>
+                    <ViewModal
+                        vehicle={selectedVehicle}
+                        isOpen={isViewModalOpen}
+                        onClose={handleCloseViewModal}
+                        onEdit={handleEditVehicle}
+                    />
 
-            {/* =====================================================
-                EDIT MODAL
-
-                Extra protection:
-                readonly roles cannot open it.
-            ===================================================== */}
-
-            {showVehicleAlerts && (
-                <EditModal
-                    vehicle={selectedVehicle}
-                    isOpen={isEditModalOpen}
-                    onClose={handleCloseEditModal}
-                    onSuccess={handleEditSuccess}
-                />
+                    <EditModal
+                        vehicle={selectedVehicle}
+                        isOpen={isEditModalOpen}
+                        onClose={handleCloseEditModal}
+                        onSuccess={handleEditSuccess}
+                    />
+                </>
             )}
         </>
     );

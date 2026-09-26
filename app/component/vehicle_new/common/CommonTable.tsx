@@ -2,14 +2,22 @@
 "use client";
 
 import React, {
+    useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
-import { ChevronDown, CircleAlert, Inbox, Plus, RefreshCw, Search, X } from "lucide-react";
+import { ChevronDown, CircleAlert, Download, FileSpreadsheet, FileText, Inbox, Plus, RefreshCw, Search, X } from "lucide-react";
+import toast from "react-hot-toast";
 
 import CommonButton from "./CommonButton";
 import CommonStateMessage from "./CommonStateMessage";
 import CommonModal from "./CommonModal";
+import {
+    exportTable,
+    type ExportColumn,
+    type ExportFormat,
+} from "@/app/utils/tableExport";
 
 /* =========================================================
    TYPES
@@ -50,6 +58,8 @@ export interface TableFilter {
     key: string;
     label: string;
     options: TableFilterOption[];
+    /** Hide the blank "label" option so a value is always selected. */
+    required?: boolean;
 }
 
 export interface CommonTableProps<T> {
@@ -93,6 +103,12 @@ export interface CommonTableProps<T> {
         key: string,
         value: string,
     ) => void;
+
+    /**
+     * Rendered right after the filter selects, e.g. a
+     * date range for a "custom" date filter.
+     */
+    filterContent?: React.ReactNode;
 
     /* =====================================================
        EXTERNAL SEARCH
@@ -185,7 +201,37 @@ export interface CommonTableProps<T> {
         | Promise<void>;
 
     refreshing?: boolean;
+
+    /* =====================================================
+       EXPORT
+    ===================================================== */
+
+    /**
+     * Show the Export (CSV / Excel / PDF) button.
+     * Exports every row matching the current search and
+     * filters, across all pages.
+     */
+    exportable?: boolean;
+
+    /** File name without extension. */
+    exportFileName?: string;
+
+    /**
+     * Columns to export. Defaults to the table columns
+     * (minus "action"), using the raw row value.
+     */
+    exportColumns?: ExportColumn<T>[];
 }
+
+const EXPORT_OPTIONS: {
+    format: ExportFormat;
+    label: string;
+    icon: typeof FileText;
+}[] = [
+    { format: "csv", label: "CSV", icon: FileText },
+    { format: "excel", label: "Excel", icon: FileSpreadsheet },
+    { format: "pdf", label: "PDF", icon: FileText },
+];
 
 /* =========================================================
    DATE FORMATTER
@@ -314,6 +360,7 @@ const CommonTable = <
 
     filterValues,
     onFilterChange,
+    filterContent,
 
     searchValue,
     onSearchChange,
@@ -347,6 +394,10 @@ const CommonTable = <
 
     onRefresh,
     refreshing = false,
+
+    exportable = false,
+    exportFileName = "export",
+    exportColumns,
 }: CommonTableProps<T>) => {
     /* =====================================================
        STATE
@@ -671,27 +722,95 @@ const CommonTable = <
 
 
     /* =====================================================
-       CLEAR FILTERS
+       EXPORT
     ===================================================== */
 
-    const clearFilters = () => {
-        handleSearchChange("");
+    const [
+        exportMenuOpen,
+        setExportMenuOpen,
+    ] = useState(false);
 
-        if (onFilterChange) {
-            filters.forEach(
-                (filter) => {
-                    onFilterChange(
-                        filter.key,
-                        "",
-                    );
-                },
-            );
-        } else {
-            setActiveFilters({});
+    const [
+        exporting,
+        setExporting,
+    ] = useState(false);
+
+    const exportMenuRef =
+        useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!exportMenuOpen) {
+            return;
         }
 
-        setCurrentPage(1);
-        setExpandedRowIndex(null);
+        const handleOutside = (
+            event: MouseEvent,
+        ) => {
+            if (
+                !exportMenuRef.current?.contains(
+                    event.target as Node,
+                )
+            ) {
+                setExportMenuOpen(false);
+            }
+        };
+
+        const handleEscape = (
+            event: KeyboardEvent,
+        ) => {
+            if (event.key === "Escape") {
+                setExportMenuOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutside);
+        document.addEventListener("keydown", handleEscape);
+
+        return () => {
+            document.removeEventListener("mousedown", handleOutside);
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, [exportMenuOpen]);
+
+    const handleExport = async (
+        format: ExportFormat,
+    ) => {
+        setExportMenuOpen(false);
+
+        const resolvedColumns: ExportColumn<T>[] =
+            exportColumns ??
+            columns
+                .filter(
+                    (column) =>
+                        column.key !== "action",
+                )
+                .map((column) => ({
+                    label: column.label,
+                    value: (row: T) => {
+                        const value =
+                            row[column.key as keyof T];
+
+                        return typeof value === "number" ||
+                            typeof value === "string"
+                            ? value
+                            : "";
+                    },
+                }));
+
+        try {
+            setExporting(true);
+
+            await exportTable(format, {
+                columns: resolvedColumns,
+                rows: filteredData,
+                fileName: exportFileName,
+            });
+        } catch (exportError) {
+            console.error("Export failed:", exportError);
+            toast.error("Export failed. Please try again.");
+        } finally {
+            setExporting(false);
+        }
     };
 
     /* =====================================================
@@ -763,9 +882,11 @@ const CommonTable = <
             {(
                 searchable ||
                 filters.length > 0 ||
+                filterContent ||
                 headerContent ||
                 onRefresh ||
-                onAdd
+                onAdd ||
+                exportable
             ) && (
 <div className="w-full border-b border-gray-200 bg-white">
                         <div className="w-full p-3 sm:p-4">
@@ -855,9 +976,15 @@ onClick={() =>
                                             (
                                                 filter,
                                             ) => (
-                                                <select
+                                                <div
                                                     key={
                                                         filter.key
+                                                    }
+                                                    className="relative w-full min-w-0 sm:w-auto sm:min-w-[160px] sm:flex-1 lg:flex-none"
+                                                >
+                                                <select
+                                                    aria-label={
+                                                        filter.label
                                                     }
                                                     value={
                                                         filterValues?.[
@@ -899,17 +1026,17 @@ onClick={() =>
                                                     focus:border-orange-500
                                                     focus:ring-2
                                                     focus:ring-orange-100
-                                                    sm:w-auto
-                                                    sm:min-w-[160px]
-                                                    sm:flex-1
-                                                    lg:flex-none
+                                                    appearance-none
+                                                    pr-9
                                                 "
                                                 >
-                                                    <option value="">
-                                                        {
-                                                            filter.label
-                                                        }
-                                                    </option>
+                                                    {!filter.required && (
+                                                        <option value="">
+                                                            {
+                                                                filter.label
+                                                            }
+                                                        </option>
+                                                    )}
 
                                                     {filter.options.map(
                                                         (
@@ -930,21 +1057,16 @@ onClick={() =>
                                                         ),
                                                     )}
                                                 </select>
+
+                                                <ChevronDown
+                                                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                                                    aria-hidden="true"
+                                                />
+                                                </div>
                                             ),
                                         )}
 
-                                        {/* ================= CLEAR ================= */}
-
-                                        {hasActiveFilters && (
-                                            <CommonButton
-                                                variant="secondary"
-                                                onClick={clearFilters}
-                                                icon={X}
-                                                className="w-full sm:w-auto"
-                                            >
-                                                Clear
-                                            </CommonButton>
-                                        )}
+                                        {filterContent}
                                     </div>
 
                                     {/* ================= RIGHT ACTIONS ================= */}
@@ -990,6 +1112,61 @@ sm:w-auto
                                             >
                                                 {addButtonLabel}
                                             </CommonButton>
+                                        )}
+
+                                        {/* ================= EXPORT ================= */}
+
+                                        {exportable && (
+                                            <div
+                                                ref={exportMenuRef}
+                                                className="relative w-full sm:w-auto"
+                                            >
+                                                <CommonButton
+                                                    variant="secondary"
+                                                    onClick={() =>
+                                                        setExportMenuOpen(
+                                                            (open) => !open,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        loading ||
+                                                        filteredData.length === 0
+                                                    }
+                                                    loading={exporting}
+                                                    loadingText="Exporting..."
+                                                    icon={Download}
+                                                    aria-haspopup="menu"
+                                                    aria-expanded={exportMenuOpen}
+                                                    className="w-full sm:w-auto"
+                                                >
+                                                    Export
+                                                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                                </CommonButton>
+
+                                                {exportMenuOpen && (
+                                                    <div
+                                                        role="menu"
+                                                        className="absolute right-0 z-50 mt-1 w-full min-w-[160px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:w-auto"
+                                                    >
+                                                        {EXPORT_OPTIONS.map(
+                                                            ({ format, label, icon: Icon }) => (
+                                                                <button
+                                                                    key={format}
+                                                                    type="button"
+                                                                    role="menuitem"
+                                                                    onClick={() =>
+                                                                        handleExport(format)
+                                                                    }
+                                                                    className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-orange-50 hover:text-orange-700"
+                                                                >
+                                                                    <Icon className="h-4 w-4" aria-hidden="true" />
+                                                                    {label}
+                                                                </button>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
 
                                         {/* ================= REFRESH ================= */}
@@ -1409,82 +1586,61 @@ whitespace-nowrap
 
                     {/* =================================================
                         TOTAL WEIGHT ROW
+                        "Total" label goes in the first column,
+                        the summed weight under netWeight.
                     ================================================= */}
 
                     {!loading && !error && (
-                    <tfoot>
-<tr className="border-t border-gray-200 bg-gray-50">
-                            {expandable && (
-                                <td
-                                    className="
-                                        w-[52px]
-                                        min-w-[52px]
-                                        max-w-[52px]
-                                        px-2
-                                        py-3
-                                    "
-                                    style={{
-                                        width: "52px",
-                                        minWidth: "52px",
-                                        maxWidth: "52px",
-                                    }}
-                                />
-                            )}
-
-                            {columns.map(
-                                (column, columnIndex) => (
+                        <tfoot>
+                            <tr className="border-t border-gray-200 bg-gray-50">
+                                {expandable && (
                                     <td
-                                        key={`total-${String(
-                                            column.key,
-                                        )}`}
+                                        className="w-[52px] min-w-[52px] max-w-[52px] px-2 py-3"
                                         style={{
-                                            width:
-                                                column.width,
-                                            minWidth:
-                                                column.width,
-                                            maxWidth:
-                                                column.width,
+                                            width: "52px",
+                                            minWidth: "52px",
+                                            maxWidth: "52px",
                                         }}
-                                        className={`
-px-4
-                                            py-3
-                                            ${ALIGN_CLASS[column.align ?? "left"]}
-                                            text-sm
-                                            font-semibold
-                                            text-gray-900
-                                            ${column.hideOnMobile
-                                                ? "hidden sm:table-cell"
-                                                : ""
-                                            }
-                                        `}
-                                    >
-                                        {columnIndex === 0 &&
-                                            column.key === "sno" ? (
-                                            <span>
-                                                Total
-                                            </span>
-                                        ) : column.key ===
-                                            "netWeight" ? (
-<span>
-                                                {formatWeight(
-                                                    totalWeight,
-                                                )}{" "}
-                                                <span className="text-xs font-medium text-gray-500">
-                                                    MT
-                                                </span>
-                                            </span>
-                                        ) : (
-                                            columnIndex === 0 ? (
+                                    />
+                                )}
+
+                                {columns.map(
+                                    (column, columnIndex) => (
+                                        <td
+                                            key={`total-${String(column.key)}`}
+                                            style={{
+                                                width: column.width,
+                                                minWidth: column.width,
+                                                maxWidth: column.width,
+                                            }}
+                                            className={`
+                                                px-4
+                                                py-3
+                                                ${ALIGN_CLASS[column.align ?? "left"]}
+                                                text-sm
+                                                font-semibold
+                                                text-gray-900
+                                                ${column.hideOnMobile
+                                                    ? "hidden sm:table-cell"
+                                                    : ""
+                                                }
+                                            `}
+                                        >
+                                            {column.key === "netWeight" ? (
                                                 <span>
-                                                    Total
+                                                    {formatWeight(totalWeight)}{" "}
+                                                    <span className="text-xs font-medium text-gray-500">
+                                                        MT
+                                                    </span>
                                                 </span>
-                                            ) : null
-                                        )}
-                                    </td>
-                                ),
-                            )}
-                        </tr>
-                    </tfoot>
+                                            ) : columnIndex === 0 ? (
+                                                <span>Total</span>
+                                            ) : null}
+                                        </td>
+                                    ),
+                                )}
+                            </tr>
+                        </tfoot>
                     )}
 
                 </table>

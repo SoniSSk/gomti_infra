@@ -19,6 +19,7 @@ export const STATUS_META: Record<string, StatusMeta> = {
     LOADING_STARTED: { pill: "bg-orange-50 text-orange-700 ring-orange-600/15", dot: "bg-orange-500" },
     LOADING_DONE: { pill: "bg-purple-50 text-purple-700 ring-purple-600/15", dot: "bg-purple-500" },
     LOADING_SLIP_SENT: { pill: "bg-indigo-50 text-indigo-700 ring-indigo-600/15", dot: "bg-indigo-500" },
+    ON_HOLD: { pill: "bg-rose-50 text-rose-700 ring-rose-600/15", dot: "bg-rose-500" },
     ETP_GENERATING: { pill: "bg-amber-50 text-amber-700 ring-amber-600/15", dot: "bg-amber-500" },
     ETP_DONE: { pill: "bg-yellow-50 text-yellow-800 ring-yellow-600/20", dot: "bg-yellow-500" },
     ETP_INVOICE_DONE: { pill: "bg-cyan-50 text-cyan-700 ring-cyan-600/15", dot: "bg-cyan-500" },

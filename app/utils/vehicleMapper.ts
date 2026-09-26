@@ -90,6 +90,8 @@ export const normalizeVehicle = (
 
     status: vehicle.status,
 
+    holdReason: vehicle.holdReason,
+
     /*
      * Convert old flat document structure
      * into new nested documents structure.

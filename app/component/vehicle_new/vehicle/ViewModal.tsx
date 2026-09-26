@@ -19,10 +19,12 @@ import {
 
 import { Vehicle_new } from "@/app/types/vehicle_new";
 import { normalizeVehicle } from "@/app/utils/vehicleMapper";
+import { canModifyVehicle, getStoredUserRole } from "@/app/utils/vehiclePermissions";
 
 import CommonButton from "../common/CommonButton";
 import CommonFileUpload from "../common/CommonFileUpload";
 import CommonModal from "../common/CommonModal";
+import CommonTooltip from "../common/CommonTooltip";
 import { formatDateTime } from "../common/dateTime";
 import {
     DetailGrid,
@@ -108,15 +110,16 @@ const CopyButton = ({ value, label }: { value?: unknown; label: string }) => {
     };
 
     return (
-        <CommonButton
-            variant="ghost"
-            size="sm"
-            icon={copied ? Check : Copy}
-            onClick={handleCopy}
-            aria-label={copied ? "Copied" : `Copy ${label}`}
-            title={copied ? "Copied" : `Copy ${label}`}
-            className="-my-1.5"
-        />
+        <CommonTooltip content={copied ? "Copied!" : `Copy ${label}`}>
+            <CommonButton
+                variant="ghost"
+                size="sm"
+                icon={copied ? Check : Copy}
+                onClick={handleCopy}
+                aria-label={copied ? "Copied" : `Copy ${label}`}
+                className="-my-1.5"
+            />
+        </CommonTooltip>
     );
 };
 
@@ -360,7 +363,40 @@ const ViewModal = ({
     const v = normalizeVehicle(vehicle);
     const location = v.currentLocation;
     const tracking = (v.tracking ?? []).slice().reverse();
+    // Dispatched vehicles: super admin only
+    const canEdit =
+        !!onEdit && canModifyVehicle(v.status, getStoredUserRole());
     const uploadedCount = DOCUMENTS.filter(({ key }) => v.documents?.[key]).length;
+
+    // Copy button copies `value`; `display` overrides what is rendered.
+    const dispatchFields: {
+        label: string;
+        value?: string | number;
+        display?: React.ReactNode;
+        mono?: boolean;
+    }[] = [
+        { label: "Vehicle No", value: v.vehicleNo, mono: true },
+        { label: "ETP No", value: v.etpNo },
+        { label: "Buyer", value: v.buyerDetails },
+        { label: "Transporter", value: v.transporterName },
+        {
+            label: "Driver Contact No",
+            value: v.driverContact,
+            display: v.driverContact && (
+                <a
+                    href={`tel:${v.driverContact}`}
+                    className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-700"
+                >
+                    <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                    {v.driverContact}
+                </a>
+            ),
+        },
+        { label: "ETP Date", value: formatDateTime(v.etpDate) },
+        { label: "Destination", value: v.destination },
+        { label: "Weight", value: formatWeight(v.netWeight) },
+        { label: "Route", value: v.route },
+    ];
 
     const mapsUrl =
         location &&
@@ -404,7 +440,7 @@ const ViewModal = ({
                         Close
                     </CommonButton>
 
-                    {onEdit && (
+                    {canEdit && (
                         <CommonButton icon={Pencil} onClick={onEdit}>
                             Edit vehicle
                         </CommonButton>
@@ -415,61 +451,45 @@ const ViewModal = ({
             <div className="space-y-4 bg-gray-50 p-4 sm:p-6">
                 {/* ================= SUMMARY STRIP ================= */}
 
-                <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 sm:grid-cols-4">
+                {/* <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 sm:grid-cols-4">
                     <SummaryTile label="Buyer" value={v.buyerDetails} />
                     <SummaryTile label="Destination" value={v.destination} />
                     <SummaryTile label="Net weight" value={formatWeight(v.netWeight)} />
                     <SummaryTile label="Transporter" value={v.transporterName} />
-                </div>
+                </div> */}
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     {/* ================= MAIN COLUMN ================= */}
 
                     <div className="space-y-4 lg:col-span-2">
-                        <ModalSection title="Vehicle & driver" icon={Truck}>
+                        <ModalSection title="Dispatch details" icon={Truck}>
                             <DetailGrid>
-                                <DetailItem
-                                    label="Vehicle number"
-                                    value={v.vehicleNo}
-                                    mono
-                                    action={<CopyButton value={v.vehicleNo} label="vehicle number" />}
-                                />
-                                <DetailItem label="Token number" value={v.tokenNo} />
-                                <DetailItem label="Driver name" value={v.driverName} />
-                                <DetailItem
-                                    label="Driver contact"
-                                    value={
-                                        v.driverContact && (
-                                            <a
-                                                href={`tel:${v.driverContact}`}
-                                                className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-700"
-                                            >
-                                                <Phone className="h-3.5 w-3.5" aria-hidden="true" />
-                                                {v.driverContact}
-                                            </a>
-                                        )
-                                    }
-                                    action={<CopyButton value={v.driverContact} label="driver contact" />}
-                                />
-                                <DetailItem label="Transporter" value={v.transporterName} />
-                                <DetailItem label="Tyre" value={v.tyre} />
+                                {dispatchFields.map(({ label, value, display, mono }) => (
+                                    <DetailItem
+                                        key={label}
+                                        label={label}
+                                        value={display ?? value}
+                                        mono={mono}
+                                        action={<CopyButton value={value} label={label} />}
+                                    />
+                                ))}
                             </DetailGrid>
                         </ModalSection>
 
-                        <ModalSection title="Material & dispatch" icon={Package}>
+                        <ModalSection title="Other details" icon={Package}>
                             <DetailGrid>
-                                <DetailItem label="Buyer" value={v.buyerDetails} />
-                                <DetailItem label="Destination" value={v.destination} />
+                                <DetailItem label="Token number" value={v.tokenNo} />
+                                <DetailItem label="Driver name" value={v.driverName} />
+                                <DetailItem label="Tyre" value={v.tyre} />
                                 <DetailItem label="Material" value={v.materialName} />
                                 <DetailItem label="Grade" value={v.materialGrade} />
-                                <DetailItem label="Net weight" value={formatWeight(v.netWeight)} />
-                                <DetailItem label="Route" value={v.route} />
-                                <DetailItem
-                                    label="ETP number"
-                                    value={v.etpNo}
-                                    action={<CopyButton value={v.etpNo} label="ETP number" />}
-                                />
-                                <DetailItem label="ETP date" value={formatDateTime(v.etpDate)} />
+                                {v.status === "ON_HOLD" && (
+                                    <DetailItem
+                                        label="On hold reason"
+                                        value={v.holdReason}
+                                        wide
+                                    />
+                                )}
                             </DetailGrid>
                         </ModalSection>
 

@@ -14,13 +14,13 @@ import CommonTable, {
 
 import toast from "react-hot-toast";
 
-import CommonInput from "../common/CommonInput";
+import CommonDateRangePicker from "../common/CommonDateRangePicker";
 
 import { Vehicle_new } from "@/app/types/vehicle_new";
 
 import ViewModal from "./ViewModal";
 import EditVehicleModal from "./EditModal";
-import { vehicleColumns } from "./TableColumn";
+import { vehicleColumns, vehicleExportColumns } from "./TableColumn";
 
 /* =========================================================
    TYPES
@@ -35,7 +35,8 @@ type DateFilter =
 interface VehicleTableProps {
     filters?: TableFilter[];
     initialDateFilter?: DateFilter;
-    initialCustomDate?: string;
+    initialCustomStartDate?: string;
+    initialCustomEndDate?: string;
     apiEndpoint?: string;
     onDataChange?: (vehicles: Vehicle_new[]) => void;
     onRowClick?: (vehicle: Vehicle_new) => void;
@@ -114,7 +115,8 @@ const sortVehiclesByLatest = (
 export default function Test({
     filters = [],
     initialDateFilter = "today",
-    initialCustomDate = getToday(),
+    initialCustomStartDate = getToday(),
+    initialCustomEndDate = getToday(),
     apiEndpoint = "/api/vehicles",
     onDataChange,
     onRowClick,
@@ -149,8 +151,18 @@ export default function Test({
             initialDateFilter,
         );
 
-    const [customDate, setCustomDate] =
-        useState(initialCustomDate);
+    const [customStartDate, setCustomStartDate] =
+        useState(initialCustomStartDate);
+
+    const [customEndDate, setCustomEndDate] =
+        useState(initialCustomEndDate);
+
+    const [openRangePicker, setOpenRangePicker] =
+        useState(false);
+
+    const hasCustomRange =
+        Boolean(customStartDate && customEndDate) &&
+        customStartDate <= customEndDate;
 
     /* =====================================================
        VIEW / EDIT MODAL STATE
@@ -172,7 +184,8 @@ export default function Test({
     const buildApiUrl = useCallback(
         (
             selectedFilter: DateFilter,
-            selectedDate?: string,
+            startDate?: string,
+            endDate?: string,
         ) => {
             const params =
                 new URLSearchParams();
@@ -189,11 +202,17 @@ export default function Test({
 
             if (
                 apiFilter === "custom" &&
-                selectedDate
+                startDate &&
+                endDate
             ) {
                 params.set(
-                    "date",
-                    selectedDate,
+                    "startDate",
+                    startDate,
+                );
+
+                params.set(
+                    "endDate",
+                    endDate,
                 );
             }
 
@@ -215,7 +234,7 @@ export default function Test({
         const loadData = async () => {
             if (
                 dateFilter === "custom" &&
-                !customDate
+                !hasCustomRange
             ) {
                 return;
             }
@@ -227,10 +246,8 @@ export default function Test({
                 const url =
                     buildApiUrl(
                         dateFilter,
-                        dateFilter ===
-                            "custom"
-                            ? customDate
-                            : undefined,
+                        customStartDate,
+                        customEndDate,
                     );
 
                 console.log(
@@ -325,7 +342,9 @@ export default function Test({
         };
     }, [
         dateFilter,
-        customDate,
+        customStartDate,
+        customEndDate,
+        hasCustomRange,
         buildApiUrl,
         onDataChange,
         refreshKey,
@@ -342,6 +361,7 @@ export default function Test({
                 {
                     key: "dateFilter",
                     label: "Date",
+                    required: true,
                     options: [
                         {
                             label: "Today",
@@ -356,7 +376,7 @@ export default function Test({
                             value: "all",
                         },
                         {
-                            label: "Custom Date",
+                            label: "Custom Range",
                             value: "custom",
                         },
                     ],
@@ -531,19 +551,24 @@ export default function Test({
                 nextFilter,
             );
 
-            if (
-                nextFilter !==
-                "custom"
-            ) {
-                setCustomDate("");
-            }
+            // Open the picker when the user picks
+            // "Custom Range", not on first render.
+            setOpenRangePicker(
+                nextFilter === "custom",
+            );
 
+            // Start the range on today so the first
+            // fetch happens immediately.
             if (
                 nextFilter ===
                 "custom" &&
-                !customDate
+                !hasCustomRange
             ) {
-                setCustomDate(
+                setCustomStartDate(
+                    getToday(),
+                );
+
+                setCustomEndDate(
                     getToday(),
                 );
             }
@@ -569,17 +594,6 @@ export default function Test({
         };
 
     /* =====================================================
-       CUSTOM DATE
-    ===================================================== */
-
-    const handleCustomDateChange =
-        (
-            value: string,
-        ) => {
-            setCustomDate(value);
-        };
-
-    /* =====================================================
        REFRESH
     ===================================================== */
 
@@ -594,10 +608,8 @@ export default function Test({
                     const url =
                         buildApiUrl(
                             dateFilter,
-                            dateFilter ===
-                                "custom"
-                                ? customDate
-                                : undefined,
+                            customStartDate,
+                            customEndDate,
                         );
 
                     console.log(
@@ -673,27 +685,27 @@ export default function Test({
             [
                 buildApiUrl,
                 dateFilter,
-                customDate,
+                customStartDate,
+                customEndDate,
                 onDataChange,
             ],
         );
 
     /* =====================================================
-       CUSTOM DATE HEADER
+       CUSTOM RANGE FILTER
     ===================================================== */
 
-    const headerContent =
+    const customRangeContent =
         dateFilter ===
             "custom" ? (
-            <CommonInput
-                type="date"
-                aria-label="Custom date"
-                value={customDate}
-                onChange={(event) =>
-                    handleCustomDateChange(
-                        event.target.value,
-                    )
-                }
+            <CommonDateRangePicker
+                startDate={customStartDate}
+                endDate={customEndDate}
+                defaultOpen={openRangePicker}
+                onChange={(start, end) => {
+                    setCustomStartDate(start);
+                    setCustomEndDate(end);
+                }}
             />
         ) : null;
 
@@ -851,8 +863,16 @@ export default function Test({
                     addButtonLabel
                 }
 
-                headerContent={
-                    headerContent
+                filterContent={
+                    customRangeContent
+                }
+
+                exportable
+
+                exportFileName="vehicles"
+
+                exportColumns={
+                    vehicleExportColumns
                 }
             />
 

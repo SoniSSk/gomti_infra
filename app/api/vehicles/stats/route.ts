@@ -105,6 +105,7 @@ const VEHICLE_STATUSES = [
 ============================================================ */
 
 const ALERT_STATUSES = [
+  "ON_HOLD",
   "ETP_GENERATING",
   "ETP_DONE",
   "LOADING_SLIP_SENT",
@@ -312,6 +313,7 @@ const createEmptyStatusCounts = () => ({
   LOADING_STARTED: 0,
   LOADING_DONE: 0,
   LOADING_SLIP_SENT: 0,
+  ON_HOLD: 0,
   ETP_GENERATING: 0,
   ETP_DONE: 0,
   ETP_INVOICE_DONE: 0,
@@ -540,6 +542,8 @@ export async function GET() {
     ======================================================== */
 
     const alertCounts = {
+      ON_HOLD: statusVehicles.ON_HOLD.length,
+
       ETP_GENERATING: statusVehicles.ETP_GENERATING.length,
 
       ETP_DONE: statusVehicles.ETP_DONE.length,
@@ -641,6 +645,16 @@ export async function GET() {
         count: statusVehicles.LOADING_SLIP_SENT.length,
 
         vehicles: statusVehicles.LOADING_SLIP_SENT,
+      },
+
+      /* ======================================================
+         ON HOLD
+      ====================================================== */
+
+      onHold: {
+        count: statusVehicles.ON_HOLD.length,
+
+        vehicles: statusVehicles.ON_HOLD,
       },
 
       /* ======================================================
@@ -766,6 +780,8 @@ export async function GET() {
 
         loadingSlipSent: status.LOADING_SLIP_SENT,
 
+        onHold: status.ON_HOLD,
+
         etpGenerating: status.ETP_GENERATING,
 
         etpDone: status.ETP_DONE,
@@ -845,6 +861,8 @@ export async function GET() {
 
           loadingSlipSent: 0,
 
+          onHold: 0,
+
           etpGenerating: 0,
 
           etpDone: 0,
@@ -901,6 +919,11 @@ export async function GET() {
           },
 
           loadingSlipSent: {
+            count: 0,
+            vehicles: [],
+          },
+
+          onHold: {
             count: 0,
             vehicles: [],
           },

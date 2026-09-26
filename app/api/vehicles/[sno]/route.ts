@@ -1,6 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { canModifyVehicle } from "@/app/utils/vehiclePermissions";
 import clientPromise from "../../../lib/mongodb";
+
+/** Dispatched vehicles can only be changed by a super admin. */
+async function rejectIfLocked(db: any, vehicleSno: number) {
+  const existing = await db
+    .collection("vehicles")
+    .findOne({ sno: vehicleSno }, { projection: { status: 1 } });
+
+  if (!existing) {
+    return null;
+  }
+
+  const session = await auth();
+
+  if (canModifyVehicle(existing.status, session?.user?.role)) {
+    return null;
+  }
+
+  return NextResponse.json(
+    {
+      success: false,
+      message: "Only a super admin can modify a dispatched vehicle",
+    },
+    { status: 403 },
+  );
+}
 
 export async function PUT(
   req: NextRequest,
@@ -32,11 +59,24 @@ export async function PUT(
      *
      * sno is also used to identify the vehicle, so it is
      * protected from modification here as well.
+     *
+     * createdAt is dropped too: the client sends it back as an
+     * ISO string, which would replace the stored Date.
      */
-    const { _id, sno: bodySno, ...updateData } = body;
+    const {
+      _id,
+      sno: bodySno,
+      createdAt: _createdAt,
+      ...updateData
+    } = body;
 
     const client = await clientPromise;
     const db = client.db("gomti_infra");
+
+    const locked = await rejectIfLocked(db, vehicleSno);
+    if (locked) {
+      return locked;
+    }
 
     const result = await db.collection("vehicles").updateOne(
       {
@@ -110,6 +150,11 @@ export async function DELETE(
 
     const client = await clientPromise;
     const db = client.db("gomti_infra");
+
+    const locked = await rejectIfLocked(db, vehicleSno);
+    if (locked) {
+      return locked;
+    }
 
     const result = await db.collection("vehicles").deleteOne({
       sno: vehicleSno,

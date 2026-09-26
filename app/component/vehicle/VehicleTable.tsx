@@ -42,6 +42,22 @@ type DateFilter =
   | "7days"
   | "custom";
 
+const getToday = () => {
+  const today = new Date();
+
+  const year = today.getFullYear();
+
+  const month = String(
+    today.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    today.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 export default function VehicleTable() {
   // =====================================
   // VEHICLES
@@ -67,21 +83,11 @@ export default function VehicleTable() {
   const [dateFilter, setDateFilter] =
     useState<DateFilter>("today");
 
-  const [customDate, setCustomDate] = useState(() => {
-    const today = new Date();
+  const [customStartDate, setCustomStartDate] =
+    useState(getToday);
 
-    const year = today.getFullYear();
-
-    const month = String(
-      today.getMonth() + 1
-    ).padStart(2, "0");
-
-    const day = String(
-      today.getDate()
-    ).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-  });
+  const [customEndDate, setCustomEndDate] =
+    useState(getToday);
 
   // =====================================
   // VIEW / EDIT VEHICLE
@@ -119,7 +125,8 @@ export default function VehicleTable() {
 
   const loadVehicles = async (
     filter: DateFilter = dateFilter,
-    selectedDate: string = customDate
+    startDate: string = customStartDate,
+    endDate: string = customEndDate
   ) => {
     try {
       setLoading(true);
@@ -138,14 +145,20 @@ export default function VehicleTable() {
         apiFilter
       );
 
-      // Custom date
+      // Custom range (inclusive)
       if (
         apiFilter === "custom" &&
-        selectedDate
+        startDate &&
+        endDate
       ) {
         params.set(
-          "date",
-          selectedDate
+          "startDate",
+          startDate
+        );
+
+        params.set(
+          "endDate",
+          endDate
         );
       }
 
@@ -191,30 +204,22 @@ export default function VehicleTable() {
   // INITIAL LOAD
   // =====================================
 
+  // Runs on mount too, so no separate initial load.
   useEffect(() => {
-    loadVehicles(
-      dateFilter,
-      customDate
-    );
-
-    // Only initial load
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // =====================================
-  // API CALL WHEN FILTER CHANGES
-  // =====================================
-
-  useEffect(() => {
-    // Custom date
+    // Custom range
     if (dateFilter === "custom") {
-      if (!customDate) {
+      if (
+        !customStartDate ||
+        !customEndDate ||
+        customStartDate > customEndDate
+      ) {
         return;
       }
 
       loadVehicles(
         "custom",
-        customDate
+        customStartDate,
+        customEndDate
       );
 
       return;
@@ -228,7 +233,8 @@ export default function VehicleTable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dateFilter,
-    customDate,
+    customStartDate,
+    customEndDate,
   ]);
 
   // =====================================
@@ -917,10 +923,7 @@ export default function VehicleTable() {
 
             <button
               onClick={() =>
-                loadVehicles(
-                  dateFilter,
-                  customDate
-                )
+                loadVehicles()
               }
               disabled={loading}
               className="cursor-pointer rounded-lg bg-orange-500 px-4 py-2 text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
@@ -946,15 +949,6 @@ export default function VehicleTable() {
                   setDateFilter(
                     value
                   );
-
-                  if (
-                    value !==
-                    "custom"
-                  ) {
-                    setCustomDate(
-                      ""
-                    );
-                  }
                 }}
                 className="h-10 min-w-[160px] cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 pr-10 text-sm font-medium text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               >
@@ -967,7 +961,7 @@ export default function VehicleTable() {
                 </option>
 
                 <option value="custom">
-                  Custom Date
+                  Custom Range
                 </option>
 
                 <option value="all">
@@ -983,22 +977,85 @@ export default function VehicleTable() {
 
             </div>
 
-            {/* CUSTOM DATE */}
+            {/* CUSTOM RANGE */}
 
             {dateFilter ===
               "custom" && (
-                <input
-                  type="date"
-                  value={
-                    customDate
-                  }
-                  onChange={(e) =>
-                    setCustomDate(
-                      e.target.value
-                    )
-                  }
-                  className="h-10 cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                />
+                <div
+                  role="group"
+                  aria-label="Custom date range"
+                  className="flex h-10 items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 transition hover:border-orange-400 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500"
+                >
+                  <input
+                    type="date"
+                    aria-label="Start date"
+                    value={
+                      customStartDate
+                    }
+                    max={
+                      customEndDate ||
+                      getToday()
+                    }
+                    onChange={(e) => {
+                      const value =
+                        e.target.value;
+
+                      setCustomStartDate(
+                        value
+                      );
+
+                      // Keep start <= end
+                      if (
+                        value &&
+                        customEndDate &&
+                        value >
+                        customEndDate
+                      ) {
+                        setCustomEndDate(
+                          value
+                        );
+                      }
+                    }}
+                    className="cursor-pointer bg-transparent px-1 text-sm text-gray-700 outline-none"
+                  />
+
+                  <span className="text-xs font-medium text-gray-400">
+                    to
+                  </span>
+
+                  <input
+                    type="date"
+                    aria-label="End date"
+                    value={
+                      customEndDate
+                    }
+                    min={
+                      customStartDate ||
+                      undefined
+                    }
+                    max={getToday()}
+                    onChange={(e) => {
+                      const value =
+                        e.target.value;
+
+                      setCustomEndDate(
+                        value
+                      );
+
+                      if (
+                        value &&
+                        customStartDate &&
+                        value <
+                        customStartDate
+                      ) {
+                        setCustomStartDate(
+                          value
+                        );
+                      }
+                    }}
+                    className="cursor-pointer bg-transparent px-1 text-sm text-gray-700 outline-none"
+                  />
+                </div>
               )}
 
           </div>
@@ -1081,10 +1138,7 @@ export default function VehicleTable() {
               );
 
               // Reload using current filter
-              loadVehicles(
-                dateFilter,
-                customDate
-              );
+              loadVehicles();
             }}
           />
         )}

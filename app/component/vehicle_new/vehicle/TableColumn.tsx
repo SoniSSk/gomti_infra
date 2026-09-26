@@ -3,8 +3,15 @@ import { Eye, MapPin, Pencil } from "lucide-react";
 import { Vehicle_new } from "@/app/types/vehicle_new";
 import { TableColumn, formatWeight } from "../common/CommonTable";
 import CommonButton from "../common/CommonButton";
-import { StatusBadge } from "../common/vehicleStatus";
-import { parseDateTime, type ParsedDateTime } from "../common/dateTime";
+import { StatusBadge, formatStatus } from "../common/vehicleStatus";
+import CommonTooltip from "../common/CommonTooltip";
+import { formatDateTime } from "../common/dateTime";
+import type { ExportColumn } from "@/app/utils/tableExport";
+import {
+    canModifyVehicle,
+    getStoredUserRole,
+    isReadOnlyRole,
+} from "@/app/utils/vehiclePermissions";
 
 /* =========================================================
    MODAL CALLBACK TYPES
@@ -16,30 +23,72 @@ interface VehicleColumnActions {
 }
 
 /* =========================================================
-   READ ONLY ROLES
+   VEHICLE EXPORT COLUMNS
+
+   The table packs several fields into one cell, so the
+   export lists them out individually.
 ========================================================= */
 
-const READ_ONLY_ROLES = [
-    "welspun",
-    "evonith",
-    "shreecement",
+const exportWeight = (value?: string): number | string => {
+    const weight = Number(value);
+
+    return value !== "" && value !== undefined && Number.isFinite(weight)
+        ? weight
+        : "";
+};
+
+export const vehicleExportColumns: ExportColumn<Vehicle_new>[] = [
+    { label: "S.No", value: (row) => row.sno },
+    { label: "Vehicle No", value: (row) => row.vehicleNo },
+    { label: "Token No", value: (row) => row.tokenNo },
+    { label: "Status", value: (row) => formatStatus(row.status) },
+    { label: "Hold Reason", value: (row) => row.holdReason },
+    { label: "Buyer", value: (row) => row.buyerDetails },
+    { label: "Destination", value: (row) => row.destination },
+    { label: "Transporter", value: (row) => row.transporterName },
+    { label: "Driver", value: (row) => row.driverName },
+    { label: "Driver Contact", value: (row) => row.driverContact },
+    { label: "Material", value: (row) => row.materialName },
+    { label: "Grade", value: (row) => row.materialGrade },
+    { label: "Net Weight (MT)", value: (row) => exportWeight(row.netWeight) },
+    { label: "ETP No", value: (row) => row.etpNo },
+    { label: "Created At", value: (row) => formatDateTime(row.createdAt) },
+    { label: "In Time", value: (row) => formatDateTime(row.inTime) },
+    { label: "Out Time", value: (row) => formatDateTime(row.outTime) },
 ];
 
 /* =========================================================
-   GET USER ROLE FROM LOCAL STORAGE
+   TIMELINE CELL
+
+   Shows the entry date & time; In / Out appear on hover.
 ========================================================= */
 
-const getUserRoleFromLocalStorage = (): string => {
-    if (typeof window === "undefined") {
-        return "";
+const TimelineCell = ({ row }: { row: Vehicle_new }) => {
+    const created = formatDateTime(row.createdAt);
+    const inTime = formatDateTime(row.inTime) || "—";
+    const outTime = formatDateTime(row.outTime) || "—";
+
+    if (!created) {
+        return <span className="text-gray-300">—</span>;
     }
 
-    const role = localStorage.getItem("userRole");
-
-    return String(role ?? "")
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "");
+    return (
+        <CommonTooltip
+            content={
+                <span className="flex flex-col gap-0.5 tabular-nums">
+                    <span>In: {inTime}</span>
+                    <span>Out: {outTime}</span>
+                </span>
+            }
+        >
+            <span
+                tabIndex={0}
+                className="cursor-help tabular-nums text-gray-900 underline decoration-gray-300 decoration-dotted underline-offset-4"
+            >
+                {created}
+            </span>
+        </CommonTooltip>
+    );
 };
 
 /* =========================================================
@@ -51,18 +100,7 @@ export const vehicleColumns = ({
     onEdit,
 }: VehicleColumnActions = {}): TableColumn<Vehicle_new>[] => {
 
-    /* =====================================================
-       GET ROLE FROM LOCAL STORAGE
-    ===================================================== */
-
-    const userRole = getUserRoleFromLocalStorage();
-
-    /* =====================================================
-       CHECK READ ONLY ROLE
-    ===================================================== */
-
-    const isReadOnlyRole =
-        READ_ONLY_ROLES.includes(userRole);
+    const userRole = getStoredUserRole();
 
     /* =====================================================
        BASE COLUMNS
@@ -144,42 +182,11 @@ export const vehicleColumns = ({
             ),
         },
 
-        /* Entry date + In / Out */
+        /* Entry date & time; In / Out on hover */
         {
             key: "createdAt",
             label: "Timeline",
-            render: (row) => {
-                const created = parseDateTime(row.createdAt);
-                const inTime = parseDateTime(row.inTime);
-                const outTime = parseDateTime(row.outTime);
-
-                const showTime = (value: ParsedDateTime | null) => {
-                    if (!value) {
-                        return <span className="text-gray-300">—</span>;
-                    }
-
-                    return value.date === created?.date
-                        ? value.time
-                        : `${value.date}, ${value.time}`;
-                };
-
-                return (
-                    <div className="flex flex-col">
-                        <span className="text-gray-900">
-                            {created
-                                ? `${created.date}, ${created.time}`
-                                : "-"}
-                        </span>
-                        <span className="text-xs tabular-nums text-gray-500">
-                            In{" "}
-                            <span className="text-gray-700">{showTime(inTime)}</span>
-                            <span className="mx-1.5 text-gray-300">·</span>
-                            Out{" "}
-                            <span className="text-gray-700">{showTime(outTime)}</span>
-                        </span>
-                    </div>
-                );
-            },
+            render: (row) => <TimelineCell row={row} />,
         },
 
         {
@@ -212,7 +219,7 @@ export const vehicleColumns = ({
        No Edit
     ===================================================== */
 
-    if (isReadOnlyRole) {
+    if (isReadOnlyRole(userRole)) {
         return columns;
     }
 
@@ -221,7 +228,7 @@ export const vehicleColumns = ({
        
        Other roles:
        - View
-       - Edit
+       - Edit (dispatched vehicles: super admin only)
     ===================================================== */
 
     columns.push({
@@ -248,17 +255,20 @@ export const vehicleColumns = ({
                     View
                 </CommonButton>
 
-                <CommonButton
-                    variant="secondary"
-                    size="sm"
-                    icon={Pencil}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onEdit?.(row);
-                    }}
-                >
-                    Edit
-                </CommonButton>
+                {/* Dispatched vehicles: super admin only */}
+                {canModifyVehicle(row.status, userRole) && (
+                    <CommonButton
+                        variant="secondary"
+                        size="sm"
+                        icon={Pencil}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onEdit?.(row);
+                        }}
+                    >
+                        Edit
+                    </CommonButton>
+                )}
             </div>
         ),
     });

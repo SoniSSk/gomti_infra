@@ -7,9 +7,16 @@ const normalizeRole = (role?: string | null): string =>
 export const isSuperAdminRole = (role?: string | null): boolean =>
     normalizeRole(role) === "superadmin";
 
-/** Only admins and super admins can register new vehicles. */
-export const canAddVehicle = (role?: string | null): boolean =>
+export const isEmployeeRole = (role?: string | null): boolean =>
+    normalizeRole(role) === "employee";
+
+/** Admin or super admin. */
+const isAdminRole = (role?: string | null): boolean =>
     ["admin", "superadmin"].includes(normalizeRole(role));
+
+/** Employees, admins and super admins can register new vehicles. */
+export const canAddVehicle = (role?: string | null): boolean =>
+    isAdminRole(role) || isEmployeeRole(role);
 
 /** Role saved at login; empty during SSR. */
 export const getStoredUserRole = (): string => {
@@ -36,7 +43,7 @@ export const canEditVehicles = (role?: string | null): boolean =>
 
 /** Customers and employees can't delete vehicles. */
 export const canDeleteVehicles = (role?: string | null): boolean =>
-    canEditVehicles(role) && normalizeRole(role) !== "employee";
+    canEditVehicles(role) && !isEmployeeRole(role);
 
 /** Dispatched vehicles are locked for everyone but a super admin. */
 const isUnlocked = (
@@ -46,12 +53,14 @@ const isUnlocked = (
 
 /**
  * Can open this vehicle's View modal. Once dispatched,
- * only a super admin can.
+ * only admins and super admins can (view only for admins).
  */
 export const canViewVehicleDetails = (
     status: VehicleStatus | string | undefined,
     role?: string | null,
-): boolean => canViewVehicle(role) && isUnlocked(status, role);
+): boolean =>
+    canViewVehicle(role) &&
+    (status !== "DISPATCH_DONE" || isAdminRole(role));
 
 /** Customer role -> the buyer name stored on their vehicles. */
 const CUSTOMER_BUYERS: Record<string, string> = {

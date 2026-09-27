@@ -15,6 +15,7 @@ import toast from "react-hot-toast";
 import {
     canAddVehicle,
     getStoredUserRole,
+    isEmployeeRole,
 } from "@/app/utils/vehiclePermissions";
 import {
     CircleCheck,
@@ -109,9 +110,13 @@ export default function AddVehicle({
     onSuccess,
     userRole: sessionRole,
 }: VehicleFormProps) {
-    const showSubmit = canAddVehicle(
-        sessionRole || getStoredUserRole(),
-    );
+    const role = sessionRole || getStoredUserRole();
+
+    const showSubmit = canAddVehicle(role);
+
+    // Employees sometimes pick the wrong transporter,
+    // so an admin fills it in later from the edit modal
+    const transporterLocked = isEmployeeRole(role);
 
     const dispatch = useAppDispatch();
 
@@ -183,7 +188,8 @@ export default function AddVehicle({
         normalizedVehicleNo.length > 0 &&
         normalizedVehicleNoConfirm.length > 0 &&
         vehicleNumbersMatch &&
-        formData.transporterName.trim().length > 0 &&
+        (transporterLocked ||
+            formData.transporterName.trim().length > 0) &&
         formData.buyerDetails.trim().length > 0 &&
         formData.materialName.trim().length > 0 &&
         formData.materialGrade.trim().length > 0 &&
@@ -327,6 +333,7 @@ export default function AddVehicle({
         ----------------------------------------------- */
 
         if (
+            !transporterLocked &&
             !formData.transporterName.trim()
         ) {
             toast.error(
@@ -548,16 +555,21 @@ export default function AddVehicle({
                                     normalizedVehicleNo,
                             },
 
-                            {
-                                field:
-                                    "transporterName",
+                            // Left blank when an employee adds the vehicle
+                            ...(formData.transporterName.trim()
+                                ? [
+                                      {
+                                          field:
+                                              "transporterName",
 
-                                oldValue:
-                                    undefined,
+                                          oldValue:
+                                              undefined,
 
-                                newValue:
-                                    formData.transporterName.trim(),
-                            },
+                                          newValue:
+                                              formData.transporterName.trim(),
+                                      },
+                                  ]
+                                : []),
 
                             {
                                 field:
@@ -740,7 +752,7 @@ export default function AddVehicle({
     const remainingFields = [
         normalizedVehicleNo,
         normalizedVehicleNoConfirm,
-        formData.transporterName,
+        ...(transporterLocked ? [] : [formData.transporterName]),
         formData.buyerDetails,
         formData.materialName,
         formData.materialGrade,
@@ -751,16 +763,17 @@ export default function AddVehicle({
         name: "transporterName" | "buyerDetails" | "materialName",
         label: string,
         options: string[],
+        { locked = false, hint }: { locked?: boolean; hint?: string } = {},
     ) => (
-        <FormField label={label} htmlFor={`add-${name}`} required>
+        <FormField label={label} htmlFor={`add-${name}`} required={!locked} hint={hint}>
             <select
                 id={`add-${name}`}
                 name={name}
                 value={formData[name]}
                 onChange={handleChange}
-                className={`${FIELD_CLASS} cursor-pointer`}
-                required
-                disabled={submitting}
+                className={`${FIELD_CLASS} ${locked ? "cursor-not-allowed bg-gray-50" : "cursor-pointer"}`}
+                required={!locked}
+                disabled={submitting || locked}
             >
                 <option value="">Select {label.toLowerCase()}</option>
                 {options.map((option) => (
@@ -861,7 +874,10 @@ export default function AddVehicle({
 
             <ModalSection title="Dispatch details" icon={Package}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {renderSelect("transporterName", "Transporter", TRANSPORTERS)}
+                    {renderSelect("transporterName", "Transporter", TRANSPORTERS, {
+                        locked: transporterLocked,
+                        hint: transporterLocked ? "An admin will set the transporter" : undefined,
+                    })}
                     {renderSelect("buyerDetails", "Buyer", BUYERS)}
                     {renderSelect("materialName", "Material", MATERIALS)}
 

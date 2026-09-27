@@ -364,7 +364,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Only an admin or super admin can add vehicles",
+          message: "You don't have permission to add vehicles",
         },
         { status: 403 },
       );

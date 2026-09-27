@@ -176,7 +176,7 @@ className="
                             sm:gap-3
                         "
                     >
-                        {/* Add Vehicle (admins and super admins only) */}
+                        {/* Add Vehicle (employees, admins and super admins) */}
 
                         {showAddVehicle && (
                             <>

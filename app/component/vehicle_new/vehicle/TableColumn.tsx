@@ -248,8 +248,8 @@ export const vehicleColumns = ({
        - View
        - Edit
 
-       Dispatched vehicles: no actions, except for a
-       super admin.
+       Dispatched vehicles: super admin can view and
+       edit, admin can only view, employees get nothing.
     ===================================================== */
 
     if (!canViewVehicle(userRole)) {
@@ -268,7 +268,7 @@ export const vehicleColumns = ({
                     event.stopPropagation();
                 }}
             >
-                {/* Dispatched vehicles: super admin only */}
+                {/* Dispatched vehicles: admins and super admins */}
                 {canViewVehicleDetails(row.status, userRole) && (
                     <CommonButton
                         variant="secondary"

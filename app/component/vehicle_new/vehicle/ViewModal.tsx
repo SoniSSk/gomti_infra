@@ -362,7 +362,7 @@ const ViewModal = ({
     onClose,
     onEdit,
 }: ViewModalProps) => {
-    // Dispatched vehicles: super admin only
+    // Dispatched vehicles: admins and super admins only
     if (
         !isOpen ||
         !vehicle ||

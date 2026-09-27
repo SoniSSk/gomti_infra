@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import clientPromise from "@/app/lib/mongodb";
+import getMongoClient from "@/app/lib/mongodb";
 import { auth } from "@/auth";
 import {
   canAddVehicle,
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
     const dateFilter = searchParams.get("dateFilter") || "today";
     const customDate = searchParams.get("date");
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db(DB_NAME);
 
     let query: any = {};
@@ -372,7 +372,7 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("gomti_infra");
 
     const result = await db.collection("vehicles").insertOne({

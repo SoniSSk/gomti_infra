@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { UAParser } from "ua-parser-js";
-import clientPromise from "@/app/lib/mongodb";
+import getMongoClient from "@/app/lib/mongodb";
 import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -26,7 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const client = await clientPromise;
+        const client = await getMongoClient();
         const db = client.db("gomti_infra");
         const normalizedEmail = email.trim().toLowerCase();
 

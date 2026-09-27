@@ -16,6 +16,7 @@ import EditModal from "./EditModal";
 
 import { Vehicle } from "@/app/types/vehicle";
 import { Vehicle_new } from "@/app/types/vehicle_new";
+import { fetchJson } from "@/app/lib/fetchJson";
 
 /* =========================================================
    VEHICLE STATS
@@ -382,16 +383,14 @@ const [retryKey, setRetryKey] =
                     setError(null);
                 }
 
-                const response = await fetch(
-                    "/api/vehicles/stats",
-                    {
-                        method: "GET",
-                        cache: "no-store",
-                    },
-                );
-
-                const result: VehicleStatsResponse =
-                    await response.json();
+                const { response, data: result } =
+                    await fetchJson<VehicleStatsResponse>(
+                        "/api/vehicles/stats",
+                        {
+                            method: "GET",
+                            cache: "no-store",
+                        },
+                    );
 
                 if (!response.ok) {
                     throw new Error(

@@ -5,7 +5,7 @@ import {
   canEditVehicles,
   canModifyVehicle,
 } from "@/app/utils/vehiclePermissions";
-import clientPromise from "../../../lib/mongodb";
+import getMongoClient from "../../../lib/mongodb";
 
 /** Customers and employees can only view vehicles, never change them. */
 async function rejectIfNoEditAccess() {
@@ -95,7 +95,7 @@ export async function PUT(
       ...updateData
     } = body;
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("gomti_infra");
 
     const locked = await rejectIfLocked(db, vehicleSno);
@@ -178,7 +178,7 @@ export async function DELETE(
       );
     }
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("gomti_infra");
 
     const locked = await rejectIfLocked(db, vehicleSno);

@@ -26,6 +26,7 @@ import { vehicleColumns, vehicleExportColumns } from "./TableColumn";
 
 import PulseDot from "../../common/PulseDot";
 import { useAutoRefresh } from "@/app/hooks/useAutoRefresh";
+import { fetchJson } from "@/app/lib/fetchJson";
 import { getStoredUserRole, isReadOnlyRole } from "@/app/utils/vehiclePermissions";
 
 /* =========================================================
@@ -480,22 +481,23 @@ export default function Test({
                     url,
                 );
 
-                const response =
-                    await fetch(url, {
-                        method: "GET",
-                        cache: "no-store",
-                        signal:
-                            controller.signal,
-                    });
+                const {
+                    response,
+                    data: result,
+                } = await fetchJson<{
+                    vehicles?: Vehicle_new[];
+                }>(url, {
+                    method: "GET",
+                    cache: "no-store",
+                    signal:
+                        controller.signal,
+                });
 
                 if (!response.ok) {
                     throw new Error(
                         "Failed to fetch vehicles",
                     );
                 }
-
-                const result =
-                    await response.json();
 
                 const fetchedVehicles:
                     Vehicle_new[] =
@@ -926,16 +928,22 @@ export default function Test({
                         url,
                     );
 
-                    const response =
-                        await fetch(
-                            url,
-                            {
-                                method:
-                                    "GET",
-                                cache:
-                                    "no-store",
-                            },
-                        );
+                    // Times out so a stalled request can't
+                    // hold inFlightRef and stop auto refresh
+                    const {
+                        response,
+                        data: result,
+                    } = await fetchJson<{
+                        vehicles?: Vehicle_new[];
+                    }>(
+                        url,
+                        {
+                            method:
+                                "GET",
+                            cache:
+                                "no-store",
+                        },
+                    );
 
                     if (
                         !response.ok
@@ -944,9 +952,6 @@ export default function Test({
                             "Failed to refresh vehicles",
                         );
                     }
-
-                    const result =
-                        await response.json();
 
                     if (
                         requestId !==

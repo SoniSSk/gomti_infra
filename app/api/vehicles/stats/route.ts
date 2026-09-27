@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/app/lib/mongodb";
+import getMongoClient from "@/app/lib/mongodb";
 import { auth } from "@/auth";
 import { customerVehicleFilter } from "@/app/utils/vehiclePermissions";
 
@@ -157,6 +157,15 @@ const getTodayIST = () => {
    This avoids dependency on Vercel/server timezone.
 ============================================================ */
 
+// Built once: constructing Intl.DateTimeFormat is slow, and
+// isToday runs several times per vehicle.
+const IST_DATE_FORMAT = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 const isToday = (value?: string | Date | null): boolean => {
   if (!value) {
     return false;
@@ -166,12 +175,7 @@ const isToday = (value?: string | Date | null): boolean => {
      TODAY IN IST
   ========================================================== */
 
-  const todayIST = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const todayIST = IST_DATE_FORMAT.format(new Date());
 
   let date: Date;
 
@@ -259,12 +263,7 @@ const isToday = (value?: string | Date | null): boolean => {
      Never use server timezone here.
   ========================================================== */
 
-  const dateIST = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  const dateIST = IST_DATE_FORMAT.format(date);
 
   /* ==========================================================
      COMPARE
@@ -296,16 +295,6 @@ const isTodayCreatedVehicle = (vehicle: VehicleDocument): boolean => {
 };
 
 /* ============================================================
-   PREVIOUS VEHICLE
-
-   createdAt NOT today
-============================================================ */
-
-const isPreviousVehicle = (vehicle: VehicleDocument): boolean => {
-  return !isToday(vehicle.createdAt);
-};
-
-/* ============================================================
    EMPTY STATUS COUNTS
 ============================================================ */
 
@@ -322,33 +311,6 @@ const createEmptyStatusCounts = () => ({
   INVOICE_GENERATING: 0,
   NOT_REGISTERED: 0,
   DISPATCH_DONE: 0,
-});
-
-/* ============================================================
-   STATUS VEHICLE MAP
-============================================================ */
-
-type StatusVehicleMap = {
-  [key in (typeof VEHICLE_STATUSES)[number]]: VehicleDocument[];
-};
-
-/* ============================================================
-   EMPTY STATUS VEHICLE MAP
-============================================================ */
-
-const createEmptyStatusVehicles = (): StatusVehicleMap => ({
-  WAITING_FOR_DETAILS: [],
-  ENTRY_DONE: [],
-  LOADING_STARTED: [],
-  LOADING_DONE: [],
-  LOADING_SLIP_SENT: [],
-  ETP_GENERATING: [],
-  ETP_DONE: [],
-  ETP_INVOICE_DONE: [],
-  INVOICE_GENERATING: [],
-  NOT_REGISTERED: [],
-  DISPATCH_DONE: [],
-  ON_HOLD: [],
 });
 
 /* ============================================================
@@ -378,29 +340,40 @@ export async function GET() {
        MONGODB CONNECTION
     ======================================================== */
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
 
     const db = client.db(DB_NAME);
 
     const collection = db.collection<VehicleDocument>(COLLECTION_NAME);
 
     /* ========================================================
-       GET ALL VEHICLES
+       LOAD VEHICLES
 
        Customers only see vehicles where they are the buyer.
+
+       Counting needs only three fields, so the full documents
+       (documents, tracking history, ...) are not loaded for
+       every vehicle. Only alert vehicles are sent in full,
+       since they open in the view / edit modals.
     ======================================================== */
 
     const session = await auth();
 
-    const rawVehicles = await collection
-      .find(customerVehicleFilter(session?.user?.role))
-      .toArray();
+    const customerFilter = customerVehicleFilter(session?.user?.role);
 
-    /* ========================================================
-       SERIALIZE VEHICLES
-    ======================================================== */
+    const [vehicles, rawAlertVehicles] = await Promise.all([
+      collection
+        .find(customerFilter, {
+          projection: { _id: 0, status: 1, createdAt: 1, outTime: 1 },
+        })
+        .toArray(),
 
-    const vehicles = rawVehicles.map(serializeVehicle);
+      collection
+        .find({
+          $and: [customerFilter, { status: { $in: [...ALERT_STATUSES] } }],
+        })
+        .toArray(),
+    ]);
 
     /* ========================================================
        TOTAL VEHICLES
@@ -409,33 +382,12 @@ export async function GET() {
     const totalVehicles = vehicles.length;
 
     /* ========================================================
-       TODAY VEHICLES
+       TODAY / PREVIOUS / PREVIOUS PENDING
 
-       ONLY createdAt = TODAY IST
-    ======================================================== */
+       today    = createdAt TODAY IST
+       previous = createdAt NOT today
 
-    const todayVehicleList = vehicles.filter((vehicle) =>
-      isTodayCreatedVehicle(vehicle),
-    );
-
-    const todayVehicles = todayVehicleList.length;
-
-    /* ========================================================
-       PREVIOUS VEHICLES
-
-       createdAt != TODAY IST
-    ======================================================== */
-
-    const previousVehicleList = vehicles.filter((vehicle) =>
-      isPreviousVehicle(vehicle),
-    );
-
-    const previousVehicleCount = previousVehicleList.length;
-
-    /* ========================================================
-       PREVIOUS PENDING VEHICLES
-
-       Previous vehicle AND
+       previous pending = previous vehicle AND
 
        (
          status != DISPATCH_DONE
@@ -444,19 +396,11 @@ export async function GET() {
        )
     ======================================================== */
 
-    const previousPendingVehicleList = previousVehicleList.filter((vehicle) => {
-      const isPreviousPending =
-        vehicle.status !== "DISPATCH_DONE" || !vehicle.outTime;
+    let todayVehicles = 0;
 
-      const isPreviousDispatchedOutToday =
-        vehicle.status === "DISPATCH_DONE" &&
-        !!vehicle.outTime &&
-        isToday(vehicle.outTime);
+    let previousVehicleCount = 0;
 
-      return isPreviousPending || isPreviousDispatchedOutToday;
-    });
-
-    const previousPendingVehicles = previousPendingVehicleList.length;
+    let previousPendingVehicles = 0;
 
     /* ========================================================
        STATUS COUNTS
@@ -465,17 +409,29 @@ export async function GET() {
     const status = createEmptyStatusCounts();
 
     /* ========================================================
-       STATUS VEHICLE LISTS
-    ======================================================== */
-
-    const statusVehicles = createEmptyStatusVehicles();
-
-    /* ========================================================
        LOOP ALL VEHICLES
     ======================================================== */
 
     vehicles.forEach((vehicle) => {
       const currentStatus = vehicle.status;
+
+      const outToday = !!vehicle.outTime && isToday(vehicle.outTime);
+
+      if (isTodayCreatedVehicle(vehicle)) {
+        todayVehicles++;
+      } else {
+        previousVehicleCount++;
+
+        const isPreviousPending =
+          currentStatus !== "DISPATCH_DONE" || !vehicle.outTime;
+
+        const isPreviousDispatchedOutToday =
+          currentStatus === "DISPATCH_DONE" && outToday;
+
+        if (isPreviousPending || isPreviousDispatchedOutToday) {
+          previousPendingVehicles++;
+        }
+      }
 
       /* ======================================================
          INVALID / UNKNOWN STATUS
@@ -493,36 +449,15 @@ export async function GET() {
       /* ======================================================
          DISPATCH DONE
 
-         VERY IMPORTANT:
-
-         ONLY COUNT IF:
-
-         status = DISPATCH_DONE
-
-         AND
-
-         outTime = TODAY IST
-      ====================================================== */
-
-      if (
-        currentStatus === "DISPATCH_DONE" &&
-        vehicle.outTime &&
-        isToday(vehicle.outTime)
-      ) {
-        status.DISPATCH_DONE++;
-
-        statusVehicles.DISPATCH_DONE.push(vehicle);
-
-        return;
-      }
-
-      /* ======================================================
-         DISPATCH DONE BUT OLD DATE
-
-         Do NOT count it in today's dispatch.
+         ONLY COUNT IF outTime = TODAY IST.
+         Older dispatches are not today's dispatch.
       ====================================================== */
 
       if (currentStatus === "DISPATCH_DONE") {
+        if (outToday) {
+          status.DISPATCH_DONE++;
+        }
+
         return;
       }
 
@@ -531,205 +466,28 @@ export async function GET() {
       ====================================================== */
 
       status[currentStatus as keyof typeof status]++;
-
-      statusVehicles[currentStatus as keyof StatusVehicleMap].push(vehicle);
     });
 
     /* ========================================================
        ALERT VEHICLES
     ======================================================== */
 
-    const alertVehicles = vehicles.filter((vehicle) =>
-      ALERT_STATUSES.includes(
-        vehicle.status as (typeof ALERT_STATUSES)[number],
-      ),
-    );
-
-    /* ========================================================
-       ALERT COUNTS
-    ======================================================== */
+    const alertVehicles = rawAlertVehicles.map(serializeVehicle);
 
     const alertCounts = {
-      ON_HOLD: statusVehicles.ON_HOLD.length,
+      ON_HOLD: status.ON_HOLD,
 
-      ETP_GENERATING: statusVehicles.ETP_GENERATING.length,
+      ETP_GENERATING: status.ETP_GENERATING,
 
-      ETP_DONE: statusVehicles.ETP_DONE.length,
+      ETP_DONE: status.ETP_DONE,
 
-      LOADING_SLIP_SENT: statusVehicles.LOADING_SLIP_SENT.length,
+      LOADING_SLIP_SENT: status.LOADING_SLIP_SENT,
 
-      INVOICE_GENERATING: statusVehicles.INVOICE_GENERATING.length,
+      INVOICE_GENERATING: status.INVOICE_GENERATING,
 
-      NOT_REGISTERED: statusVehicles.NOT_REGISTERED.length,
+      NOT_REGISTERED: status.NOT_REGISTERED,
 
-      ETP_INVOICE_DONE: statusVehicles.ETP_INVOICE_DONE.length,
-    };
-
-    /* ========================================================
-       SEGREGATION
-
-       Every category contains:
-
-       count
-       vehicles
-    ======================================================== */
-
-    const segregation = {
-      /* ======================================================
-         TODAY
-      ====================================================== */
-
-      today: {
-        count: todayVehicleList.length,
-
-        vehicles: todayVehicleList,
-      },
-
-      /* ======================================================
-         PREVIOUS
-      ====================================================== */
-
-      previous: {
-        count: previousVehicleList.length,
-
-        vehicles: previousVehicleList,
-      },
-
-      /* ======================================================
-         PREVIOUS PENDING
-      ====================================================== */
-
-      previousPending: {
-        count: previousPendingVehicleList.length,
-
-        vehicles: previousPendingVehicleList,
-      },
-
-      /* ======================================================
-         WAITING FOR DETAILS
-      ====================================================== */
-
-      waitingForDetails: {
-        count: statusVehicles.WAITING_FOR_DETAILS.length,
-
-        vehicles: statusVehicles.WAITING_FOR_DETAILS,
-      },
-
-      /* ======================================================
-         ENTRY DONE
-      ====================================================== */
-
-      entryDone: {
-        count: statusVehicles.ENTRY_DONE.length,
-
-        vehicles: statusVehicles.ENTRY_DONE,
-      },
-
-      /* ======================================================
-         LOADING STARTED
-      ====================================================== */
-
-      loadingStarted: {
-        count: statusVehicles.LOADING_STARTED.length,
-
-        vehicles: statusVehicles.LOADING_STARTED,
-      },
-
-      /* ======================================================
-         LOADING DONE
-      ====================================================== */
-
-      loadingDone: {
-        count: statusVehicles.LOADING_DONE.length,
-
-        vehicles: statusVehicles.LOADING_DONE,
-      },
-
-      /* ======================================================
-         LOADING SLIP SENT
-      ====================================================== */
-
-      loadingSlipSent: {
-        count: statusVehicles.LOADING_SLIP_SENT.length,
-
-        vehicles: statusVehicles.LOADING_SLIP_SENT,
-      },
-
-      /* ======================================================
-         ON HOLD
-      ====================================================== */
-
-      onHold: {
-        count: statusVehicles.ON_HOLD.length,
-
-        vehicles: statusVehicles.ON_HOLD,
-      },
-
-      /* ======================================================
-         ETP GENERATING
-      ====================================================== */
-
-      etpGenerating: {
-        count: statusVehicles.ETP_GENERATING.length,
-
-        vehicles: statusVehicles.ETP_GENERATING,
-      },
-
-      /* ======================================================
-         ETP DONE
-      ====================================================== */
-
-      etpDone: {
-        count: statusVehicles.ETP_DONE.length,
-
-        vehicles: statusVehicles.ETP_DONE,
-      },
-
-      /* ======================================================
-         ETP + INVOICE DONE
-      ====================================================== */
-
-      etpInvoiceDone: {
-        count: statusVehicles.ETP_INVOICE_DONE.length,
-
-        vehicles: statusVehicles.ETP_INVOICE_DONE,
-      },
-
-      /* ======================================================
-         INVOICE GENERATING
-      ====================================================== */
-
-      invoiceGenerating: {
-        count: statusVehicles.INVOICE_GENERATING.length,
-
-        vehicles: statusVehicles.INVOICE_GENERATING,
-      },
-
-      /* ======================================================
-         NOT REGISTERED
-      ====================================================== */
-
-      notRegistered: {
-        count: statusVehicles.NOT_REGISTERED.length,
-
-        vehicles: statusVehicles.NOT_REGISTERED,
-      },
-
-      /* ======================================================
-         DISPATCHED
-
-         ONLY:
-
-         status = DISPATCH_DONE
-         AND
-         outTime = TODAY IST
-      ====================================================== */
-
-      dispatched: {
-        count: statusVehicles.DISPATCH_DONE.length,
-
-        vehicles: statusVehicles.DISPATCH_DONE,
-      },
+      ETP_INVOICE_DONE: status.ETP_INVOICE_DONE,
     };
 
     /* ========================================================
@@ -742,12 +500,6 @@ export async function GET() {
       date: getTodayIST(),
 
       timezone: "Asia/Kolkata",
-
-      /* ======================================================
-         MAIN COUNTS
-
-         Existing structure maintained.
-      ====================================================== */
 
       counts: {
         /* -----------------------------------------------
@@ -808,18 +560,6 @@ export async function GET() {
 
         status,
       },
-
-      /* ======================================================
-         NEW SEGREGATED VEHICLE DATA
-      ====================================================== */
-
-      segregation,
-
-      /* ======================================================
-         STATUS VEHICLES
-      ====================================================== */
-
-      statusVehicles,
 
       /* ======================================================
          ALERT VEHICLES
@@ -885,93 +625,6 @@ export async function GET() {
 
           status: createEmptyStatusCounts(),
         },
-
-        /* ====================================================
-           EMPTY SEGREGATION
-        ==================================================== */
-
-        segregation: {
-          today: {
-            count: 0,
-            vehicles: [],
-          },
-
-          previous: {
-            count: 0,
-            vehicles: [],
-          },
-
-          previousPending: {
-            count: 0,
-            vehicles: [],
-          },
-
-          waitingForDetails: {
-            count: 0,
-            vehicles: [],
-          },
-
-          entryDone: {
-            count: 0,
-            vehicles: [],
-          },
-
-          loadingStarted: {
-            count: 0,
-            vehicles: [],
-          },
-
-          loadingDone: {
-            count: 0,
-            vehicles: [],
-          },
-
-          loadingSlipSent: {
-            count: 0,
-            vehicles: [],
-          },
-
-          onHold: {
-            count: 0,
-            vehicles: [],
-          },
-
-          etpGenerating: {
-            count: 0,
-            vehicles: [],
-          },
-
-          etpDone: {
-            count: 0,
-            vehicles: [],
-          },
-
-          etpInvoiceDone: {
-            count: 0,
-            vehicles: [],
-          },
-
-          invoiceGenerating: {
-            count: 0,
-            vehicles: [],
-          },
-
-          notRegistered: {
-            count: 0,
-            vehicles: [],
-          },
-
-          dispatched: {
-            count: 0,
-            vehicles: [],
-          },
-        },
-
-        /* ====================================================
-           EMPTY STATUS VEHICLES
-        ==================================================== */
-
-        statusVehicles: createEmptyStatusVehicles(),
 
         /* ====================================================
            EMPTY ALERT DATA

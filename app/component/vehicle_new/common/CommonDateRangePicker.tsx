@@ -1,11 +1,15 @@
 "use client";
 
 import React, {
+    useCallback,
     useEffect,
     useId,
+    useLayoutEffect,
     useRef,
     useState,
+    useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 import { CalendarRange, ChevronDown } from "lucide-react";
 
 import CommonButton from "./CommonButton";
@@ -104,6 +108,82 @@ const PRESETS: Preset[] = [
 ];
 
 /* =========================================================
+   POPOVER PLACEMENT
+
+   Width alone doesn't say "desktop": an unfolded foldable is
+   wider than `sm` but can be short, and the table card clips
+   anything absolutely positioned inside it. So the popover is
+   portalled to <body>, placed from the trigger's on-screen
+   rect and kept inside the viewport.
+========================================================= */
+
+// Below this width (Tailwind `sm`) always use the centered sheet
+const ANCHOR_MIN_WIDTH = 640;
+const POPOVER_WIDTH = 320;
+const GAP = 8;
+const GUTTER = 16;
+
+type Placement =
+    | { mode: "sheet" }
+    | {
+          mode: "anchored";
+          left: number;
+          width: number;
+          maxHeight: number;
+          top?: number;
+          bottom?: number;
+      };
+
+const computePlacement = (
+    trigger: HTMLElement,
+    popover: HTMLElement,
+): Placement => {
+    const viewportWidth = document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight;
+
+    if (viewportWidth < ANCHOR_MIN_WIDTH) {
+        return { mode: "sheet" };
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    const width = Math.min(POPOVER_WIDTH, viewportWidth - GUTTER * 2);
+
+    const left = Math.min(
+        Math.max(rect.left, GUTTER),
+        viewportWidth - GUTTER - width,
+    );
+
+    const spaceBelow = viewportHeight - rect.bottom - GAP - GUTTER;
+    const spaceAbove = rect.top - GAP - GUTTER;
+    const height = popover.scrollHeight;
+
+    // Fits neither side (e.g. half-folded): center it instead
+    if (height > Math.max(spaceBelow, spaceAbove)) {
+        return { mode: "sheet" };
+    }
+
+    if (height <= spaceBelow || spaceBelow >= spaceAbove) {
+        return {
+            mode: "anchored",
+            left,
+            width,
+            top: rect.bottom + GAP,
+            maxHeight: spaceBelow,
+        };
+    }
+
+    return {
+        mode: "anchored",
+        left,
+        width,
+        bottom: viewportHeight - rect.top + GAP,
+        maxHeight: spaceAbove,
+    };
+};
+
+const subscribeNoop = () => () => {};
+
+/* =========================================================
    COMPONENT
 ========================================================= */
 
@@ -137,13 +217,27 @@ export default function CommonDateRangePicker({
     const [draftEnd, setDraftEnd] = useState(endDate);
 
     const rootRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
     const id = useId();
+
+    // null until measured; the popover renders hidden until then
+    const [placement, setPlacement] = useState<Placement | null>(null);
+
+    // Portals need document, which the server render doesn't have
+    const isClient = useSyncExternalStore(
+        subscribeNoop,
+        () => true,
+        () => false,
+    );
 
     const max = maxDate ?? toISODate(new Date());
 
     const openPopover = () => {
         setDraftStart(startDate);
         setDraftEnd(endDate);
+        // Re-measure: the trigger or viewport may have moved
+        setPlacement(null);
         setOpen(true);
     };
 
@@ -153,7 +247,13 @@ export default function CommonDateRangePicker({
         }
 
         const handleOutside = (event: MouseEvent) => {
-            if (!rootRef.current?.contains(event.target as Node)) {
+            const target = event.target as Node;
+
+            // The popover is portalled, so it isn't inside rootRef
+            if (
+                !rootRef.current?.contains(target) &&
+                !popoverRef.current?.contains(target)
+            ) {
                 setOpen(false);
             }
         };
@@ -172,6 +272,42 @@ export default function CommonDateRangePicker({
             document.removeEventListener("keydown", handleEscape);
         };
     }, [open]);
+
+    const updatePlacement = useCallback(() => {
+        if (triggerRef.current && popoverRef.current) {
+            setPlacement(
+                computePlacement(triggerRef.current, popoverRef.current),
+            );
+        }
+    }, []);
+
+    // Measure before paint, then follow resizes (incl. fold /
+    // unfold and rotation) and scrolling of any ancestor.
+    useLayoutEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        updatePlacement();
+
+        let frame = 0;
+
+        const schedule = () => {
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(updatePlacement);
+        };
+
+        window.addEventListener("resize", schedule);
+        window.addEventListener("scroll", schedule, true);
+        window.visualViewport?.addEventListener("resize", schedule);
+
+        return () => {
+            cancelAnimationFrame(frame);
+            window.removeEventListener("resize", schedule);
+            window.removeEventListener("scroll", schedule, true);
+            window.visualViewport?.removeEventListener("resize", schedule);
+        };
+    }, [open, updatePlacement]);
 
     // Keep start <= end by moving the other edge.
     const handleDraftStart = (value: string) => {
@@ -203,6 +339,7 @@ export default function CommonDateRangePicker({
             className={`relative w-full sm:w-auto ${className}`}
         >
             <button
+                ref={triggerRef}
                 type="button"
                 onClick={() => (open ? setOpen(false) : openPopover())}
                 aria-haspopup="dialog"
@@ -222,21 +359,39 @@ export default function CommonDateRangePicker({
                 />
             </button>
 
-            {open && (
+            {open && isClient && createPortal(
                 <>
-                {/* Phones: dimmed backdrop behind the centered sheet */}
-                <div
-                    aria-hidden="true"
-                    onClick={() => setOpen(false)}
-                    className="fixed inset-0 z-40 bg-gray-900/20 sm:hidden"
-                />
+                {/* Sheet mode: dimmed backdrop behind the centered sheet */}
+                {placement?.mode === "sheet" && (
+                    <div
+                        aria-hidden="true"
+                        onClick={() => setOpen(false)}
+                        className="fixed inset-0 z-40 bg-gray-900/20"
+                    />
+                )}
 
-                {/* Phones: fixed and centered so it never leaves the viewport
-                    (or gets clipped by the table card). sm+: anchored dropdown. */}
+                {/* Sheet (narrow or short screens): fixed and centered.
+                    Anchored: fixed at the trigger, clamped to the viewport. */}
                 <div
+                    ref={popoverRef}
                     role="dialog"
                     aria-label="Choose date range"
-                    className="fixed inset-x-4 top-1/2 z-50 max-h-[calc(100dvh-2rem)] -translate-y-1/2 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-lg sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:z-30 sm:mt-2 sm:max-h-none sm:w-80 sm:translate-y-0 sm:overflow-visible"
+                    style={
+                        placement?.mode === "anchored"
+                            ? {
+                                  left: placement.left,
+                                  width: placement.width,
+                                  top: placement.top,
+                                  bottom: placement.bottom,
+                                  maxHeight: placement.maxHeight,
+                              }
+                            : undefined
+                    }
+                    className={`fixed z-50 overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-4 shadow-lg ${
+                        placement?.mode === "anchored"
+                            ? ""
+                            : "inset-x-4 top-1/2 mx-auto max-h-[calc(100dvh-2rem)] max-w-sm -translate-y-1/2"
+                    } ${placement ? "" : "invisible"}`}
                 >
                     <div className="flex flex-wrap gap-1.5">
                         {PRESETS.map((preset) => (
@@ -308,7 +463,8 @@ export default function CommonDateRangePicker({
                         </CommonButton>
                     </div>
                 </div>
-                </>
+                </>,
+                document.body,
             )}
         </div>
     );

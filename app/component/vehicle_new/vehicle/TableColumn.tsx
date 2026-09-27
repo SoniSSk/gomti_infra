@@ -10,6 +10,7 @@ import { getLastStatusChange } from "@/app/utils/lastStatusChange";
 import {
     canModifyVehicle,
     canViewVehicle,
+    canViewVehicleDetails,
     getStoredUserRole,
 } from "@/app/utils/vehiclePermissions";
 
@@ -243,12 +244,12 @@ export const vehicleColumns = ({
        Customers (welspun, evonith, shreecement):
        - No actions (they only get their own vehicles)
 
-       Employees:
+       Employees / admins / super admins:
        - View
+       - Edit
 
-       Admins / super admins:
-       - View
-       - Edit (dispatched vehicles: super admin only)
+       Dispatched vehicles: no actions, except for a
+       super admin.
     ===================================================== */
 
     if (!canViewVehicle(userRole)) {
@@ -267,22 +268,25 @@ export const vehicleColumns = ({
                     event.stopPropagation();
                 }}
             >
-                <CommonButton
-                    variant="secondary"
-                    size="sm"
-                    icon={Eye}
-                    aria-label="View"
-                    title="View"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onView?.(row);
-                    }}
-                >
-                    {/* Icon-only on phones to keep the row narrow */}
-                    <span className="hidden sm:inline">View</span>
-                </CommonButton>
+                {/* Dispatched vehicles: super admin only */}
+                {canViewVehicleDetails(row.status, userRole) && (
+                    <CommonButton
+                        variant="secondary"
+                        size="sm"
+                        icon={Eye}
+                        aria-label="View"
+                        title="View"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onView?.(row);
+                        }}
+                    >
+                        {/* Icon-only on phones to keep the row narrow */}
+                        <span className="hidden sm:inline">View</span>
+                    </CommonButton>
+                )}
 
-                {/* Employees can't edit; dispatched vehicles: super admin only */}
+                {/* Dispatched vehicles: super admin only */}
                 {canModifyVehicle(row.status, userRole) && (
                     <CommonButton
                         variant="secondary"

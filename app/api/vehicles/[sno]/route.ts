@@ -2,16 +2,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import {
+  canDeleteVehicles,
   canEditVehicles,
   canModifyVehicle,
 } from "@/app/utils/vehiclePermissions";
 import getMongoClient from "../../../lib/mongodb";
 
-/** Customers and employees can only view vehicles, never change them. */
-async function rejectIfNoEditAccess() {
+/** Customers can't change vehicles; employees can edit but not delete. */
+async function rejectIfNoAccess(
+  hasAccess: (role?: string | null) => boolean,
+) {
   const session = await auth();
 
-  if (canEditVehicles(session?.user?.role)) {
+  if (hasAccess(session?.user?.role)) {
     return null;
   }
 
@@ -54,7 +57,7 @@ export async function PUT(
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
-    const forbidden = await rejectIfNoEditAccess();
+    const forbidden = await rejectIfNoAccess(canEditVehicles);
     if (forbidden) {
       return forbidden;
     }
@@ -159,7 +162,7 @@ export async function DELETE(
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
-    const forbidden = await rejectIfNoEditAccess();
+    const forbidden = await rejectIfNoAccess(canDeleteVehicles);
     if (forbidden) {
       return forbidden;
     }

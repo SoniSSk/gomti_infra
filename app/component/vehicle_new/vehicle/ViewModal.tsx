@@ -20,7 +20,11 @@ import {
 import { Vehicle_new } from "@/app/types/vehicle_new";
 import { normalizeVehicle } from "@/app/utils/vehicleMapper";
 import { getLastStatusChange } from "@/app/utils/lastStatusChange";
-import { canModifyVehicle, getStoredUserRole } from "@/app/utils/vehiclePermissions";
+import {
+    canModifyVehicle,
+    canViewVehicleDetails,
+    getStoredUserRole,
+} from "@/app/utils/vehiclePermissions";
 
 import CommonButton from "../common/CommonButton";
 import CommonFileUpload from "../common/CommonFileUpload";
@@ -358,7 +362,12 @@ const ViewModal = ({
     onClose,
     onEdit,
 }: ViewModalProps) => {
-    if (!isOpen || !vehicle) {
+    // Dispatched vehicles: super admin only
+    if (
+        !isOpen ||
+        !vehicle ||
+        !canViewVehicleDetails(vehicle.status, getStoredUserRole())
+    ) {
         return null;
     }
 

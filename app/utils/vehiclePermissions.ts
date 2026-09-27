@@ -30,9 +30,28 @@ export const isReadOnlyRole = (role?: string | null): boolean =>
 export const canViewVehicle = (role?: string | null): boolean =>
     !isReadOnlyRole(role);
 
-/** Customers and employees can't edit or delete vehicles. */
+/** Everyone except customers can edit vehicles, employees included. */
 export const canEditVehicles = (role?: string | null): boolean =>
-    !isReadOnlyRole(role) && normalizeRole(role) !== "employee";
+    !isReadOnlyRole(role);
+
+/** Customers and employees can't delete vehicles. */
+export const canDeleteVehicles = (role?: string | null): boolean =>
+    canEditVehicles(role) && normalizeRole(role) !== "employee";
+
+/** Dispatched vehicles are locked for everyone but a super admin. */
+const isUnlocked = (
+    status: VehicleStatus | string | undefined,
+    role?: string | null,
+): boolean => status !== "DISPATCH_DONE" || isSuperAdminRole(role);
+
+/**
+ * Can open this vehicle's View modal. Once dispatched,
+ * only a super admin can.
+ */
+export const canViewVehicleDetails = (
+    status: VehicleStatus | string | undefined,
+    role?: string | null,
+): boolean => canViewVehicle(role) && isUnlocked(status, role);
 
 /** Customer role -> the buyer name stored on their vehicles. */
 const CUSTOMER_BUYERS: Record<string, string> = {
@@ -64,6 +83,4 @@ export const customerVehicleFilter = (role?: string | null) => {
 export const canModifyVehicle = (
     status: VehicleStatus | string | undefined,
     role?: string | null,
-): boolean =>
-    canEditVehicles(role) &&
-    (status !== "DISPATCH_DONE" || isSuperAdminRole(role));
+): boolean => canEditVehicles(role) && isUnlocked(status, role);

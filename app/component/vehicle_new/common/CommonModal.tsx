@@ -30,11 +30,21 @@ const SIZE_CLASS = {
     full: "sm:max-w-[96vw]",
 } as const;
 
+/* Large modals (forms, details, previews) take the whole screen on phones. */
+const PHONE_FULLSCREEN = new Set<CommonModalProps["size"]>(["xl", "full"]);
+
 /*
  * Stack of open modals so Escape / scroll-lock only affect the
  * top-most one (e.g. a file preview opened from Vehicle Details).
  */
 const openModals: symbol[] = [];
+
+/*
+ * Body overflow before the first modal opened. Saved once for the whole
+ * stack: a modal opened on top of another would otherwise save "hidden"
+ * and, if it closed last, leave the page unable to scroll.
+ */
+let overflowBeforeModals = "";
 
 const CommonModal: React.FC<CommonModalProps> = ({
     isOpen,
@@ -62,6 +72,12 @@ const CommonModal: React.FC<CommonModalProps> = ({
         if (!isOpen) return;
 
         const token = Symbol("modal");
+
+        if (openModals.length === 0) {
+            overflowBeforeModals = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+        }
+
         openModals.push(token);
 
         const isTop = () => openModals[openModals.length - 1] === token;
@@ -75,9 +91,6 @@ const CommonModal: React.FC<CommonModalProps> = ({
 
         document.addEventListener("keydown", handleEscape);
 
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-
         const previouslyFocused = document.activeElement as HTMLElement | null;
         dialogRef.current?.focus();
 
@@ -86,7 +99,7 @@ const CommonModal: React.FC<CommonModalProps> = ({
             openModals.splice(openModals.indexOf(token), 1);
 
             if (openModals.length === 0) {
-                document.body.style.overflow = previousOverflow;
+                document.body.style.overflow = overflowBeforeModals;
             }
 
             previouslyFocused?.focus?.();
@@ -96,6 +109,7 @@ const CommonModal: React.FC<CommonModalProps> = ({
     if (!isOpen || typeof document === "undefined") return null;
 
     const hasHeader = title || description || headerActions || showCloseButton;
+    const fullscreenOnPhone = PHONE_FULLSCREEN.has(size);
 
     return createPortal(
         <div
@@ -129,7 +143,7 @@ const CommonModal: React.FC<CommonModalProps> = ({
                 tabIndex={-1}
                 className={`
                     flex
-                    max-h-[92vh]
+                    max-h-[92dvh]
                     w-full
                     flex-col
                     overflow-hidden
@@ -139,8 +153,9 @@ const CommonModal: React.FC<CommonModalProps> = ({
                     ring-1
                     ring-black/5
                     outline-none
-                    sm:max-h-[90vh]
+                    sm:max-h-[90dvh]
                     sm:rounded-2xl
+                    ${fullscreenOnPhone ? "max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:rounded-none max-sm:ring-0" : ""}
                     ${SIZE_CLASS[size]}
                     ${className}
                 `}
@@ -148,12 +163,12 @@ const CommonModal: React.FC<CommonModalProps> = ({
                 {/* ================= HEADER ================= */}
 
                 {hasHeader && (
-                    <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-6">
+                    <div className={`flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:gap-4 sm:px-6 sm:py-4 ${fullscreenOnPhone ? "max-sm:pt-[max(0.75rem,env(safe-area-inset-top))]" : ""}`}>
                         <div className="min-w-0 flex-1">
                             {title && (
                                 <h2
                                     id={titleId}
-                                    className="truncate text-lg font-semibold text-gray-900"
+                                    className="truncate text-base font-semibold text-gray-900 sm:text-lg"
                                 >
                                     {title}
                                 </h2>
@@ -162,14 +177,14 @@ const CommonModal: React.FC<CommonModalProps> = ({
                             {description && (
                                 <div
                                     id={descriptionId}
-                                    className="mt-0.5 text-sm text-gray-500"
+                                    className="mt-0.5 break-words text-sm text-gray-500"
                                 >
                                     {description}
                                 </div>
                             )}
                         </div>
 
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                             {headerActions}
 
                             {showCloseButton && (
@@ -194,7 +209,7 @@ const CommonModal: React.FC<CommonModalProps> = ({
                 {/* ================= FOOTER ================= */}
 
                 {footer && (
-                    <div className="shrink-0 border-t border-gray-200 bg-gray-50 px-5 py-3 sm:px-6">
+                    <div className="shrink-0 border-t border-gray-200 bg-gray-50 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-3">
                         {footer}
                     </div>
                 )}

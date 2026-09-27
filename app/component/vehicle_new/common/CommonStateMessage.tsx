@@ -31,7 +31,7 @@ const CommonStateMessage = ({
 }: CommonStateMessageProps) => (
     <div
         role={tone === "danger" ? "alert" : undefined}
-        className={`flex flex-col items-center justify-center text-center ${className}`}
+        className={`flex min-w-0 flex-col items-center justify-center text-center ${className}`}
     >
         {Icon && (
             <div
@@ -41,17 +41,17 @@ const CommonStateMessage = ({
             </div>
         )}
 
-        <p className="text-sm font-semibold text-gray-700">
+        <p className="max-w-full break-words text-sm font-semibold text-gray-700">
             {title}
         </p>
 
         {description && (
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 max-w-full break-words text-xs text-gray-400">
                 {description}
             </p>
         )}
 
-        {action && <div className="mt-3">{action}</div>}
+        {action && <div className="mt-3 flex max-w-full flex-wrap justify-center gap-2">{action}</div>}
     </div>
 );
 

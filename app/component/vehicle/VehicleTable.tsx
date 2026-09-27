@@ -678,7 +678,7 @@ export default function VehicleTable() {
 
   // =====================================
   // VIEW VEHICLE
-  // ALL ROLES (read only)
+  // ADMIN + EMPLOYEE + VIEW (read only)
   // =====================================
 
   const handleViewDetails = (
@@ -718,10 +718,11 @@ export default function VehicleTable() {
     userRole === "admin" ||
     userRole === "employee";
 
-  // Customers only see their own vehicles
-  // (roleFilteredVehicles), so viewing is safe
+  // Internal roles only; customers get
+  // no View / Edit actions
   const canViewVehicles =
-    !!userRole;
+    canManageVehicles ||
+    userRole === "view";
 
   // =====================================
   // TABLE COLUMNS
@@ -873,7 +874,7 @@ export default function VehicleTable() {
 
       // =====================================
       // ACTIONS
-      // VIEW: ALL ROLES
+      // VIEW: ADMIN + EMPLOYEE + VIEW
       // EDIT: ADMIN + EMPLOYEE ONLY
       // =====================================
 
@@ -1457,7 +1458,7 @@ export default function VehicleTable() {
 
       {/* =====================================
           VIEW MODAL
-          ALL ROLES (read only)
+          ADMIN + EMPLOYEE + VIEW (read only)
       ===================================== */}
 
       {canViewVehicles &&

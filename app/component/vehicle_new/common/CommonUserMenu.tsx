@@ -89,7 +89,7 @@ const CommonUserMenu = ({
                 aria-expanded={open}
                 aria-controls={menuId}
                 aria-label={`Account menu for ${displayName}`}
-                className="flex h-10 cursor-pointer items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                className="flex h-10 min-w-10 cursor-pointer items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
             >
                 <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-semibold text-orange-700"
@@ -122,7 +122,7 @@ const CommonUserMenu = ({
                     id={menuId}
                     role="menu"
                     aria-label="Account"
-                    className="absolute right-0 top-full z-50 mt-2 w-60 origin-top-right overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg ring-1 ring-black/5"
+                    className="absolute right-0 top-full z-50 mt-2 w-60 max-w-[calc(100vw-2rem)] origin-top-right overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg ring-1 ring-black/5"
                 >
                     <div className="flex items-center gap-3 px-4 py-3">
                         <span
@@ -151,7 +151,7 @@ const CommonUserMenu = ({
                             role="menuitem"
                             onClick={onLogout}
                             disabled={loggingOut}
-                            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus-visible:bg-red-50 focus-visible:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="flex w-full cursor-pointer items-center gap-2.5 min-h-10 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-red-50 hover:text-red-700 focus:outline-none focus-visible:bg-red-50 focus-visible:text-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {loggingOut ? (
                                 <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />

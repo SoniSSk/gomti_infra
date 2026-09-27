@@ -70,7 +70,7 @@ export const ModalSection = ({
                     onClick={() => setOpen((prev) => !prev)}
                     aria-expanded={open}
                     aria-controls={contentId}
-                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-100 ${open ? "rounded-b-none border-b border-gray-100" : ""}`}
+                    className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left sm:px-4 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-100 ${open ? "rounded-b-none border-b border-gray-100" : ""}`}
                 >
                     {heading}
 
@@ -83,14 +83,14 @@ export const ModalSection = ({
                     </span>
                 </button>
             ) : (
-                <header className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+                <header className="flex items-center justify-between gap-3 border-b border-gray-100 px-3 py-3 sm:px-4">
                     {heading}
                     {action}
                 </header>
             )}
 
             {isOpen && (
-                <div id={contentId} className="p-4">
+                <div id={contentId} className="p-3 sm:p-4">
                     {children}
                 </div>
             )}
@@ -213,4 +213,4 @@ export const FormField = ({
 
 /** Shared input / select look (matches CommonInput). */
 export const FIELD_CLASS =
-    "h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500";
+    "h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-gray-900 sm:text-sm outline-none transition placeholder:text-gray-400 hover:border-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500";

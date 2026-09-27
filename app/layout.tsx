@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import ScrollToTop from "./component/common/ScrollToTop";
@@ -10,6 +10,14 @@ import { Toaster } from "react-hot-toast";
 export const metadata: Metadata = {
   title: "Gomti Infra And Mining",
   description: "Gomti Infra And Mining Dashboard",
+};
+
+// viewport-fit=cover lets fixed footers/buttons pad for the iOS safe area
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#8a4d3e",
 };
 
 export default function RootLayout({

@@ -766,7 +766,9 @@ export default function Test({
                                 highlights[getVehicleKey(row)];
 
                             return (
-                                <div className="flex items-start gap-2">
+                                // Badge stacks under the vehicle on phones
+                                // to keep the sticky column narrow
+                                <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
                                     {column.render
                                         ? column.render(row)
                                         : row.vehicleNo}
@@ -1227,8 +1229,8 @@ export default function Test({
 
             {(highlightCounts.newCount > 0 ||
                 highlightCounts.updatedCount > 0) && (
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-                        <span className="inline-flex items-center gap-2 font-medium">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 sm:px-4">
+                        <span className="inline-flex min-w-0 items-center gap-2 font-medium">
                             <PulseDot />
 
                             {[
@@ -1244,7 +1246,7 @@ export default function Test({
                         <button
                             type="button"
                             onClick={() => setHighlights({})}
-                            className="cursor-pointer text-xs font-medium text-green-700 hover:underline"
+                            className="-my-2 -mr-2 shrink-0 cursor-pointer px-2 py-3 text-xs font-medium text-green-700 hover:underline sm:my-0 sm:mr-0 sm:px-0 sm:py-0"
                         >
                             Clear
                         </button>

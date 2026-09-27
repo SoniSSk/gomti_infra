@@ -123,6 +123,9 @@ export const vehicleColumns = ({
             key: "sno",
             label: "#",
             width: "72px",
+            // Phones: drop the row number so Vehicle is the first
+            // (sticky) column.
+            hideOnMobile: true,
         },
 
         /* Vehicle No + Token No */
@@ -175,7 +178,7 @@ export const vehicleColumns = ({
             key: "buyerDetails",
             label: "Buyer",
             render: (row) => (
-                <div className="flex max-w-[240px] flex-col">
+                <div className="flex max-w-[160px] flex-col sm:max-w-[240px]">
                     <span
                         className="truncate text-gray-900"
                         title={row.buyerDetails || undefined}
@@ -268,12 +271,15 @@ export const vehicleColumns = ({
                     variant="secondary"
                     size="sm"
                     icon={Eye}
+                    aria-label="View"
+                    title="View"
                     onClick={(event) => {
                         event.stopPropagation();
                         onView?.(row);
                     }}
                 >
-                    View
+                    {/* Icon-only on phones to keep the row narrow */}
+                    <span className="hidden sm:inline">View</span>
                 </CommonButton>
 
                 {/* Employees can't edit; dispatched vehicles: super admin only */}
@@ -282,12 +288,14 @@ export const vehicleColumns = ({
                         variant="secondary"
                         size="sm"
                         icon={Pencil}
+                        aria-label="Edit"
+                        title="Edit"
                         onClick={(event) => {
                             event.stopPropagation();
                             onEdit?.(row);
                         }}
                     >
-                        Edit
+                        <span className="hidden sm:inline">Edit</span>
                     </CommonButton>
                 )}
             </div>

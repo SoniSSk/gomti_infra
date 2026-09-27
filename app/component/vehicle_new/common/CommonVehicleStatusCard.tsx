@@ -179,6 +179,7 @@ const CommonVehicleStatusCard = ({
             className={`
                 group
                 flex
+                min-w-0
                 flex-col
                 gap-3
                 rounded-xl
@@ -194,7 +195,7 @@ const CommonVehicleStatusCard = ({
             `}
         >
             {/* ================= HEADER ================= */}
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
                 <div className="flex min-w-0 items-center gap-1.5">
                     <p className="truncate text-base font-semibold tracking-wider text-gray-900">
                         {vehicleNo || "-"}
@@ -213,7 +214,7 @@ const CommonVehicleStatusCard = ({
                                     ? "Copied"
                                     : "Copy vehicle number"
                             }
-                            className={`inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 ${copied
+                            className={`-my-2 inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 sm:my-0 sm:h-6 sm:w-6 ${copied
                                 ? "text-green-600"
                                 : "text-gray-300 hover:bg-gray-100 hover:text-gray-600 group-hover:text-gray-400"}`}
                         >
@@ -281,7 +282,7 @@ const CommonVehicleStatusCard = ({
 
             {/* ================= ACTIONS ================= */}
             {hasActions && (
-                <div className="flex items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
                     {showEdit && onEdit && (
                         <CommonButton
                             variant="secondary"

@@ -254,7 +254,7 @@ const TimelineEntry = ({
         : "bg-gray-300";
 
     return (
-        <li className="relative pb-6 pl-8 last:pb-0">
+        <li className="relative min-w-0 pb-6 pl-7 last:pb-0 sm:pl-8">
             {!isLast && (
                 <span
                     className="absolute left-[7px] top-4 h-full w-px bg-gray-200"
@@ -321,12 +321,14 @@ const TimelineEntry = ({
             {item.location?.address && (
                 <p className="mt-2 flex items-start gap-1.5 text-xs text-gray-500">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                    {item.location.address}
+                    <span className="min-w-0 break-words">
+                        {item.location.address}
+                    </span>
                 </p>
             )}
 
             {item.comment && (
-                <p className="mt-2 border-l-2 border-gray-200 pl-3 text-sm italic text-gray-600">
+                <p className="mt-2 break-words border-l-2 border-gray-200 pl-3 text-sm italic text-gray-600">
                     {item.comment}
                 </p>
             )}
@@ -413,11 +415,13 @@ const ViewModal = ({
             onClose={onClose}
             size="xl"
             title={
-                <span className="flex min-w-0 items-center gap-3">
+                <span className="flex min-w-0 items-center gap-2 sm:gap-3">
                     <span className="truncate tracking-wide">
                         {v.vehicleNo || "Vehicle"}
                     </span>
-                    <StatusBadge status={v.status} />
+                    <span className="shrink-0">
+                        <StatusBadge status={v.status} />
+                    </span>
                 </span>
             }
             description={
@@ -437,20 +441,28 @@ const ViewModal = ({
                 </span>
             }
             footer={
-                <div className="flex justify-end gap-2">
-                    <CommonButton variant="secondary" onClick={onClose}>
+                <div className="flex gap-2 sm:justify-end">
+                    <CommonButton
+                        variant="secondary"
+                        onClick={onClose}
+                        className="flex-1 sm:flex-none"
+                    >
                         Close
                     </CommonButton>
 
                     {canEdit && (
-                        <CommonButton icon={Pencil} onClick={onEdit}>
+                        <CommonButton
+                            icon={Pencil}
+                            onClick={onEdit}
+                            className="flex-1 sm:flex-none"
+                        >
                             Edit vehicle
                         </CommonButton>
                     )}
                 </div>
             }
         >
-            <div className="space-y-4 bg-gray-50 p-4 sm:p-6">
+            <div className="space-y-3 bg-gray-50 p-3 sm:space-y-4 sm:p-6">
                 {/* ================= SUMMARY STRIP ================= */}
 
                 {/* <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 sm:grid-cols-4">
@@ -460,10 +472,10 @@ const ViewModal = ({
                     <SummaryTile label="Transporter" value={v.transporterName} />
                 </div> */}
 
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3">
                     {/* ================= MAIN COLUMN ================= */}
 
-                    <div className="space-y-4 lg:col-span-2">
+                    <div className="min-w-0 space-y-3 sm:space-y-4 lg:col-span-2">
                         <ModalSection title="Dispatch details" icon={Truck}>
                             <DetailGrid>
                                 {dispatchFields.map(({ label, value, display, mono }) => (
@@ -499,7 +511,7 @@ const ViewModal = ({
                             title="Documents"
                             icon={FileText}
                             action={
-                                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-600">
+                                <span className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-600">
                                     {uploadedCount} of {DOCUMENTS.length} uploaded
                                 </span>
                             }
@@ -518,7 +530,7 @@ const ViewModal = ({
 
                     {/* ================= SIDE COLUMN ================= */}
 
-                    <div className="space-y-4">
+                    <div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-1">
                         <ModalSection title="Timing" icon={Clock}>
                             <dl className="space-y-3">
                                 <DetailItem label="In time" value={formatDateTime(v.inTime)} />
@@ -537,7 +549,7 @@ const ViewModal = ({
                                         href={mapsUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700"
+                                        className="-my-2 inline-flex min-h-10 shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-orange-600 hover:text-orange-700"
                                     >
                                         Open map
                                         <ExternalLink className="h-3 w-3" aria-hidden="true" />

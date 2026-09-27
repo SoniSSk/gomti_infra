@@ -124,12 +124,13 @@ className="
                             flex
                             min-w-0
                             items-center
-                            gap-2.5
+                            gap-2
+                            sm:gap-2.5
                         "
                     >
                         {/* Logo */}
 
-                        <Logo height={36} priority />
+                        <Logo height={36} priority className="max-h-8 sm:max-h-none" />
 
                         {/* Title */}
 
@@ -184,12 +185,12 @@ className="
                                     onClick={() =>
                                         setIsAddVehicleOpen(true)
                                     }
+                                    aria-label="Add vehicle"
+                                    title="Add vehicle"
+                                    className="max-sm:w-10 max-sm:px-0"
                                 >
                                     <span className="hidden sm:inline">
                                         Add Vehicle
-                                    </span>
-                                    <span className="sm:hidden">
-                                        Add
                                     </span>
                                 </CommonButton>
 
@@ -216,6 +217,7 @@ className="
                                 onClick={handleLogout}
                                 loading={isLoggingOut}
                                 aria-label="Log out"
+                                className="max-sm:w-10 max-sm:px-0"
                             >
                                 <span className="hidden sm:inline">
                                     Log out
@@ -238,7 +240,7 @@ title="Add vehicle"
                 size="xl"
                 closeOnOutsideClick={false}
             >
-<div className="bg-gray-50 p-4 sm:p-6">
+<div className="bg-gray-50 px-3 pt-3 sm:p-6">
                     <AddVehicle
                         userRole={userRole}
                         onSuccess={

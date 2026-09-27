@@ -779,13 +779,13 @@ export default function AddVehicle({
             : "border-gray-300 focus:border-orange-500 focus:ring-orange-100";
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-4 sm:space-y-5" noValidate>
             {/* ================= NOTICE ================= */}
 
-            <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 sm:px-4">
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
 
-                <div className="text-sm">
+                <div className="min-w-0 text-sm">
                     <p className="text-amber-900">
                         Driver se boliye ki{" "}
                         <span className="font-semibold">
@@ -846,7 +846,7 @@ export default function AddVehicle({
                             name="vehicleNoConfirm"
                             value={formData.vehicleNoConfirm}
                             onChange={handleChange}
-                            className={`h-10 w-full rounded-lg border bg-white px-3 text-sm font-medium uppercase tracking-wide text-gray-900 outline-none transition placeholder:text-gray-400 placeholder:normal-case focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-50 ${confirmStateClass}`}
+                            className={`h-10 w-full rounded-lg border bg-white px-3 text-base font-medium uppercase tracking-wide text-gray-900 outline-none sm:text-sm transition placeholder:text-gray-400 placeholder:normal-case focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-50 ${confirmStateClass}`}
                             placeholder="Re-enter vehicle number"
                             required
                             disabled={submitting}
@@ -904,7 +904,7 @@ export default function AddVehicle({
 
             {/* ================= SUBMIT ================= */}
 
-            <div className="flex flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="sticky bottom-0 z-10 -mx-3 flex flex-col gap-3 border-t border-gray-200 bg-gray-50 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:z-auto sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:bg-transparent sm:px-0 sm:pt-4 sm:pb-0">
                 <p className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
                     Starts as <StatusBadge status="WAITING_FOR_DETAILS" />
                 </p>
@@ -925,6 +925,7 @@ export default function AddVehicle({
                             disabled={!isFormValid}
                             loading={submitting}
                             loadingText="Saving vehicle..."
+                            className="w-full sm:w-auto"
                         >
                             Add vehicle
                         </CommonButton>

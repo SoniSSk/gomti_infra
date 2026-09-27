@@ -882,6 +882,29 @@ const CommonTable = <
     };
 
     /* =====================================================
+       PHONE LAYOUT
+    ===================================================== */
+
+    /*
+     * First column still visible below `sm`. On phones it
+     * sticks to the left edge while the table scrolls
+     * sideways, and it carries the "Total" label.
+     */
+    const mobileFirstColumnIndex =
+        columns.findIndex(
+            (column) => !column.hideOnMobile,
+        );
+
+    // No sticky column with the expand column in front of it.
+    const stickyColumnIndex =
+        expandable
+            ? -1
+            : mobileFirstColumnIndex;
+
+    const STICKY_CELL_CLASS =
+        "sticky left-0 z-10 bg-inherit shadow-[inset_-1px_0_0_var(--color-gray-200)] sm:static sm:shadow-none";
+
+    /* =====================================================
        RENDER
     ===================================================== */
 
@@ -941,8 +964,9 @@ const CommonTable = <
                                                     border-gray-300
                                                     bg-white
                                                     pl-9
-                                                    pr-9
-                                                    text-sm
+                                                    pr-10
+                                                    text-base
+                                                    sm:text-sm
                                                     text-gray-700
                                                     outline-none
                                                     transition
@@ -965,11 +989,11 @@ onClick={() =>
                                                         aria-label="Clear search"
                                                         className="
                                                         absolute
-                                                        right-2
+                                                        right-1
                                                         top-1/2
                                                         -translate-y-1/2
                                                         rounded-md
-                                                        p-1
+                                                        p-2
                                                         text-gray-400
                                                         transition
                                                         hover:bg-orange-50
@@ -1029,7 +1053,8 @@ onClick={() =>
                                                     border-gray-300
                                                     bg-white
                                                     px-3
-                                                    text-sm
+                                                    text-base
+                                                    sm:text-sm
                                                     font-medium
                                                     text-gray-700
                                                     outline-none
@@ -1087,12 +1112,13 @@ onClick={() =>
                                         className="
                                         flex
                                         w-full
-                                        flex-col
+                                        min-w-0
+                                        flex-wrap
+                                        items-center
                                         gap-2
-                                        sm:flex-row
-                                        sm:items-center
                                         lg:w-auto
                                         lg:flex-shrink-0
+                                        lg:flex-nowrap
                                     "
                                     >
                                         {/* ================= HEADER CONTENT ================= */}
@@ -1102,6 +1128,7 @@ onClick={() =>
                                                 className="
                                                 flex
                                                 w-full
+                                                min-w-0
 sm:w-auto
                                             "
                                             >
@@ -1120,7 +1147,7 @@ sm:w-auto
                                                 loading={adding}
                                                 loadingText="Adding..."
                                                 icon={Plus}
-                                                className="w-full sm:w-auto"
+                                                className="flex-1 sm:flex-none"
                                             >
                                                 {addButtonLabel}
                                             </CommonButton>
@@ -1131,7 +1158,7 @@ sm:w-auto
                                         {exportable && (
                                             <div
                                                 ref={exportMenuRef}
-                                                className="relative w-full sm:w-auto"
+                                                className="relative flex-1 sm:flex-none"
                                             >
                                                 <CommonButton
                                                     variant="secondary"
@@ -1149,7 +1176,7 @@ sm:w-auto
                                                     icon={Download}
                                                     aria-haspopup="menu"
                                                     aria-expanded={exportMenuOpen}
-                                                    className="w-full sm:w-auto"
+                                                    className="w-full"
                                                 >
                                                     Export
                                                     <ChevronDown className="h-4 w-4" aria-hidden="true" />
@@ -1169,7 +1196,7 @@ sm:w-auto
                                                                     onClick={() =>
                                                                         handleExport(format)
                                                                     }
-                                                                    className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-orange-50 hover:text-orange-700"
+                                                                    className="flex min-h-10 w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm sm:min-h-0 text-gray-700 transition hover:bg-orange-50 hover:text-orange-700"
                                                                 >
                                                                     <Icon className="h-4 w-4" aria-hidden="true" />
                                                                     {label}
@@ -1192,7 +1219,7 @@ sm:w-auto
                                                 loadingText="Refreshing..."
                                                 icon={RefreshCw}
                                                 title="Refresh"
-                                                className="w-full sm:w-auto"
+                                                className="flex-1 sm:flex-none"
                                             >
                                                 Refresh
                                             </CommonButton>
@@ -1210,6 +1237,7 @@ sm:w-auto
 
             <div
                 className="
+                    @container
                     w-full
                     overflow-x-auto
                     overflow-y-visible
@@ -1256,6 +1284,7 @@ sm:w-auto
                             {columns.map(
                                 (
                                     column,
+                                    columnIndex,
                                 ) => (
                                     <th
                                         key={String(
@@ -1272,7 +1301,10 @@ sm:w-auto
                                         className={`
                                             sticky
                                             top-0
-                                            z-20
+                                            ${columnIndex === stickyColumnIndex
+                                                ? "left-0 z-30 shadow-[inset_-1px_0_0_var(--color-orange-200)] sm:left-auto sm:z-20 sm:shadow-none"
+                                                : "z-20"
+                                            }
                                             whitespace-nowrap
                                             bg-orange-50
                                             px-4
@@ -1310,7 +1342,7 @@ ${ALIGN_CLASS[column.align ?? "left"]}
                                 (_, rowIndex) => (
                                     <tr
                                         key={rowIndex}
-                                        className="animate-pulse"
+                                        className="animate-pulse bg-white"
                                     >
                                         {expandable && (
                                             <td className="px-2 py-3" />
@@ -1320,7 +1352,7 @@ ${ALIGN_CLASS[column.align ?? "left"]}
                                             (column, colIndex) => (
                                                 <td
                                                     key={colIndex}
-                                                    className="px-4 py-3"
+                                                    className={`px-4 py-3 ${column.hideOnMobile ? "hidden sm:table-cell" : ""} ${colIndex === stickyColumnIndex ? STICKY_CELL_CLASS : ""}`}
                                                 >
                                                     <div
 className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : ""}`}
@@ -1343,8 +1375,10 @@ className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : "
                                             ? 1
                                             : 0)
                                     }
-                                    className="px-4 py-16"
+                                    className="p-0"
                                 >
+                                    {/* Pinned to the visible width, so it stays on screen when the table is wider (phones) */}
+                                    <div className="sticky left-0 w-[100cqw] px-4 py-16">
                                     <CommonStateMessage
                                         tone="danger"
                                         icon={CircleAlert}
@@ -1363,6 +1397,7 @@ className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : "
                                             )
                                         }
                                     />
+                                    </div>
                                 </td>
                             </tr>
                         ) : paginatedData.length ===
@@ -1375,8 +1410,9 @@ className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : "
                                             ? 1
                                             : 0)
                                     }
-                                    className="px-4 py-16"
+                                    className="p-0"
                                 >
+                                    <div className="sticky left-0 w-[100cqw] px-4 py-16">
                                     <CommonStateMessage
                                         icon={Inbox}
                                         title={emptyMessage}
@@ -1386,6 +1422,7 @@ className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : "
                                                 : undefined
                                         }
                                     />
+                                    </div>
                                 </td>
                             </tr>
                         ) : (
@@ -1424,7 +1461,7 @@ className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : "
                                                         ? "cursor-pointer hover:bg-orange-50"
                                                         : "hover:bg-gray-50"
                                                     }
-                                                    ${rowClassName?.(row) ?? ""}
+                                                    ${rowClassName?.(row) || "bg-white"}
                                                 `}
                                             >
                                                 {/* ================= EXPAND ================= */}
@@ -1517,6 +1554,10 @@ whitespace-nowrap
                                                                 ${ALIGN_CLASS[column.align ?? "left"]}
                                                                 ${column.hideOnMobile
                                                                     ? "hidden sm:table-cell"
+                                                                    : ""
+                                                                }
+                                                                ${columnIndex === stickyColumnIndex
+                                                                    ? STICKY_CELL_CLASS
                                                                     : ""
                                                                 }
                                                             `}
@@ -1638,6 +1679,10 @@ whitespace-nowrap
                                                     ? "hidden sm:table-cell"
                                                     : ""
                                                 }
+                                                ${columnIndex === stickyColumnIndex
+                                                    ? STICKY_CELL_CLASS
+                                                    : ""
+                                                }
                                             `}
                                         >
                                             {column.key === "netWeight" ? (
@@ -1649,6 +1694,9 @@ whitespace-nowrap
                                                 </span>
                                             ) : columnIndex === 0 ? (
                                                 <span>Total</span>
+                                            ) : columnIndex === mobileFirstColumnIndex ? (
+                                                // Column 0 is hidden on phones
+                                                <span className="sm:hidden">Total</span>
                                             ) : null}
                                         </td>
                                     ),
@@ -1665,10 +1713,10 @@ whitespace-nowrap
             ================================================= */}
 
             {pagination && !loading && !error && (
-                <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
                     {/* ================= LEFT ================= */}
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start">
                         <p className="text-sm text-gray-500">
                             Showing{" "}
                             <span className="font-semibold text-gray-800">
@@ -1718,8 +1766,10 @@ whitespace-nowrap
                                         ),
                                     )
                                 }
+                                aria-label="Rows per page"
                                 className="
-                                    h-9
+                                    h-10
+                                    sm:h-9
                                     min-w-[70px]
                                     cursor-pointer
                                     rounded-lg
@@ -1727,7 +1777,8 @@ whitespace-nowrap
                                     border-gray-200
                                     bg-white
                                     px-2
-                                    text-sm
+                                    text-base
+                                    sm:text-sm
                                     font-medium
                                     text-gray-700
                                     outline-none
@@ -1760,7 +1811,8 @@ whitespace-nowrap
 
                     {/* ================= RIGHT ================= */}
 
-                    <div className="flex flex-wrap items-center gap-1">
+                    {/* Phones: Previous / "Page X of Y" / Next. sm+: numbered pages */}
+                    <div className="flex items-center justify-between gap-2 sm:flex-wrap sm:justify-start sm:gap-1">
                         {/* PREVIOUS */}
 
                         <CommonButton
@@ -1791,7 +1843,23 @@ whitespace-nowrap
                             Previous
                         </CommonButton>
 
-                        {/* PAGE NUMBERS */}
+                        {/* PAGE X OF Y (phones) */}
+
+                        <span
+                            className="text-sm text-gray-500 sm:hidden"
+                            aria-live="polite"
+                        >
+                            Page{" "}
+                            <span className="font-semibold text-gray-800">
+                                {totalPages === 0 ? 0 : currentPage}
+                            </span>{" "}
+                            of{" "}
+                            <span className="font-semibold text-gray-800">
+                                {totalPages}
+                            </span>
+                        </span>
+
+                        {/* PAGE NUMBERS (sm+) */}
 
                         {totalPages >
                             0 &&
@@ -1824,7 +1892,14 @@ whitespace-nowrap
                                                 null,
                                             );
                                         }}
+                                        aria-current={
+                                            currentPage === page
+                                                ? "page"
+                                                : undefined
+                                        }
                                         className={`
+                                            hidden
+                                            sm:inline-block
                                             min-w-8
                                             cursor-pointer
                                             rounded-lg

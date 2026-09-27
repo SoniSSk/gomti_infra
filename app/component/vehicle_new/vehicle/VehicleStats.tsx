@@ -667,7 +667,7 @@ const [retryKey, setRetryKey] =
                         role="alert"
                         className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
                     >
-                        <p className="text-sm font-medium text-red-700">
+                        <p className="min-w-0 text-sm font-medium text-red-700">
                             {error}
                         </p>
 
@@ -706,7 +706,7 @@ const [retryKey, setRetryKey] =
                             <div className="flex min-w-0 items-center gap-2.5">
                                 <h2
                                     id="vehicle-alerts-heading"
-                                    className="text-base font-semibold text-gray-900"
+                                    className="shrink-0 whitespace-nowrap text-base font-semibold text-gray-900"
                                 >
                                     Vehicle Alerts
                                 </h2>
@@ -750,7 +750,7 @@ const [retryKey, setRetryKey] =
                                 {/* ================= FILTER CHIPS ================= */}
 
                                 <div
-                                    className="flex flex-wrap gap-2"
+                                    className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:snap-none sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 [&::-webkit-scrollbar]:hidden"
                                     role="group"
                                     aria-label="Filter alerts by status"
                                 >
@@ -768,7 +768,7 @@ const [retryKey, setRetryKey] =
                                                         active ? null : key,
                                                     )
                                                 }
-                                                className={`inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border px-3 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-orange-200 ${active
+                                                className={`inline-flex h-10 shrink-0 snap-start cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition sm:h-8 focus:outline-none focus:ring-2 focus:ring-orange-200 ${active
                                                     ? "border-gray-900 bg-gray-900 text-white"
                                                     : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
                                                     }`}

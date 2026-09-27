@@ -120,7 +120,7 @@ export interface CommonDateRangePickerProps {
 }
 
 const inputClass =
-    "h-10 w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100";
+    "h-10 w-full min-w-0 cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-base text-gray-700 sm:text-sm outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100";
 
 export default function CommonDateRangePicker({
     startDate,
@@ -223,10 +223,20 @@ export default function CommonDateRangePicker({
             </button>
 
             {open && (
+                <>
+                {/* Phones: dimmed backdrop behind the centered sheet */}
+                <div
+                    aria-hidden="true"
+                    onClick={() => setOpen(false)}
+                    className="fixed inset-0 z-40 bg-gray-900/20 sm:hidden"
+                />
+
+                {/* Phones: fixed and centered so it never leaves the viewport
+                    (or gets clipped by the table card). sm+: anchored dropdown. */}
                 <div
                     role="dialog"
                     aria-label="Choose date range"
-                    className="absolute left-0 z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+                    className="fixed inset-x-4 top-1/2 z-50 max-h-[calc(100dvh-2rem)] -translate-y-1/2 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-lg sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:z-30 sm:mt-2 sm:max-h-none sm:w-80 sm:translate-y-0 sm:overflow-visible"
                 >
                     <div className="flex flex-wrap gap-1.5">
                         {PRESETS.map((preset) => (
@@ -234,7 +244,7 @@ export default function CommonDateRangePicker({
                                 key={preset.label}
                                 type="button"
                                 onClick={() => commit(...preset.range())}
-                                className="cursor-pointer rounded-full border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
+                                className="cursor-pointer rounded-full border border-gray-200 px-3 py-2 text-xs sm:px-2.5 sm:py-1 font-medium text-gray-600 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
                             >
                                 {preset.label}
                             </button>
@@ -242,7 +252,7 @@ export default function CommonDateRangePicker({
                     </div>
 
                     <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div>
+                        <div className="min-w-0">
                             <label
                                 htmlFor={`${id}-start`}
                                 className="mb-1 block text-xs font-medium text-gray-500"
@@ -260,7 +270,7 @@ export default function CommonDateRangePicker({
                             />
                         </div>
 
-                        <div>
+                        <div className="min-w-0">
                             <label
                                 htmlFor={`${id}-end`}
                                 className="mb-1 block text-xs font-medium text-gray-500"
@@ -298,6 +308,7 @@ export default function CommonDateRangePicker({
                         </CommonButton>
                     </div>
                 </div>
+                </>
             )}
         </div>
     );

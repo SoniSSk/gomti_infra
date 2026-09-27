@@ -326,14 +326,24 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
             ? "Not uploaded"
             : kindLabel;
 
+    /*
+     * Phones render the tile as a compact row (thumbnail + name + actions)
+     * with the label inside it, so nine documents don't need ~2000px of scroll.
+     */
+    const labelInRow = !previewUrl || showFileName;
+    // The thumbnail already opens the preview, so phones drop the View button when space is tight
+    const hideViewOnPhone = showPreview && !disabled && (showReplace || showRemove);
+
+    const requiredMark = required && <span className="ml-0.5 text-red-500">*</span>;
+
     /* ================= RENDER ================= */
 
     return (
         <>
             <div className={`w-full ${className}`}>
-                <p className="mb-1.5 text-xs font-medium text-gray-600">
+                <p className={`mb-1.5 text-xs font-medium text-gray-600 ${labelInRow ? "max-sm:hidden" : ""}`}>
                     {label}
-                    {required && <span className="ml-0.5 text-red-500">*</span>}
+                    {requiredMark}
                 </p>
 
                 <div
@@ -347,56 +357,81 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                             type="button"
                             onClick={openFilePicker}
                             disabled={!canEdit}
-                            className="flex min-h-[112px] w-full flex-col items-center justify-center gap-1 px-4 py-5 text-center cursor-pointer transition enabled:hover:bg-orange-50 disabled:cursor-not-allowed"
+                            className="flex min-h-[112px] w-full flex-col items-center justify-center gap-1 px-4 py-5 text-center cursor-pointer transition enabled:hover:bg-orange-50 disabled:cursor-not-allowed max-sm:min-h-16 max-sm:flex-row max-sm:justify-start max-sm:gap-3 max-sm:px-3 max-sm:py-2.5 max-sm:text-left"
                         >
-                            {loading ? (
-                                <LoaderCircle className="h-5 w-5 animate-spin text-orange-600" aria-hidden="true" />
-                            ) : (
-                                <UploadCloud
-                                    className={`h-5 w-5 ${disabled ? "text-gray-300" : "text-orange-600"}`}
-                                    aria-hidden="true"
-                                />
-                            )}
-
-                            <span className={`text-sm font-medium ${disabled ? "text-gray-400" : "text-gray-700"}`}>
-                                {loading ? "Uploading…" : disabled ? "Not uploaded" : "Click to upload"}
+                            <span className="flex shrink-0 items-center justify-center max-sm:h-10 max-sm:w-10 max-sm:rounded-lg max-sm:bg-orange-50">
+                                {loading ? (
+                                    <LoaderCircle className="h-5 w-5 animate-spin text-orange-600" aria-hidden="true" />
+                                ) : (
+                                    <UploadCloud
+                                        className={`h-5 w-5 ${disabled ? "text-gray-300" : "text-orange-600"}`}
+                                        aria-hidden="true"
+                                    />
+                                )}
                             </span>
 
-                            {!disabled && !loading && (
-                                <span className="text-xs text-gray-400">Max {maxSizeMB} MB</span>
-                            )}
+                            <span className="flex min-w-0 flex-col items-center gap-1 max-sm:items-start max-sm:gap-0">
+                                <span className="max-w-full truncate text-sm font-medium text-gray-800 sm:hidden">
+                                    {label}
+                                    {requiredMark}
+                                </span>
+
+                                <span className={`text-sm font-medium max-sm:text-xs max-sm:font-normal ${disabled ? "text-gray-400" : "text-gray-700 max-sm:text-gray-500"}`}>
+                                    {loading ? (
+                                        "Uploading…"
+                                    ) : disabled ? (
+                                        "Not uploaded"
+                                    ) : (
+                                        <>
+                                            <span className="sm:hidden">Tap to upload</span>
+                                            <span className="hidden sm:inline">Click to upload</span>
+                                        </>
+                                    )}
+                                </span>
+
+                                {!disabled && !loading && (
+                                    <span className="text-xs text-gray-400 max-sm:text-[11px]">Max {maxSizeMB} MB</span>
+                                )}
+                            </span>
                         </button>
                     ) : (
                         /* ============ FILLED ============ */
-                        <>
+                        <div className="max-sm:flex max-sm:items-stretch">
                             {showPreview && (
                                 <button
                                     type="button"
                                     onClick={handleOpen}
                                     disabled={!showOpen}
                                     aria-label={`Preview ${label}`}
-                                    className={`relative flex w-full items-center justify-center overflow-hidden bg-gray-50 ${previewHeight} ${showOpen ? "cursor-zoom-in" : "cursor-default"}`}
+                                    className={`relative flex w-full items-center justify-center overflow-hidden bg-gray-50 ${previewHeight} max-sm:h-auto max-sm:min-h-16 max-sm:w-16 max-sm:shrink-0 ${showOpen ? "cursor-zoom-in" : "cursor-default"}`}
                                 >
                                     {kind === "image" ? (
                                         <img
                                             src={previewUrl}
                                             alt={fileName}
-                                            className="max-h-full max-w-full object-contain p-2"
+                                            className="max-h-full max-w-full object-contain p-2 max-sm:absolute max-sm:inset-0 max-sm:m-auto max-sm:p-1"
                                         />
-                                    ) : kind === "video" ? (
-                                        <video
-                                            src={previewUrl}
-                                            muted
-                                            preload="metadata"
-                                            className="max-h-full max-w-full object-contain"
-                                        />
-                                    ) : kind === "pdf" ? (
-                                        /* pointer-events-none keeps the click on the button */
-                                        <iframe
-                                            src={previewUrl}
-                                            title={fileName}
-                                            className="pointer-events-none h-full w-full border-0"
-                                        />
+                                    ) : kind === "video" || kind === "pdf" ? (
+                                        <>
+                                            {/* Too small to be useful on phones (and heavy x9); show the type icon */}
+                                            <KindIcon className="h-6 w-6 text-gray-400 sm:hidden" aria-hidden="true" />
+
+                                            {kind === "video" ? (
+                                                <video
+                                                    src={previewUrl}
+                                                    muted
+                                                    preload="metadata"
+                                                    className="max-h-full max-w-full object-contain max-sm:hidden"
+                                                />
+                                            ) : (
+                                                /* pointer-events-none keeps the click on the button */
+                                                <iframe
+                                                    src={previewUrl}
+                                                    title={fileName}
+                                                    className="pointer-events-none h-full w-full border-0 max-sm:hidden"
+                                                />
+                                            )}
+                                        </>
                                     ) : (
                                         <KindIcon className="h-8 w-8 text-gray-400" aria-hidden="true" />
                                     )}
@@ -410,11 +445,15 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                             )}
 
                             {showFileName && (
-                                <div className="flex items-center gap-2 border-t border-gray-100 px-3 py-2">
-                                    <KindIcon className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+                                <div className={`flex min-w-0 items-center gap-2 border-t border-gray-100 px-3 py-2 max-sm:flex-1 ${showPreview ? "max-sm:border-l max-sm:border-t-0" : ""}`}>
+                                    <KindIcon className={`h-4 w-4 shrink-0 text-gray-400 ${showPreview ? "max-sm:hidden" : ""}`} aria-hidden="true" />
 
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-xs font-medium text-gray-800" title={fileName}>
+                                        <p className="truncate text-sm font-medium text-gray-800 sm:hidden">
+                                            {label}
+                                            {requiredMark}
+                                        </p>
+                                        <p className="truncate text-xs font-medium text-gray-800 max-sm:font-normal max-sm:text-gray-500" title={fileName}>
                                             {fileName}
                                         </p>
                                         <p className={`text-[11px] ${loading ? "text-orange-600" : "text-gray-400"}`}>
@@ -431,6 +470,7 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                                     icon={Eye}
                                                     onClick={handleOpen}
                                                     aria-label={`View ${label}`}
+                                                    className={hideViewOnPhone ? "max-sm:hidden" : ""}
                                                 />
                                             </CommonTooltip>
                                         )}
@@ -444,6 +484,7 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                                     onClick={openFilePicker}
                                                     disabled={loading}
                                                     aria-label={`Replace ${label}`}
+                                                    className="max-sm:h-10 max-sm:w-10"
                                                 />
                                             </CommonTooltip>
                                         )}
@@ -457,14 +498,14 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                                     onClick={handleRemove}
                                                     disabled={loading}
                                                     aria-label={`Remove ${label}`}
-                                                    className="hover:bg-red-50 hover:text-red-600"
+                                                    className="hover:bg-red-50 hover:text-red-600 max-sm:h-10 max-sm:w-10"
                                                 />
                                             </CommonTooltip>
                                         )}
                                     </div>
                                 </div>
                             )}
-                        </>
+                        </div>
                     )}
 
                     <input
@@ -487,15 +528,19 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                     isOpen={isPreviewOpen}
                     onClose={handleClosePreview}
                     title={label}
-                    description={fileName}
+                    description={
+                        <span className="block truncate" title={fileName}>
+                            {fileName}
+                        </span>
+                    }
                     size="xl"
                     footer={
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center justify-between gap-3">
                             <a
                                 href={previewUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700"
+                                className="inline-flex min-h-10 min-w-0 items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-700"
                             >
                                 Open in new tab
                                 <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -507,7 +552,8 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                         </div>
                     }
                 >
-                    <div className="flex h-[70vh] flex-col">
+                    {/* Phones: the modal is fullscreen, so fill it */}
+                    <div className="flex h-full min-h-[60dvh] flex-col sm:h-[70dvh] sm:min-h-0">
                         {isImage && (
                             <div className="flex shrink-0 items-center justify-center gap-1 border-b border-gray-100 bg-gray-50 px-3 py-2">
                                 <CommonTooltip content="Rotate left 90°">
@@ -517,6 +563,7 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                         icon={RotateCcw}
                                         onClick={() => setRotation((r) => r - 90)}
                                         aria-label="Rotate left"
+                                        className="max-sm:h-10 max-sm:w-10"
                                     />
                                 </CommonTooltip>
                                 <CommonTooltip content="Rotate right 90°">
@@ -526,6 +573,7 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                         icon={RotateCw}
                                         onClick={() => setRotation((r) => r + 90)}
                                         aria-label="Rotate right"
+                                        className="max-sm:h-10 max-sm:w-10"
                                     />
                                 </CommonTooltip>
                                 <CommonButton
@@ -533,6 +581,7 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                     size="sm"
                                     onClick={() => setRotation(0)}
                                     disabled={normalizeRotation(rotation) === 0}
+                                    className="max-sm:h-10"
                                 >
                                     Reset
                                 </CommonButton>
@@ -542,7 +591,7 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                             </div>
                         )}
 
-                        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-gray-900 p-4 sm:p-6">
+                        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-gray-900 p-2 sm:p-6">
                             {kind === "image" ? (
                                 <img
                                     src={previewUrl}

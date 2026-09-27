@@ -18,6 +18,7 @@ const CommonTicker: React.FC<CommonTickerProps> = ({
             className={`
         relative
         w-full
+        min-w-0
         overflow-hidden
         rounded-xl
         border
@@ -33,18 +34,18 @@ const CommonTicker: React.FC<CommonTickerProps> = ({
             <div className="flex min-h-[42px] items-center">
 
                 {/* Ticker */}
-                <div className="relative flex-1 overflow-hidden">
+                <div className="relative min-w-0 flex-1 overflow-hidden">
                     <div
-                        className="flex w-max whitespace-nowrap  text-sm font-medium text-gray-600"
+                        className="flex w-max whitespace-nowrap text-xs font-medium text-gray-600 sm:text-sm"
                         style={{
                             animation: `ticker ${speed}s linear infinite`,
                         }}
                     >
-                        <span className="px-6">
+                        <span className="px-4 sm:px-6">
                             {text}
                         </span>
 
-                        <span className="px-6">
+                        <span className="px-4 sm:px-6">
                             {text}
                         </span>
                     </div>

@@ -54,17 +54,19 @@ const CommonCard: React.FC<CommonCardProps> = ({
                 relative
                 flex
                 w-full
+                min-w-0
                 flex-col
                 overflow-hidden
                 rounded-xl
                 border
                 border-gray-200
                 bg-white
-                p-4
+                p-3
                 text-left
                 shadow-sm
                 transition
                 duration-200
+                sm:p-4
                 ${interactive
                     ? "cursor-pointer hover:border-orange-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-200"
                     : ""}
@@ -79,11 +81,14 @@ const CommonCard: React.FC<CommonCardProps> = ({
 
             {/* HEADING */}
             <span
+                title={heading}
                 className={`
-                    truncate
+                    line-clamp-2
+                    break-words
                     text-xs
                     font-medium
                     text-gray-500
+                    sm:line-clamp-1
                     sm:text-sm
                     ${headingClassName}
                 `}
@@ -94,7 +99,8 @@ const CommonCard: React.FC<CommonCardProps> = ({
             {/* NUMBER */}
             <span
                 className={`
-                    mt-1.5
+                    mt-auto
+                    pt-1.5
                     text-2xl
                     font-semibold
                     leading-none

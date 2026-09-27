@@ -41,7 +41,8 @@ const VARIANT_CLASS: Record<CommonButtonVariant, string> = {
 };
 
 const SIZE_CLASS: Record<CommonButtonSize, { base: string; icon: string; iconOnly: string }> = {
-    sm: { base: "h-8 gap-1.5 px-2.5 text-xs", icon: "h-3.5 w-3.5", iconOnly: "h-8 w-8" },
+    // Phones get a 40px touch target; 32px from sm up.
+    sm: { base: "h-10 gap-1.5 px-3 text-xs sm:h-8 sm:px-2.5", icon: "h-3.5 w-3.5", iconOnly: "h-10 w-10 sm:h-8 sm:w-8" },
     md: { base: "h-10 gap-2 px-4 text-sm", icon: "h-4 w-4", iconOnly: "h-10 w-10" },
 };
 

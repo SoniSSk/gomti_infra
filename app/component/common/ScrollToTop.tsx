@@ -20,6 +20,8 @@ export default function ScrollToTop() {
 
   return (
     <button
+      type="button"
+      aria-label="Scroll to top"
       onClick={() =>
         window.scrollTo({
           top: 0,
@@ -28,14 +30,16 @@ export default function ScrollToTop() {
       }
       className="
         fixed
-        bottom-6
-        left-1/2
-        -translate-x-1/2
+        bottom-[calc(1rem+env(safe-area-inset-bottom))]
+        right-4
+        sm:bottom-6
+        sm:right-6
         cursor-pointer
         z-50
         orange-gradient
         orange-hover
-        p-4
+        p-3
+        sm:p-4
         rounded-full
         text-white
       "

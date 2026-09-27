@@ -28,14 +28,15 @@ export default function Home() {
       <Header />
 
       {/* Hero */}
-      <section className="orange-gradient px-4 py-20 text-center text-white">
+      <section className="orange-gradient px-4 py-12 text-center text-white sm:py-16 lg:py-20">
         <div className="mx-auto mb-6 inline-block rounded-2xl bg-white px-6 py-4 shadow-lg">
-          <Logo height={96} className="max-w-full" />
+          <Logo height={72} className="max-w-full sm:hidden" />
+          <Logo height={96} className="hidden max-w-full sm:block" />
         </div>
-        <h2 className="text-4xl font-extrabold sm:text-5xl">
+        <h2 className="text-3xl font-extrabold sm:text-4xl lg:text-5xl">
           Gomti Infra And Mining
         </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-orange-50">
+        <p className="mx-auto mt-4 max-w-2xl text-base text-orange-50 sm:text-lg">
           Managing mining dispatch, weighbridge, and fleet operations with one
           reliable platform.
         </p>
@@ -48,7 +49,7 @@ export default function Home() {
       </section>
 
       {/* Stats */}
-      <section className="container mx-auto grid grid-cols-2 gap-4 px-4 py-12 sm:grid-cols-4">
+      <section className="container mx-auto grid grid-cols-2 gap-3 px-4 py-8 sm:gap-4 sm:py-12 md:grid-cols-4">
         <StatCard title="Vehicles" value={128} />
         <StatCard title="Dispatches Today" value={42} />
         <StatCard title="Active Sites" value={6} />
@@ -56,12 +57,12 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="container mx-auto px-4 py-12">
+      <section className="container mx-auto px-4 py-8 sm:py-12">
         <h3 className="text-center text-2xl font-bold text-gray-900">
           What we manage
         </h3>
 
-        <div className="mt-8 grid gap-6 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           {FEATURES.map((feature) => (
             <div
               key={feature.title}

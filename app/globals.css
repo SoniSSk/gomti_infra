@@ -24,6 +24,29 @@
   --secondary: #402e2a;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/*
+ * iOS Safari: native date/time inputs ignore width (overflowing their grid
+ * column) and collapse to a sliver when empty unless appearance is reset.
+ */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  min-height: 2.5rem;
+}
+
+input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+
 .orange-gradient {
   background: linear-gradient(
     135deg,

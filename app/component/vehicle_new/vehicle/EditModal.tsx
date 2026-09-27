@@ -672,36 +672,43 @@ export default function EditVehicleModal({
                 size="xl"
                 closeOnOutsideClick={false}
                 title={
-                    <span className="flex min-w-0 items-center gap-3">
+                    <span className="flex min-w-0 items-center gap-2 sm:gap-3">
                         <span className="truncate tracking-wide">
                             Edit {vehicle.vehicleNo}
                         </span>
                         {currentStatus && (
-                            <StatusBadge status={currentStatus} />
+                            <span className="shrink-0">
+                                <StatusBadge status={currentStatus} />
+                            </span>
                         )}
                     </span>
                 }
                 description="Update vehicle details, status and documents"
                 footer={
-                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:justify-between sm:gap-3">
+                        {/* Icon-only on phones so Cancel / Save share one row */}
+                        <div className="flex items-center gap-3 empty:hidden">
                             {isSuperAdmin && (
                                 <CommonButton
                                     variant="danger"
                                     icon={Trash2}
                                     onClick={() => setShowDeleteConfirm(true)}
                                     disabled={updateLoading}
+                                    aria-label="Delete vehicle"
+                                    title="Delete vehicle"
+                                    className="max-sm:w-10 max-sm:px-0"
                                 >
-                                    Delete
+                                    <span className="hidden sm:inline">Delete</span>
                                 </CommonButton>
                             )}
                         </div>
 
-                        <div className="flex justify-end gap-2">
+                        <div className="flex min-w-0 flex-1 gap-2 sm:flex-none sm:justify-end">
                             <CommonButton
                                 variant="secondary"
                                 onClick={onClose}
                                 disabled={updateLoading}
+                                className="flex-1 sm:flex-none"
                             >
                                 Cancel
                             </CommonButton>
@@ -712,6 +719,7 @@ export default function EditVehicleModal({
                                 disabled={isUploading}
                                 loading={updateLoading}
                                 loadingText="Saving..."
+                                className="flex-1 sm:flex-none"
                             >
                                 {isUploading ? "Uploading..." : "Save changes"}
                             </CommonButton>
@@ -719,9 +727,9 @@ export default function EditVehicleModal({
                     </div>
                 }
             >
-                <div className="space-y-4 bg-gray-50 p-4 sm:p-6">
+                <div className="space-y-3 bg-gray-50 p-3 sm:space-y-4 sm:p-6">
                     {isEmployee && (
-                        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 sm:px-4">
                             <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
                             <p className="text-sm text-amber-800">
                                 <span className="font-medium">Restricted access.</span>{" "}
@@ -944,11 +952,12 @@ export default function EditVehicleModal({
                 showCloseButton={false}
                 closeOnOutsideClick={!deleteLoading}
                 footer={
-                    <div className="flex justify-end gap-2">
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <CommonButton
                             variant="secondary"
                             onClick={() => setShowDeleteConfirm(false)}
                             disabled={deleteLoading}
+                            className="w-full sm:w-auto"
                         >
                             Cancel
                         </CommonButton>
@@ -959,19 +968,20 @@ export default function EditVehicleModal({
                             onClick={() => handleDelete(Number(formData.sno))}
                             loading={deleteLoading}
                             loadingText="Deleting..."
+                            className="w-full sm:w-auto"
                         >
                             Delete vehicle
                         </CommonButton>
                     </div>
                 }
             >
-                <div className="flex gap-4 p-5 sm:p-6">
+                <div className="flex gap-3 p-4 sm:gap-4 sm:p-6">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
                         <TriangleAlert className="h-5 w-5" aria-hidden="true" />
                     </span>
 
-                    <div>
-                        <h3 className="text-base font-semibold text-gray-900">
+                    <div className="min-w-0">
+                        <h3 className="break-words text-base font-semibold text-gray-900">
                             Delete {vehicle.vehicleNo}?
                         </h3>
                         <p className="mt-1 text-sm text-gray-500">

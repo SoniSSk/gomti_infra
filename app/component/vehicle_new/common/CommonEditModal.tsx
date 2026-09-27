@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 
 interface CommonEditModalProps {
     isOpen?: boolean;
@@ -30,6 +30,18 @@ export default function CommonEditModal({
     closeOnOverlayClick = false,
     closeDisabled = false,
 }: CommonEditModalProps) {
+    /* Lock background scroll while open (restores the previous value). */
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isOpen]);
+
     if (!isOpen) {
         return null;
     }
@@ -50,7 +62,7 @@ export default function CommonEditModal({
         items-center
         justify-center
         bg-slate-950/70
-        p-2
+        p-0
         backdrop-blur-sm
         sm:p-5
       "
@@ -60,13 +72,16 @@ export default function CommonEditModal({
                 className={`
           relative
           flex
-          h-[96vh]
+          h-[100dvh]
           w-full
           ${maxWidth}
           flex-col
           overflow-hidden
-          rounded-2xl
-          border
+          rounded-none
+          border-0
+          sm:h-[96dvh]
+          sm:rounded-2xl
+          sm:border
           border-orange-200
           bg-slate-100
           shadow-[0_30px_100px_rgba(0,0,0,0.35)]
@@ -84,10 +99,12 @@ export default function CommonEditModal({
             from-orange-700
             via-orange-600
             to-amber-500
-            px-5
-            py-4
+            px-4
+            pt-[max(1rem,env(safe-area-inset-top))]
+            pb-4
             text-white
             sm:px-7
+            sm:pt-4
           "
                 >
                     {/* Background decoration */}
@@ -119,7 +136,7 @@ export default function CommonEditModal({
             "
                     />
 
-                    <div className="relative flex items-center justify-between gap-4">
+                    <div className="relative flex items-center justify-between gap-3 sm:gap-4">
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <span
@@ -155,11 +172,12 @@ export default function CommonEditModal({
                                 className="
                   mt-1.5
                   truncate
-                  text-2xl
+                  text-xl
                   font-black
                   tracking-tight
                   text-white
-                  sm:text-3xl
+                  sm:text-2xl
+                  md:text-3xl
                 "
                             >
                                 {title}
@@ -187,8 +205,8 @@ export default function CommonEditModal({
                             aria-label="Close"
                             className="
                 flex
-                h-9
-                w-9
+                h-10
+                w-10
                 shrink-0
                 items-center
                 justify-center
@@ -236,6 +254,7 @@ export default function CommonEditModal({
             min-h-0
             flex-1
             overflow-y-auto
+            overscroll-contain
             bg-gradient-to-b
             from-orange-50/30
             via-slate-100
@@ -254,8 +273,10 @@ export default function CommonEditModal({
               border-orange-100
               bg-white
               px-4
-              py-3
+              pt-3
+              pb-[max(0.75rem,env(safe-area-inset-bottom))]
               sm:px-6
+              sm:pb-3
             "
                     >
                         {footer}

@@ -16,6 +16,8 @@ import {
     RotateCw,
     Trash2,
     UploadCloud,
+    ZoomIn,
+    ZoomOut,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -91,6 +93,10 @@ const fileNameFromUrl = (url: string) =>
 
 const normalizeRotation = (degrees: number) => ((degrees % 360) + 360) % 360;
 
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 0.25;
+
 /* =========================================================
    COMPONENT
 ========================================================= */
@@ -129,6 +135,10 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
     const [loading, setLoading] = useState(false);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [rotation, setRotation] = useState(0);
+    const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef<{ pointerX: number; pointerY: number; panX: number; panY: number } | null>(null);
 
     /* ================= DERIVED ================= */
 
@@ -274,6 +284,8 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
         createLocalPreview(file);
         setSelectedFile(file);
         setRotation(0);
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
         onChange?.(file);
 
         if (autoUpload) {
@@ -296,6 +308,8 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
         setSelectedFile(null);
         setError("");
         setRotation(0);
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
         setIsPreviewOpen(false);
 
         if (inputRef.current) {
@@ -309,6 +323,8 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
     const handleOpen = () => {
         if (previewUrl) {
             setRotation(0);
+            setZoom(1);
+            setPan({ x: 0, y: 0 });
             setIsPreviewOpen(true);
         }
     };
@@ -316,6 +332,42 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
     const handleClosePreview = () => {
         setIsPreviewOpen(false);
         setRotation(0);
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+    };
+
+    const handleZoomOut = () => {
+        const next = Math.max(MIN_ZOOM, zoom - ZOOM_STEP);
+        setZoom(next);
+        // Nothing to pan once the image fits again
+        if (next <= 1) setPan({ x: 0, y: 0 });
+    };
+
+    const handlePanStart = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (zoom <= 1 || event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragStartRef.current = {
+            pointerX: event.clientX,
+            pointerY: event.clientY,
+            panX: pan.x,
+            panY: pan.y,
+        };
+        setIsDragging(true);
+    };
+
+    const handlePanMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        const start = dragStartRef.current;
+        if (!start) return;
+        setPan({
+            x: start.panX + event.clientX - start.pointerX,
+            y: start.panY + event.clientY - start.pointerY,
+        });
+    };
+
+    const handlePanEnd = () => {
+        dragStartRef.current = null;
+        setIsDragging(false);
     };
 
     /* ================= STATUS LINE ================= */
@@ -576,11 +628,37 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                         className="max-sm:h-10 max-sm:w-10"
                                     />
                                 </CommonTooltip>
+                                <CommonTooltip content="Zoom out">
+                                    <CommonButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={ZoomOut}
+                                        onClick={handleZoomOut}
+                                        disabled={zoom <= MIN_ZOOM}
+                                        aria-label="Zoom out"
+                                        className="max-sm:h-10 max-sm:w-10"
+                                    />
+                                </CommonTooltip>
+                                <CommonTooltip content="Zoom in">
+                                    <CommonButton
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={ZoomIn}
+                                        onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + ZOOM_STEP))}
+                                        disabled={zoom >= MAX_ZOOM}
+                                        aria-label="Zoom in"
+                                        className="max-sm:h-10 max-sm:w-10"
+                                    />
+                                </CommonTooltip>
                                 <CommonButton
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => setRotation(0)}
-                                    disabled={normalizeRotation(rotation) === 0}
+                                    onClick={() => {
+                                        setRotation(0);
+                                        setZoom(1);
+                                        setPan({ x: 0, y: 0 });
+                                    }}
+                                    disabled={normalizeRotation(rotation) === 0 && zoom === 1}
                                     className="max-sm:h-10"
                                 >
                                     Reset
@@ -588,16 +666,32 @@ const CommonFileUpload: React.FC<CommonFileUploadProps> = ({
                                 <span className="ml-1 w-10 text-center text-xs tabular-nums text-gray-500">
                                     {normalizeRotation(rotation)}°
                                 </span>
+                                <span className="w-12 text-center text-xs tabular-nums text-gray-500">
+                                    {Math.round(zoom * 100)}%
+                                </span>
                             </div>
                         )}
 
-                        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-gray-900 p-2 sm:p-6">
+                        <div
+                            className={`flex min-h-0 flex-1 items-center justify-center bg-gray-900 p-2 sm:p-6 ${
+                                isImage ? "overflow-hidden" : "overflow-auto"
+                            } ${isImage && zoom > 1 ? (isDragging ? "cursor-grabbing touch-none" : "cursor-grab touch-none") : ""}`}
+                            onPointerDown={isImage ? handlePanStart : undefined}
+                            onPointerMove={isImage ? handlePanMove : undefined}
+                            onPointerUp={isImage ? handlePanEnd : undefined}
+                            onPointerCancel={isImage ? handlePanEnd : undefined}
+                        >
                             {kind === "image" ? (
                                 <img
                                     src={previewUrl}
                                     alt={fileName}
-                                    className="max-h-full max-w-full rounded object-contain transition-transform duration-300"
-                                    style={{ transform: `rotate(${rotation}deg)` }}
+                                    draggable={false}
+                                    className={`max-h-full max-w-full select-none rounded object-contain ${
+                                        isDragging ? "" : "transition-transform duration-300"
+                                    }`}
+                                    style={{
+                                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                                    }}
                                 />
                             ) : kind === "pdf" ? (
                                 <iframe

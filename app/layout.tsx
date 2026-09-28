@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import GlobalLoader from "./component/common/GlobalLoader";
+import SessionExpiryWatcher from "./component/common/SessionExpiryWatcher";
 import ReduxProvider from "./redux/ReduxProvider";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <SessionProvider>
+          <SessionExpiryWatcher />
           <ReduxProvider>
             <GlobalLoader />
             {children}

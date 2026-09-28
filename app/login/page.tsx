@@ -2,13 +2,28 @@
 
 import {
   FormEvent,
+  Suspense,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import Logo from "../component/common/Logo";
 
 type Mode = "login" | "signup";
+
+/** Shown when SessionExpiryWatcher redirects here after the 8-hour session. */
+function SessionExpiredNotice() {
+  const searchParams = useSearchParams();
+
+  if (searchParams.get("expired") !== "1") return null;
+
+  return (
+    <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+      <span>⚠</span>
+      <span>Your session has expired. Please log in again.</span>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -441,6 +456,10 @@ export default function LoginPage() {
 
           </div> */}
 
+
+          <Suspense fallback={null}>
+            <SessionExpiredNotice />
+          </Suspense>
 
           {/* =================================================
               ERROR

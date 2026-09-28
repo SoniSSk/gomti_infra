@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
-import ScrollToTop from "./component/common/ScrollToTop";
 import GlobalLoader from "./component/common/GlobalLoader";
 import ReduxProvider from "./redux/ReduxProvider";
 import "./globals.css";
@@ -35,7 +34,6 @@ export default function RootLayout({
           </ReduxProvider>
         </SessionProvider>
         <Toaster position="top-right" />
-        <ScrollToTop />
       </body>
     </html>
   );

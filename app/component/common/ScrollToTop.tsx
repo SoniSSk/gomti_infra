@@ -8,12 +8,22 @@ export default function ScrollToTop() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setVisible(window.scrollY > 400);
+      const { scrollY, innerHeight } = window;
+      const distanceFromBottom =
+        document.documentElement.scrollHeight - (scrollY + innerHeight);
+
+      // Hide near the page end so it doesn't cover pagination (Next) or footer actions
+      setVisible(scrollY > 400 && distanceFromBottom > 160);
     };
 
-    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
 
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
   }, []);
 
   if (!visible) return null;
@@ -32,19 +42,20 @@ export default function ScrollToTop() {
         fixed
         bottom-[calc(1rem+env(safe-area-inset-bottom))]
         right-4
-        sm:bottom-6
-        sm:right-6
+        lg:bottom-6
+        lg:right-6
         cursor-pointer
         z-50
         orange-gradient
         orange-hover
-        p-3
-        sm:p-4
+        p-2.5
+        lg:p-4
         rounded-full
         text-white
+        shadow-lg
       "
     >
-      <ChevronUp />
+      <ChevronUp className="size-5 lg:size-6" />
     </button>
   );
 }

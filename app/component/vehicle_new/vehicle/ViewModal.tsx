@@ -539,7 +539,7 @@ const ViewModal = ({
 
                     {/* ================= SIDE COLUMN ================= */}
 
-                    <div className="grid min-w-0 grid-cols-1 items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-1">
+                    <div className="grid min-w-0 grid-cols-1 content-start items-start gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-1">
                         <ModalSection title="Timing" icon={Clock}>
                             <dl className="space-y-3">
                                 <DetailItem label="In time" value={formatDateTime(v.inTime)} />

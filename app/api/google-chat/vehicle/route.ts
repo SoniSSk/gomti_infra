@@ -5,8 +5,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    console.log("Google Chat request:", body);
-
     const {
       vehicleNumber,
       status,

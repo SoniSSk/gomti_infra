@@ -43,7 +43,7 @@ const CommonInput = React.forwardRef<
           id={id || name}
           name={name}
           {...props}
-          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 ${error
+          className={`w-full rounded-lg border bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm outline-none transition placeholder:text-gray-400 focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 ${error
               ? "border-red-500 focus:border-red-500 focus:ring-red-100"
               : "border-gray-300 focus:border-orange-500 focus:ring-orange-100"
             } ${className}`}

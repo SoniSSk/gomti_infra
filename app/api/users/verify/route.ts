@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/app/lib/mongodb";
+import getMongoClient from "@/app/lib/mongodb";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
 
     /*
      * CHANGE THESE IF YOUR DATABASE/COLLECTION

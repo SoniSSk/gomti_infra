@@ -27,6 +27,9 @@ export interface Vehicle {
 
   status: any;
 
+  /** Set while status is ON_HOLD. */
+  holdReason?: string;
+
   weightSlip?: string;
   LRSlip?: string;
   etp?: string;

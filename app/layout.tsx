@@ -1,15 +1,23 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
-import ScrollToTop from "./component/common/ScrollToTop";
+import { SessionProvider } from "next-auth/react";
 import GlobalLoader from "./component/common/GlobalLoader";
+import SessionExpiryWatcher from "./component/common/SessionExpiryWatcher";
 import ReduxProvider from "./redux/ReduxProvider";
 import "./globals.css";
-import Routes from "./component/Routes";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "Gomti Infra Mining",
-  description: "Gomti Infra Mining Dashboard",
+  title: "Gomti Infra And Mining",
+  description: "Gomti Infra And Mining Dashboard",
+};
+
+// viewport-fit=cover lets fixed footers/buttons pad for the iOS safe area
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#8a4d3e",
 };
 
 export default function RootLayout({
@@ -20,13 +28,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ReduxProvider>
-          <Routes />
-          <GlobalLoader />
-          {children}
-        </ReduxProvider>
+        <SessionProvider>
+          <SessionExpiryWatcher />
+          <ReduxProvider>
+            <GlobalLoader />
+            {children}
+          </ReduxProvider>
+        </SessionProvider>
         <Toaster position="top-right" />
-        <ScrollToTop />
       </body>
     </html>
   );

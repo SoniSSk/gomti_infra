@@ -28,6 +28,8 @@ export default function EditVehicleModal({
   const [isEmployee, setIsEmployee] = useState(false);
   const [sendingChat, setSendingChat] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
+  const isUploading = uploadingFields.size > 0;
 
   const dispatch = useAppDispatch();
 
@@ -167,6 +169,18 @@ export default function EditVehicleModal({
       ...prev,
       [field]: url,
     }));
+  };
+
+  const handleUploadingChange = (
+    field: keyof Vehicle,
+    uploading: boolean,
+  ) => {
+    setUploadingFields((prev) => {
+      const next = new Set(prev);
+      if (uploading) next.add(field);
+      else next.delete(field);
+      return next;
+    });
   };
 
   // =========================
@@ -340,7 +354,7 @@ export default function EditVehicleModal({
   // =========================
 
   const handleUpdateAndNotify = async () => {
-    if (updating || sendingChat) return;
+    if (updating || sendingChat || isUploading) return;
 
     // 1. Update vehicle
     const updated = await handleUpdate();
@@ -806,6 +820,9 @@ export default function EditVehicleModal({
                   url,
                 )
               }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("vehicleImage", uploading)
+              }
             />
 
             {/* Driver License */}
@@ -819,6 +836,9 @@ export default function EditVehicleModal({
                   "driverLicenseImage",
                   url,
                 )
+              }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("driverLicenseImage", uploading)
               }
             />
 
@@ -834,6 +854,9 @@ export default function EditVehicleModal({
                   url,
                 )
               }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("vehicleRegistrationImage", uploading)
+              }
             />
 
             {/* Weight Slip */}
@@ -847,6 +870,9 @@ export default function EditVehicleModal({
                   "weightSlip",
                   url,
                 )
+              }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("weightSlip", uploading)
               }
             />
 
@@ -863,6 +889,9 @@ export default function EditVehicleModal({
                   url,
                 )
               }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("invoiceImage", uploading)
+              }
             />
 
             {/* E-Way Bill */}
@@ -877,6 +906,9 @@ export default function EditVehicleModal({
                   "EWayBill",
                   url,
                 )
+              }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("EWayBill", uploading)
               }
             />
 
@@ -893,6 +925,9 @@ export default function EditVehicleModal({
                   url,
                 )
               }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("etp", uploading)
+              }
             />
 
             {/* LR Slip */}
@@ -907,6 +942,9 @@ export default function EditVehicleModal({
                   url,
                 )
               }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("LRSlip", uploading)
+              }
             />
 
             {/* Loading Video */}
@@ -920,6 +958,9 @@ export default function EditVehicleModal({
                   "loadingVideo",
                   url,
                 )
+              }
+              onUploadingChange={(uploading) =>
+                handleUploadingChange("loadingVideo", uploading)
               }
             />
           </div>
@@ -970,14 +1011,16 @@ export default function EditVehicleModal({
             <button
               type="button"
               onClick={handleUpdateAndNotify}
-              disabled={updating || sendingChat}
+              disabled={updating || sendingChat || isUploading}
               className="cursor-pointer rounded-lg bg-orange-600 px-5 py-2 text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {updating
                 ? "Updating..."
                 : sendingChat
                   ? "Sending..."
-                  : "Update Vehicle"}
+                  : isUploading
+                    ? "Uploading..."
+                    : "Update Vehicle"}
             </button>
           </div>
         </div>

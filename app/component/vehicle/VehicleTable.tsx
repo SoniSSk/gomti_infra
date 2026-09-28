@@ -5,6 +5,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -34,6 +35,8 @@ import {
 import { useEtpGeneratingVehicles } from "@/app/hooks/useEtpGeneratingVechiles";
 import { useEtpDoneVehicles } from "@/app/hooks/useEtpDoneVechiles";
 import { useInvoiceGeneratingVehicle } from "@/app/hooks/useInvoiceGeneratingVechile";
+import { useAutoRefresh } from "@/app/hooks/useAutoRefresh";
+import PulseDot from "../common/PulseDot";
 
 
 type DateFilter =
@@ -41,6 +44,79 @@ type DateFilter =
   | "today"
   | "7days"
   | "custom";
+
+const AUTO_REFRESH_OPTIONS = [
+  { label: "Off", value: 0 },
+  { label: "30 sec", value: 30_000 },
+  { label: "1 min", value: 60_000 },
+  { label: "2 min", value: 120_000 },
+  { label: "5 min", value: 300_000 },
+];
+
+const DEFAULT_AUTO_REFRESH_MS = 60_000;
+
+const AUTO_REFRESH_STORAGE_KEY =
+  "vehicleAutoRefreshMs";
+
+// How long new / updated rows stay highlighted
+const HIGHLIGHT_MS = 2 * 60_000;
+
+type Highlight = {
+  type: "new" | "updated";
+  expiresAt: number;
+};
+
+// Rows missing from `prev` are new,
+// rows with a changed updatedAt are updated
+const diffVehicles = (
+  prev: Vehicle[],
+  next: Vehicle[]
+) => {
+  const prevById = new Map(
+    prev.map((v) => [v._id, v])
+  );
+
+  const expiresAt =
+    Date.now() + HIGHLIGHT_MS;
+
+  const changes: Record<string, Highlight> = {};
+
+  for (const vehicle of next) {
+    const old = prevById.get(vehicle._id);
+
+    if (!old) {
+      changes[vehicle._id] = {
+        type: "new",
+        expiresAt,
+      };
+    } else if (
+      old.updatedAt !== vehicle.updatedAt
+    ) {
+      changes[vehicle._id] = {
+        type: "updated",
+        expiresAt,
+      };
+    }
+  }
+
+  return changes;
+};
+
+const getToday = () => {
+  const today = new Date();
+
+  const year = today.getFullYear();
+
+  const month = String(
+    today.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    today.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 
 export default function VehicleTable() {
   // =====================================
@@ -52,6 +128,75 @@ export default function VehicleTable() {
 
   const [loading, setLoading] =
     useState(true);
+
+  const [lastUpdated, setLastUpdated] =
+    useState<Date | null>(null);
+
+  // Latest request id, so stale responses
+  // (e.g. after a filter change) are ignored
+  const requestIdRef = useRef(0);
+
+  const inFlightRef = useRef(false);
+
+  // =====================================
+  // CHANGE HIGHLIGHTS
+  // =====================================
+
+  const [highlights, setHighlights] =
+    useState<Record<string, Highlight>>({});
+
+  // Last loaded list + its query, to diff
+  // only between loads of the same filter
+  const lastVehiclesRef =
+    useRef<Vehicle[]>([]);
+
+  const lastLoadKeyRef =
+    useRef<string | null>(null);
+
+  // Drop highlights as they expire
+  useEffect(() => {
+    const expiries = Object.values(
+      highlights
+    ).map((h) => h.expiresAt);
+
+    if (!expiries.length) return;
+
+    const timer = setTimeout(() => {
+      const now = Date.now();
+
+      setHighlights((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).filter(
+            ([, h]) => h.expiresAt > now
+          )
+        )
+      );
+    }, Math.max(0, Math.min(...expiries) - Date.now()));
+
+    return () => clearTimeout(timer);
+  }, [highlights]);
+
+  // =====================================
+  // AUTO REFRESH
+  // =====================================
+
+  const [autoRefreshMs, setAutoRefreshMs] =
+    useState(DEFAULT_AUTO_REFRESH_MS);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(
+      AUTO_REFRESH_STORAGE_KEY
+    );
+
+    const option =
+      AUTO_REFRESH_OPTIONS.find(
+        (o) => String(o.value) === saved
+      );
+
+    if (option) {
+      setAutoRefreshMs(option.value);
+    }
+  }, []);
 
   // =====================================
   // SEARCH
@@ -67,21 +212,11 @@ export default function VehicleTable() {
   const [dateFilter, setDateFilter] =
     useState<DateFilter>("today");
 
-  const [customDate, setCustomDate] = useState(() => {
-    const today = new Date();
+  const [customStartDate, setCustomStartDate] =
+    useState(getToday);
 
-    const year = today.getFullYear();
-
-    const month = String(
-      today.getMonth() + 1
-    ).padStart(2, "0");
-
-    const day = String(
-      today.getDate()
-    ).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
-  });
+  const [customEndDate, setCustomEndDate] =
+    useState(getToday);
 
   // =====================================
   // VIEW / EDIT VEHICLE
@@ -119,10 +254,18 @@ export default function VehicleTable() {
 
   const loadVehicles = async (
     filter: DateFilter = dateFilter,
-    selectedDate: string = customDate
+    startDate: string = customStartDate,
+    endDate: string = customEndDate,
+    // Background refresh: no loading state,
+    // keep existing rows on failure
+    { silent = false }: { silent?: boolean } = {}
   ) => {
+    const requestId = ++requestIdRef.current;
+
     try {
-      setLoading(true);
+      inFlightRef.current = true;
+
+      if (!silent) setLoading(true);
 
       const params = new URLSearchParams();
 
@@ -138,14 +281,20 @@ export default function VehicleTable() {
         apiFilter
       );
 
-      // Custom date
+      // Custom range (inclusive)
       if (
         apiFilter === "custom" &&
-        selectedDate
+        startDate &&
+        endDate
       ) {
         params.set(
-          "date",
-          selectedDate
+          "startDate",
+          startDate
+        );
+
+        params.set(
+          "endDate",
+          endDate
         );
       }
 
@@ -172,49 +321,107 @@ export default function VehicleTable() {
       //   vehicles: []
       // }
 
-      setVehicles(
-        data.vehicles || []
-      );
+      if (requestId !== requestIdRef.current) return;
+
+      const nextVehicles: Vehicle[] =
+        data.vehicles || [];
+
+      const loadKey = params.toString();
+
+      if (lastLoadKeyRef.current === loadKey) {
+        const changes = diffVehicles(
+          lastVehiclesRef.current,
+          nextVehicles
+        );
+
+        if (Object.keys(changes).length) {
+          setHighlights((prev) => ({
+            ...prev,
+            ...changes,
+          }));
+        }
+      } else {
+        // Filter changed: nothing is "new"
+        setHighlights({});
+      }
+
+      lastLoadKeyRef.current = loadKey;
+      lastVehiclesRef.current = nextVehicles;
+
+      setVehicles(nextVehicles);
+
+      setLastUpdated(new Date());
     } catch (error) {
       console.error(
         "Vehicle Fetch Error:",
         error
       );
 
-      setVehicles([]);
+      if (
+        !silent &&
+        requestId === requestIdRef.current
+      ) {
+        setVehicles([]);
+
+        // Don't diff the next load against
+        // an emptied list
+        lastLoadKeyRef.current = null;
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+      }
     }
   };
+
+  const isCustomRangeInvalid =
+    dateFilter === "custom" &&
+    (!customStartDate ||
+      !customEndDate ||
+      customStartDate > customEndDate);
+
+  // Paused while editing, so the list
+  // doesn't shift under the open modal
+  useAutoRefresh(
+    () => {
+      if (inFlightRef.current) return;
+
+      loadVehicles(
+        dateFilter,
+        customStartDate,
+        customEndDate,
+        { silent: true }
+      );
+    },
+    {
+      intervalMs: autoRefreshMs,
+      enabled:
+        !editVehicle &&
+        !isCustomRangeInvalid,
+    }
+  );
 
   // =====================================
   // INITIAL LOAD
   // =====================================
 
+  // Runs on mount too, so no separate initial load.
   useEffect(() => {
-    loadVehicles(
-      dateFilter,
-      customDate
-    );
-
-    // Only initial load
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // =====================================
-  // API CALL WHEN FILTER CHANGES
-  // =====================================
-
-  useEffect(() => {
-    // Custom date
+    // Custom range
     if (dateFilter === "custom") {
-      if (!customDate) {
+      if (
+        !customStartDate ||
+        !customEndDate ||
+        customStartDate > customEndDate
+      ) {
         return;
       }
 
       loadVehicles(
         "custom",
-        customDate
+        customStartDate,
+        customEndDate
       );
 
       return;
@@ -228,7 +435,8 @@ export default function VehicleTable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dateFilter,
-    customDate,
+    customStartDate,
+    customEndDate,
   ]);
 
   // =====================================
@@ -448,15 +656,35 @@ export default function VehicleTable() {
       search,
     ]);
 
+  // Only count rows this role can see
+  const highlightCounts =
+    useMemo(() => {
+      let newCount = 0;
+      let updatedCount = 0;
+
+      for (const vehicle of roleFilteredVehicles) {
+        const type =
+          highlights[vehicle._id]?.type;
+
+        if (type === "new") newCount++;
+        else if (type === "updated") updatedCount++;
+      }
+
+      return { newCount, updatedCount };
+    }, [
+      roleFilteredVehicles,
+      highlights,
+    ]);
+
   // =====================================
   // VIEW VEHICLE
-  // ADMIN + EMPLOYEE ONLY
+  // ADMIN + EMPLOYEE + VIEW (read only)
   // =====================================
 
   const handleViewDetails = (
     vehicle: Vehicle
   ) => {
-    if (!canManageVehicles) {
+    if (!canViewVehicles) {
       return;
     }
 
@@ -489,6 +717,12 @@ export default function VehicleTable() {
   const canManageVehicles =
     userRole === "admin" ||
     userRole === "employee";
+
+  // Internal roles only; customers get
+  // no View / Edit actions
+  const canViewVehicles =
+    canManageVehicles ||
+    userRole === "view";
 
   // =====================================
   // TABLE COLUMNS
@@ -525,6 +759,37 @@ export default function VehicleTable() {
       {
         key: "vehicleNo",
         label: "Vehicle No",
+        render: (row: Vehicle) => {
+          const highlight =
+            highlights[row._id];
+
+          return (
+            <span className="inline-flex items-center gap-2">
+              {row.vehicleNo}
+
+              {highlight && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${highlight.type === "new"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-amber-100 text-amber-700"
+                    }`}
+                >
+                  <PulseDot
+                    tone={
+                      highlight.type === "new"
+                        ? "green"
+                        : "amber"
+                    }
+                  />
+
+                  {highlight.type === "new"
+                    ? "New"
+                    : "Updated"}
+                </span>
+              )}
+            </span>
+          );
+        },
       },
 
       {
@@ -609,10 +874,11 @@ export default function VehicleTable() {
 
       // =====================================
       // ACTIONS
-      // ADMIN + EMPLOYEE ONLY
+      // VIEW: ADMIN + EMPLOYEE + VIEW
+      // EDIT: ADMIN + EMPLOYEE ONLY
       // =====================================
 
-      ...(canManageVehicles
+      ...(canViewVehicles
         ? [
           {
             key: "actions",
@@ -639,18 +905,20 @@ export default function VehicleTable() {
 
                 {/* EDIT */}
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                {canManageVehicles && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
 
-                    handleEditVehicle(
-                      row
-                    );
-                  }}
-                  className="cursor-pointer rounded-lg bg-green-500 px-3 py-1 text-sm text-white transition hover:bg-green-600"
-                >
-                  Edit
-                </button>
+                      handleEditVehicle(
+                        row
+                      );
+                    }}
+                    className="cursor-pointer rounded-lg bg-green-500 px-3 py-1 text-sm text-white transition hover:bg-green-600"
+                  >
+                    Edit
+                  </button>
+                )}
               </div>
             ),
           },
@@ -917,10 +1185,7 @@ export default function VehicleTable() {
 
             <button
               onClick={() =>
-                loadVehicles(
-                  dateFilter,
-                  customDate
-                )
+                loadVehicles()
               }
               disabled={loading}
               className="cursor-pointer rounded-lg bg-orange-500 px-4 py-2 text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
@@ -929,6 +1194,61 @@ export default function VehicleTable() {
                 ? "Loading..."
                 : "Refresh"}
             </button>
+
+            {/* AUTO REFRESH */}
+
+            <div className="relative">
+
+              <select
+                aria-label="Auto refresh interval"
+                value={
+                  autoRefreshMs
+                }
+                onChange={(e) => {
+                  const value =
+                    Number(
+                      e.target.value
+                    );
+
+                  setAutoRefreshMs(
+                    value
+                  );
+
+                  localStorage.setItem(
+                    AUTO_REFRESH_STORAGE_KEY,
+                    String(value)
+                  );
+                }}
+                className="h-10 min-w-[140px] cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 pr-10 text-sm font-medium text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              >
+                {AUTO_REFRESH_OPTIONS.map(
+                  (option) => (
+                    <option
+                      key={
+                        option.value
+                      }
+                      value={
+                        option.value
+                      }
+                    >
+                      Auto: {option.label}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                ▼
+              </div>
+
+            </div>
+
+            {lastUpdated && (
+              <span className="text-xs text-gray-500">
+                Updated{" "}
+                {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
 
             {/* DATE FILTER */}
 
@@ -946,15 +1266,6 @@ export default function VehicleTable() {
                   setDateFilter(
                     value
                   );
-
-                  if (
-                    value !==
-                    "custom"
-                  ) {
-                    setCustomDate(
-                      ""
-                    );
-                  }
                 }}
                 className="h-10 min-w-[160px] cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 pr-10 text-sm font-medium text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
               >
@@ -967,7 +1278,7 @@ export default function VehicleTable() {
                 </option>
 
                 <option value="custom">
-                  Custom Date
+                  Custom Range
                 </option>
 
                 <option value="all">
@@ -983,22 +1294,85 @@ export default function VehicleTable() {
 
             </div>
 
-            {/* CUSTOM DATE */}
+            {/* CUSTOM RANGE */}
 
             {dateFilter ===
               "custom" && (
-                <input
-                  type="date"
-                  value={
-                    customDate
-                  }
-                  onChange={(e) =>
-                    setCustomDate(
-                      e.target.value
-                    )
-                  }
-                  className="h-10 cursor-pointer rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none transition hover:border-orange-400 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                />
+                <div
+                  role="group"
+                  aria-label="Custom date range"
+                  className="flex h-10 items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 transition hover:border-orange-400 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500"
+                >
+                  <input
+                    type="date"
+                    aria-label="Start date"
+                    value={
+                      customStartDate
+                    }
+                    max={
+                      customEndDate ||
+                      getToday()
+                    }
+                    onChange={(e) => {
+                      const value =
+                        e.target.value;
+
+                      setCustomStartDate(
+                        value
+                      );
+
+                      // Keep start <= end
+                      if (
+                        value &&
+                        customEndDate &&
+                        value >
+                        customEndDate
+                      ) {
+                        setCustomEndDate(
+                          value
+                        );
+                      }
+                    }}
+                    className="cursor-pointer bg-transparent px-1 text-sm text-gray-700 outline-none"
+                  />
+
+                  <span className="text-xs font-medium text-gray-400">
+                    to
+                  </span>
+
+                  <input
+                    type="date"
+                    aria-label="End date"
+                    value={
+                      customEndDate
+                    }
+                    min={
+                      customStartDate ||
+                      undefined
+                    }
+                    max={getToday()}
+                    onChange={(e) => {
+                      const value =
+                        e.target.value;
+
+                      setCustomEndDate(
+                        value
+                      );
+
+                      if (
+                        value &&
+                        customStartDate &&
+                        value <
+                        customStartDate
+                      ) {
+                        setCustomStartDate(
+                          value
+                        );
+                      }
+                    }}
+                    className="cursor-pointer bg-transparent px-1 text-sm text-gray-700 outline-none"
+                  />
+                </div>
               )}
 
           </div>
@@ -1025,6 +1399,35 @@ export default function VehicleTable() {
             TABLE
         ================================= */}
 
+        {/* CHANGE BANNER */}
+
+        {(highlightCounts.newCount > 0 ||
+          highlightCounts.updatedCount > 0) && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+              <span className="inline-flex items-center gap-2 font-medium">
+                <PulseDot />
+
+                {[
+                  highlightCounts.newCount > 0 &&
+                  `${highlightCounts.newCount} new vehicle${highlightCounts.newCount > 1 ? "s" : ""}`,
+                  highlightCounts.updatedCount > 0 &&
+                  `${highlightCounts.updatedCount} updated`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+
+              <button
+                onClick={() =>
+                  setHighlights({})
+                }
+                className="cursor-pointer text-xs font-medium text-green-700 hover:underline"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
         <CommonTable<Vehicle>
           columns={
             columns
@@ -1032,6 +1435,19 @@ export default function VehicleTable() {
           data={
             filteredData
           }
+          getRowKey={(row) =>
+            row._id
+          }
+          rowClassName={(row) => {
+            const highlight =
+              highlights[row._id];
+
+            if (!highlight) return "";
+
+            return highlight.type === "new"
+              ? "bg-green-50"
+              : "bg-amber-50";
+          }}
           loading={
             loading
           }
@@ -1042,10 +1458,10 @@ export default function VehicleTable() {
 
       {/* =====================================
           VIEW MODAL
-          ADMIN + EMPLOYEE ONLY
+          ADMIN + EMPLOYEE + VIEW (read only)
       ===================================== */}
 
-      {canManageVehicles &&
+      {canViewVehicles &&
         viewVehicle && (
           <VehicleDetailsModal
             vehicle={
@@ -1081,10 +1497,7 @@ export default function VehicleTable() {
               );
 
               // Reload using current filter
-              loadVehicles(
-                dateFilter,
-                customDate
-              );
+              loadVehicles();
             }}
           />
         )}

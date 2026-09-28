@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import clientPromise from "../../../lib/mongodb";
+import getMongoClient from "../../../lib/mongodb";
 
 const ALLOWED_ROLES = [
   "admin",
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     // DATABASE
     // -----------------------------
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
 
     const db = client.db("gomti_infra");
 

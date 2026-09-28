@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import clientPromise from "@/app/lib/mongodb";
+import getMongoClient from "@/app/lib/mongodb";
+import { auth } from "@/auth";
+import {
+  canAddVehicle,
+  customerVehicleFilter,
+} from "@/app/utils/vehiclePermissions";
 import { NextRequest, NextResponse } from "next/server";
 
 const DB_NAME = "gomti_infra";
@@ -49,6 +54,39 @@ const formatDateForOutTime = (date: Date) => {
   )}-${year}`;
 };
 
+/*
+ * createdAt is a Date for vehicles saved by POST, but older edits
+ * wrote it back as an ISO string. A plain { $gte: Date } skips
+ * strings, so convert before comparing.
+ */
+const createdAtBetween = (start: Date, end: Date) => {
+  const createdAt = {
+    $convert: {
+      input: "$createdAt",
+      to: "date",
+      onError: null,
+      onNull: null,
+    },
+  };
+
+  return {
+    $expr: {
+      $and: [{ $gte: [createdAt, start] }, { $lt: [createdAt, end] }],
+    },
+  };
+};
+
+/*
+ * Same "pending" rule as /api/vehicles/stats: anything not
+ * dispatched, or dispatched without an outTime.
+ */
+const pendingQuery = {
+  $or: [
+    { status: { $ne: "DISPATCH_DONE" } },
+    { outTime: { $in: ["", null] } },
+  ],
+};
+
 const getLast7DaysRange = () => {
   const today = new Date();
 
@@ -64,6 +102,40 @@ const getLast7DaysRange = () => {
   };
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const MAX_CUSTOM_RANGE_DAYS = 366;
+
+/*
+ * Accepts YYYY-MM-DD or DD-MM-YYYY. Returns the calendar day as
+ * UTC midnight, or null if it isn't a real date.
+ */
+const parseCustomDate = (value: string) => {
+  const parts = value.split("-");
+
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [year, month, day] =
+    parts[0].length === 4
+      ? parts.map(Number)
+      : [Number(parts[2]), Number(parts[1]), Number(parts[0])];
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -71,7 +143,7 @@ export async function GET(request: NextRequest) {
     const dateFilter = searchParams.get("dateFilter") || "today";
     const customDate = searchParams.get("date");
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db(DB_NAME);
 
     let query: any = {};
@@ -89,25 +161,12 @@ export async function GET(request: NextRequest) {
           // ------------------------------------------------------
           // 1.1 Created today
           // ------------------------------------------------------
-          {
-            createdAt: {
-              $gte: start,
-              $lt: end,
-            },
-          },
+          createdAtBetween(start, end),
 
           // ------------------------------------------------------
           // 1.2 Old vehicle + still pending
           // ------------------------------------------------------
-
-          {
-            outTime: {
-              $in: ["", null],
-            },
-            status: {
-              $ne: "DISPATCH_DONE",
-            },
-          },
+          pendingQuery,
 
           // ------------------------------------------------------
           // 1.3 Dispatched today based on outTime
@@ -132,31 +191,20 @@ export async function GET(request: NextRequest) {
       // DD-MM-YYYY HH:MM AM/PM
       // then we need to match each of the last 7 dates.
 
-      const outTimeDates: string[] = [];
-
-      const currentDate = new Date(start);
-
-      while (currentDate < end) {
-        const day = String(currentDate.getUTCDate()).padStart(2, "0");
-        const month = String(currentDate.getUTCMonth() + 1).padStart(2, "0");
-        const year = currentDate.getUTCFullYear();
-
-        outTimeDates.push(`${day}-${month}-${year}`);
-
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
-      }
+      // start is IST midnight (18:30 UTC the day before), so the
+      // dates must be read in IST, not UTC.
+      const outTimeDates = Array.from({ length: 7 }, (_, i) =>
+        formatDateForOutTime(
+          new Date(start.getTime() + i * 24 * 60 * 60 * 1000),
+        ),
+      );
 
       query = {
         $or: [
           // ========================================================
           // 1. CREATED IN LAST 7 DAYS
           // ========================================================
-          {
-            createdAt: {
-              $gte: start,
-              $lt: end,
-            },
-          },
+          createdAtBetween(start, end),
 
           // ========================================================
           // 2. OUT TIME IN LAST 7 DAYS
@@ -172,97 +220,75 @@ export async function GET(request: NextRequest) {
           // ========================================================
           // 3. OLD PENDING VEHICLES
           // ========================================================
-          {
-            outTime: {
-              $in: ["", null],
-            },
-            status: {
-              $ne: "DISPATCH_DONE",
-            },
-          },
+          pendingQuery,
         ],
       };
     }
 
     // ============================================================
-    // 3. CUSTOM DATE
+    // 3. CUSTOM RANGE
     // ============================================================
     else if (dateFilter === "custom") {
-      if (!customDate) {
+      // startDate/endDate are inclusive. A lone "date" is kept for
+      // older callers and means a single-day range.
+      const startParam = searchParams.get("startDate") || customDate;
+      const endParam = searchParams.get("endDate") || startParam;
+
+      if (!startParam || !endParam) {
         return NextResponse.json(
           {
             success: false,
-            message: "Custom date is required",
+            message: "Custom start and end dates are required",
           },
           { status: 400 },
         );
       }
 
-      /*
-        Expected:
+      const startDate = parseCustomDate(startParam);
+      const endDate = parseCustomDate(endParam);
 
-        2026-09-06
-
-        OR
-
-        06-09-2026
-      */
-
-      const parts = customDate.split("-");
-
-      if (parts.length !== 3) {
+      if (!startDate || !endDate) {
         return NextResponse.json(
           {
             success: false,
-            message: "Invalid custom date format",
+            message: "Invalid custom date. Use YYYY-MM-DD or DD-MM-YYYY.",
           },
           { status: 400 },
         );
       }
 
-      let day: number;
-      let month: number;
-      let year: number;
+      const days =
+        Math.round((endDate.getTime() - startDate.getTime()) / DAY_MS) + 1;
 
-      if (parts[0].length === 4) {
-        // YYYY-MM-DD
-        year = Number(parts[0]);
-        month = Number(parts[1]);
-        day = Number(parts[2]);
-      } else {
-        // DD-MM-YYYY
-        day = Number(parts[0]);
-        month = Number(parts[1]);
-        year = Number(parts[2]);
-      }
-
-      // ------------------------------------------------------
-      // Validate date
-      // ------------------------------------------------------
-      const selectedDate = new Date(year, month - 1, day);
-
-      if (
-        Number.isNaN(selectedDate.getTime()) ||
-        selectedDate.getFullYear() !== year ||
-        selectedDate.getMonth() !== month - 1 ||
-        selectedDate.getDate() !== day
-      ) {
+      if (days < 1) {
         return NextResponse.json(
           {
             success: false,
-            message: "Invalid custom date",
+            message: "Start date must be on or before end date",
           },
           { status: 400 },
         );
       }
 
-      // ------------------------------------------------------
-      // DD-MM-YYYY
-      // ------------------------------------------------------
-      const outTimeDate = `${String(day).padStart(
-        2,
-        "0",
-      )}-${String(month).padStart(2, "0")}-${year}`;
+      if (days > MAX_CUSTOM_RANGE_DAYS) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Custom range can't exceed ${MAX_CUSTOM_RANGE_DAYS} days`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // outTime is stored as "DD-MM-YYYY HH:MM AM/PM", so match
+      // each day in the range by prefix.
+      const outTimeDates = Array.from({ length: days }, (_, i) => {
+        const date = new Date(startDate.getTime() + i * DAY_MS);
+
+        return `${String(date.getUTCDate()).padStart(2, "0")}-${String(
+          date.getUTCMonth() + 1,
+        ).padStart(2, "0")}-${date.getUTCFullYear()}`;
+      });
 
       // ------------------------------------------------------
       // IMPORTANT:
@@ -273,7 +299,7 @@ export async function GET(request: NextRequest) {
       // ------------------------------------------------------
       query = {
         outTime: {
-          $regex: `^${outTimeDate}`,
+          $regex: `^(${outTimeDates.join("|")})`,
         },
         status: "DISPATCH_DONE",
       };
@@ -302,9 +328,12 @@ export async function GET(request: NextRequest) {
     // ============================================================
     // DATABASE QUERY
     // ============================================================
+    // Customers only see vehicles where they are the buyer.
+    const session = await auth();
+
     const vehicles = await db
       .collection("vehicles")
-      .find(query)
+      .find({ $and: [query, customerVehicleFilter(session?.user?.role)] })
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -329,9 +358,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+
+    if (!canAddVehicle(session?.user?.role)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "You don't have permission to add vehicles",
+        },
+        { status: 403 },
+      );
+    }
+
     const body = await req.json();
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("gomti_infra");
 
     const result = await db.collection("vehicles").insertOne({

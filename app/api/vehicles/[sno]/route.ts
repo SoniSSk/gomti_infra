@@ -1,12 +1,67 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "../../../lib/mongodb";
+import { auth } from "@/auth";
+import {
+  canDeleteVehicles,
+  canEditVehicles,
+  canModifyVehicle,
+} from "@/app/utils/vehiclePermissions";
+import getMongoClient from "../../../lib/mongodb";
+
+/** Customers can't change vehicles; employees can edit but not delete. */
+async function rejectIfNoAccess(
+  hasAccess: (role?: string | null) => boolean,
+) {
+  const session = await auth();
+
+  if (hasAccess(session?.user?.role)) {
+    return null;
+  }
+
+  return NextResponse.json(
+    {
+      success: false,
+      message: "You don't have permission to modify vehicles",
+    },
+    { status: 403 },
+  );
+}
+
+/** Dispatched vehicles can only be changed by a super admin. */
+async function rejectIfLocked(db: any, vehicleSno: number) {
+  const existing = await db
+    .collection("vehicles")
+    .findOne({ sno: vehicleSno }, { projection: { status: 1 } });
+
+  if (!existing) {
+    return null;
+  }
+
+  const session = await auth();
+
+  if (canModifyVehicle(existing.status, session?.user?.role)) {
+    return null;
+  }
+
+  return NextResponse.json(
+    {
+      success: false,
+      message: "Only a super admin can modify a dispatched vehicle",
+    },
+    { status: 403 },
+  );
+}
 
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
+    const forbidden = await rejectIfNoAccess(canEditVehicles);
+    if (forbidden) {
+      return forbidden;
+    }
+
     const { sno } = await params;
     const body = await req.json();
 
@@ -32,16 +87,24 @@ export async function PUT(
      *
      * sno is also used to identify the vehicle, so it is
      * protected from modification here as well.
+     *
+     * createdAt is dropped too: the client sends it back as an
+     * ISO string, which would replace the stored Date.
      */
-    const { _id, sno: bodySno, ...updateData } = body;
+    const {
+      _id,
+      sno: bodySno,
+      createdAt: _createdAt,
+      ...updateData
+    } = body;
 
-    console.log("🚛 PUT VEHICLE UPDATE");
-    console.log("🔢 S.No:", vehicleSno);
-    console.log("📦 Incoming Body:", body);
-    console.log("📦 Update Data:", updateData);
-
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("gomti_infra");
+
+    const locked = await rejectIfLocked(db, vehicleSno);
+    if (locked) {
+      return locked;
+    }
 
     const result = await db.collection("vehicles").updateOne(
       {
@@ -99,6 +162,11 @@ export async function DELETE(
   { params }: { params: Promise<{ sno: string }> },
 ) {
   try {
+    const forbidden = await rejectIfNoAccess(canDeleteVehicles);
+    if (forbidden) {
+      return forbidden;
+    }
+
     const { sno } = await params;
 
     const vehicleSno = Number(sno);
@@ -113,8 +181,13 @@ export async function DELETE(
       );
     }
 
-    const client = await clientPromise;
+    const client = await getMongoClient();
     const db = client.db("gomti_infra");
+
+    const locked = await rejectIfLocked(db, vehicleSno);
+    if (locked) {
+      return locked;
+    }
 
     const result = await db.collection("vehicles").deleteOne({
       sno: vehicleSno,

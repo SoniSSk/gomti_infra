@@ -26,6 +26,9 @@ export interface Vehicle_new {
 
   status: VehicleStatus;
 
+  /** Required while status is ON_HOLD. */
+  holdReason?: string;
+
   /* =========================
      DOCUMENTS
   ========================= */

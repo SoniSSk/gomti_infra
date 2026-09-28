@@ -1,45 +1,18 @@
 import React from "react";
+import { Eye, MapPin, Pencil } from "lucide-react";
 import { Vehicle_new } from "@/app/types/vehicle_new";
-import { TableColumn } from "../common/CommonTable";
-
-/* =========================================================
-   STATUS STYLES
-========================================================= */
-
-export const statusStyles: Record<string, string> = {
-    WAITING_FOR_DETAILS: "bg-red-100 text-red-700",
-    ENTRY_DONE: "bg-blue-100 text-blue-700",
-    LOADING_STARTED: "bg-orange-100 text-orange-700",
-    LOADING_DONE: "bg-purple-100 text-purple-700",
-    LOADING_SLIP_SENT: "bg-indigo-100 text-indigo-700",
-    ETP_GENERATING: "bg-amber-100 text-amber-700",
-    ETP_DONE: "bg-yellow-100 text-yellow-700",
-    ETP_INVOICE_DONE: "bg-cyan-100 text-cyan-700",
-    INVOICE_GENERATING: "bg-sky-100 text-sky-700",
-    DISPATCH_DONE: "bg-green-100 text-green-700",
-    NOT_REGISTERED: "bg-gray-100 text-gray-700",
-};
-
-/* =========================================================
-   DEFAULT STATUS STYLE
-========================================================= */
-
-const DEFAULT_STATUS_STYLE =
-    "bg-gray-100 text-gray-700";
-
-/* =========================================================
-   STATUS LABEL
-========================================================= */
-
-const getStatusLabel = (status?: string) => {
-    if (!status) {
-        return "-";
-    }
-
-    return String(status)
-        .replaceAll("_", " ")
-        .trim();
-};
+import { TableColumn, formatWeight } from "../common/CommonTable";
+import CommonButton from "../common/CommonButton";
+import { StatusBadge, formatStatus } from "../common/vehicleStatus";
+import { formatDateTime } from "../common/dateTime";
+import type { ExportColumn } from "@/app/utils/tableExport";
+import { getLastStatusChange } from "@/app/utils/lastStatusChange";
+import {
+    canModifyVehicle,
+    canViewVehicle,
+    canViewVehicleDetails,
+    getStoredUserRole,
+} from "@/app/utils/vehiclePermissions";
 
 /* =========================================================
    MODAL CALLBACK TYPES
@@ -51,30 +24,81 @@ interface VehicleColumnActions {
 }
 
 /* =========================================================
-   READ ONLY ROLES
+   VEHICLE EXPORT COLUMNS
+
+   The table packs several fields into one cell, so the
+   export lists them out individually.
 ========================================================= */
 
-const READ_ONLY_ROLES = [
-    "welspun",
-    "evonith",
-    "shreecement",
+const exportWeight = (value?: string): number | string => {
+    const weight = Number(value);
+
+    return value !== "" && value !== undefined && Number.isFinite(weight)
+        ? weight
+        : "";
+};
+
+export const vehicleExportColumns: ExportColumn<Vehicle_new>[] = [
+    { label: "S.No", value: (row) => row.sno },
+    { label: "Vehicle No", value: (row) => row.vehicleNo },
+    { label: "Token No", value: (row) => row.tokenNo },
+    { label: "Status", value: (row) => formatStatus(row.status) },
+    { label: "Hold Reason", value: (row) => row.holdReason },
+    {
+        label: "Status Changed By",
+        value: (row) => getLastStatusChange(row)?.user.name,
+    },
+    {
+        label: "Status Changed At",
+        value: (row) => formatDateTime(getLastStatusChange(row)?.at),
+    },
+    { label: "Buyer", value: (row) => row.buyerDetails },
+    { label: "Destination", value: (row) => row.destination },
+    { label: "Transporter", value: (row) => row.transporterName },
+    { label: "Driver", value: (row) => row.driverName },
+    { label: "Driver Contact", value: (row) => row.driverContact },
+    { label: "Material", value: (row) => row.materialName },
+    { label: "Grade", value: (row) => row.materialGrade },
+    { label: "Net Weight (MT)", value: (row) => exportWeight(row.netWeight) },
+    { label: "ETP No", value: (row) => row.etpNo },
+    { label: "Created At", value: (row) => formatDateTime(row.createdAt) },
+    { label: "In Time", value: (row) => formatDateTime(row.inTime) },
+    { label: "Out Time", value: (row) => formatDateTime(row.outTime) },
 ];
 
 /* =========================================================
-   GET USER ROLE FROM LOCAL STORAGE
+   TIMELINE CELL
+
+   Entry timestamp on top; smaller In / Out stacked below.
 ========================================================= */
 
-const getUserRoleFromLocalStorage = (): string => {
-    if (typeof window === "undefined") {
-        return "";
-    }
+const IN_OUT_ROWS: { label: string; value: (row: Vehicle_new) => string | undefined }[] = [
+    { label: "In", value: (row) => row.inTime },
+    { label: "Out", value: (row) => row.outTime },
+];
 
-    const role = localStorage.getItem("userRole");
+const TimelineCell = ({ row }: { row: Vehicle_new }) => {
+    const created = formatDateTime(row.createdAt);
 
-    return String(role ?? "")
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "");
+    return (
+        <div className="flex flex-col whitespace-nowrap tabular-nums">
+            <span className={created ? "text-gray-900" : "text-gray-300"}>
+                {created || "—"}
+            </span>
+            {IN_OUT_ROWS.map(({ label, value }) => {
+                const formatted = formatDateTime(value(row));
+
+                return (
+                    <span key={label} className="text-[11px] leading-4 text-gray-400">
+                        <span className="inline-block w-6">{label}</span>
+                        <span className={formatted ? "text-gray-400" : "text-gray-300"}>
+                            {formatted || "—"}
+                        </span>
+                    </span>
+                );
+            })}
+        </div>
+    );
 };
 
 /* =========================================================
@@ -86,253 +110,200 @@ export const vehicleColumns = ({
     onEdit,
 }: VehicleColumnActions = {}): TableColumn<Vehicle_new>[] => {
 
-    /* =====================================================
-       GET ROLE FROM LOCAL STORAGE
-    ===================================================== */
-
-    const userRole = getUserRoleFromLocalStorage();
-
-    console.log(userRole, userRole)
-
-    console.log("Current User Role:", userRole);
-
-    /* =====================================================
-       CHECK READ ONLY ROLE
-    ===================================================== */
-
-    const isReadOnlyRole =
-        READ_ONLY_ROLES.includes(userRole);
+    const userRole = getStoredUserRole();
 
     /* =====================================================
        BASE COLUMNS
+
+       Grouped by what a dispatcher scans for:
+       identity -> status -> parties -> timing -> weight.
     ===================================================== */
 
     const columns: TableColumn<Vehicle_new>[] = [
-        /* =========================
-           S.NO
-        ========================= */
-
         {
             key: "sno",
-            label: "S.No",
+            label: "#",
+            width: "72px",
+            // Phones: drop the row number so Vehicle is the first
+            // (sticky) column.
+            hideOnMobile: true,
         },
 
-        /* =========================
-           TOKEN NO
-        ========================= */
-
-        {
-            key: "tokenNo",
-            label: "Token No",
-        },
-
-        /* =========================
-           DATE & TIME
-        ========================= */
-
-        {
-            key: "createdAt",
-            label: "Date & Time",
-        },
-
-        /* =========================
-           IN TIME
-        ========================= */
-
-        {
-            key: "inTime",
-            label: "In Time",
-        },
-
-        /* =========================
-           OUT TIME
-        ========================= */
-
-        {
-            key: "outTime",
-            label: "Out Time",
-        },
-
-        /* =========================
-           VEHICLE NO
-        ========================= */
-
+        /* Vehicle No + Token No */
         {
             key: "vehicleNo",
-            label: "Vehicle No",
+            label: "Vehicle",
+            render: (row) => (
+                <div className="flex flex-col">
+                    <span className="font-semibold tracking-wide text-gray-900">
+                        {row.vehicleNo || "-"}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                        Token{" "}
+                        <span className="font-medium tabular-nums text-gray-700">
+                            {row.tokenNo || "-"}
+                        </span>
+                    </span>
+                </div>
+            ),
         },
-
-        /* =========================
-           TRANSPORTER
-        ========================= */
-
-        {
-            key: "transporterName",
-            label: "Transporter",
-        },
-
-        /* =========================
-           BUYER
-        ========================= */
-
-        {
-            key: "buyerDetails",
-            label: "Buyer",
-        },
-
-        /* =========================
-           NET WEIGHT
-        ========================= */
-
-        {
-            key: "netWeight",
-            label: "Weight (MT)",
-        },
-
-        /* =========================
-           DESTINATION
-        ========================= */
-
-        {
-            key: "destination",
-            label: "Destination",
-        },
-
-        /* =========================
-           STATUS
-        ========================= */
 
         {
             key: "status",
             label: "Status",
-
             render: (row) => {
-                const status = String(
-                    row.status ?? "",
-                ).toUpperCase();
-
-                const statusClass =
-                    statusStyles[status] ??
-                    DEFAULT_STATUS_STYLE;
+                const change = getLastStatusChange(row);
+                const changedAt = formatDateTime(change?.at);
 
                 return (
-                    <span
-                        className={`
-                            inline-flex
-                            items-center
-                            justify-center
-                            whitespace-nowrap
-                            rounded-full
-                            px-3
-                            py-1
-                            text-xs
-                            font-medium
-                            ${statusClass}
-                        `}
-                    >
-                        {getStatusLabel(status)}
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                        <StatusBadge status={String(row.status ?? "")} />
+                        {change && (
+                            <span
+                                className="max-w-[160px] truncate text-xs text-gray-500"
+                                title={changedAt ? `Changed on ${changedAt}` : undefined}
+                            >
+                                by{" "}
+                                <span className="font-medium text-gray-700">
+                                    {change.user.name}
+                                </span>
+                            </span>
+                        )}
+                    </div>
                 );
+            },
+        },
+
+        /* Buyer + Destination */
+        {
+            key: "buyerDetails",
+            label: "Buyer",
+            render: (row) => (
+                <div className="flex max-w-[160px] flex-col sm:max-w-[240px]">
+                    <span
+                        className="truncate text-gray-900"
+                        title={row.buyerDetails || undefined}
+                    >
+                        {row.buyerDetails || "-"}
+                    </span>
+                    {row.destination && (
+                        <span
+                            className="flex items-center gap-1 truncate text-xs text-gray-500"
+                            title={row.destination}
+                        >
+                            <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{row.destination}</span>
+                        </span>
+                    )}
+                </div>
+            ),
+        },
+
+        {
+            key: "transporterName",
+            label: "Transporter",
+            hideOnMobile: true,
+            render: (row) => (
+                <span
+                    className="block max-w-[200px] truncate"
+                    title={row.transporterName || undefined}
+                >
+                    {row.transporterName || "-"}
+                </span>
+            ),
+        },
+
+        /* Entry timestamp, with smaller In / Out below */
+        {
+            key: "createdAt",
+            label: "Timeline",
+            render: (row) => <TimelineCell row={row} />,
+        },
+
+        {
+            key: "netWeight",
+            label: "Weight (MT)",
+            align: "right",
+            render: (row) => {
+                const weight = Number(row.netWeight);
+
+                return Number.isFinite(weight) && row.netWeight !== ""
+                    ? (
+                        <span className="font-medium text-gray-900">
+                            {formatWeight(weight)}
+                        </span>
+                    )
+                    : <span className="text-gray-300">—</span>;
             },
         },
     ];
 
     /* =====================================================
-       READ ONLY USERS
-       
-       welspun
-       evonith
-       shreecement
-       
-       No Action column
-       No View
-       No Edit
+       ACTION COLUMN
+
+       Customers (welspun, evonith, shreecement):
+       - No actions (they only get their own vehicles)
+
+       Employees / admins / super admins:
+       - View
+       - Edit
+
+       Dispatched vehicles: super admin can view and
+       edit, admin can only view, employees get nothing.
     ===================================================== */
 
-    if (isReadOnlyRole) {
+    if (!canViewVehicle(userRole)) {
         return columns;
     }
 
-    /* =====================================================
-       ACTION COLUMN
-       
-       Other roles:
-       - View
-       - Edit
-    ===================================================== */
-
     columns.push({
         key: "action",
-        label: "Action",
+        label: "Actions",
+        align: "right",
 
-        render: (row) => {
-            return (
-                <div
-                    className="flex items-center gap-2"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                    }}
-                >
-                    {/* =========================
-                        VIEW
-                    ========================= */}
-
-                    <button
-                        type="button"
+        render: (row) => (
+            <div
+                className="flex items-center justify-end gap-1.5"
+                onClick={(event) => {
+                    event.stopPropagation();
+                }}
+            >
+                {/* Dispatched vehicles: admins and super admins */}
+                {canViewVehicleDetails(row.status, userRole) && (
+                    <CommonButton
+                        variant="secondary"
+                        size="sm"
+                        icon={Eye}
+                        aria-label="View"
+                        title="View"
                         onClick={(event) => {
                             event.stopPropagation();
                             onView?.(row);
                         }}
-                        className="
-                            rounded-md
-                            border
-                            border-blue-200
-                            bg-blue-50
-                            px-3
-                            py-1.5
-                            cursor-pointer
-                            text-xs
-                            font-medium
-                            text-blue-700
-                            transition
-                            hover:bg-blue-100
-                            active:scale-95
-                        "
                     >
-                        View
-                    </button>
+                        {/* Icon-only on phones to keep the row narrow */}
+                        <span className="hidden sm:inline">View</span>
+                    </CommonButton>
+                )}
 
-                    {/* =========================
-                        EDIT
-                    ========================= */}
-
-                    <button
-                        type="button"
+                {/* Dispatched vehicles: super admin only */}
+                {canModifyVehicle(row.status, userRole) && (
+                    <CommonButton
+                        variant="secondary"
+                        size="sm"
+                        icon={Pencil}
+                        aria-label="Edit"
+                        title="Edit"
                         onClick={(event) => {
                             event.stopPropagation();
                             onEdit?.(row);
                         }}
-                        className="
-                            rounded-md
-                            border
-                            border-orange-200
-                            bg-orange-50
-                            px-3
-                            py-1.5
-                            cursor-pointer
-                            text-xs
-                            font-medium
-                            text-orange-700
-                            transition
-                            hover:bg-orange-100
-                            active:scale-95
-                        "
                     >
-                        Edit
-                    </button>
-                </div>
-            );
-        },
+                        <span className="hidden sm:inline">Edit</span>
+                    </CommonButton>
+                )}
+            </div>
+        ),
     });
 
     return columns;

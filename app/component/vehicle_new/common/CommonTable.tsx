@@ -2,10 +2,22 @@
 "use client";
 
 import React, {
+    useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
+import { ChevronDown, CircleAlert, Download, FileSpreadsheet, FileText, Inbox, Plus, RefreshCw, Search, X } from "lucide-react";
+import toast from "react-hot-toast";
+
+import CommonButton from "./CommonButton";
+import CommonStateMessage from "./CommonStateMessage";
 import CommonModal from "./CommonModal";
+import {
+    exportTable,
+    type ExportColumn,
+    type ExportFormat,
+} from "@/app/utils/tableExport";
 
 /* =========================================================
    TYPES
@@ -30,6 +42,11 @@ export interface TableColumn<T> {
      * Hide column on smaller screens
      */
     hideOnMobile?: boolean;
+
+    /**
+     * Cell alignment. Use "right" for numeric columns.
+     */
+    align?: "left" | "center" | "right";
 }
 
 export interface TableFilterOption {
@@ -41,6 +58,8 @@ export interface TableFilter {
     key: string;
     label: string;
     options: TableFilterOption[];
+    /** Hide the blank "label" option so a value is always selected. */
+    required?: boolean;
 }
 
 export interface CommonTableProps<T> {
@@ -49,6 +68,11 @@ export interface CommonTableProps<T> {
     data: T[];
 
     loading?: boolean;
+
+    /** When set, the body shows this error with a Retry button. */
+    error?: string | null;
+
+    onRetry?: () => void;
 
     /* =====================================================
        SEARCH
@@ -80,6 +104,12 @@ export interface CommonTableProps<T> {
         value: string,
     ) => void;
 
+    /**
+     * Rendered right after the filter selects, e.g. a
+     * date range for a "custom" date filter.
+     */
+    filterContent?: React.ReactNode;
+
     /* =====================================================
        EXTERNAL SEARCH
     ===================================================== */
@@ -97,6 +127,16 @@ export interface CommonTableProps<T> {
     onRowClick?: (
         row: T,
     ) => void;
+
+    /** Stable row identity; defaults to the row index. */
+    getRowKey?: (
+        row: T,
+    ) => React.Key;
+
+    /** Extra classes for a row, e.g. to highlight it. */
+    rowClassName?: (
+        row: T,
+    ) => string;
 
     /* =====================================================
        ROW MODAL
@@ -171,11 +211,49 @@ export interface CommonTableProps<T> {
         | Promise<void>;
 
     refreshing?: boolean;
+
+    /* =====================================================
+       EXPORT
+    ===================================================== */
+
+    /**
+     * Show the Export (CSV / Excel / PDF) button.
+     * Exports every row matching the current search and
+     * filters, across all pages.
+     */
+    exportable?: boolean;
+
+    /** File name without extension. */
+    exportFileName?: string;
+
+    /**
+     * Columns to export. Defaults to the table columns
+     * (minus "action"), using the raw row value.
+     */
+    exportColumns?: ExportColumn<T>[];
 }
+
+const EXPORT_OPTIONS: {
+    format: ExportFormat;
+    label: string;
+    icon: typeof FileText;
+}[] = [
+    { format: "csv", label: "CSV", icon: FileText },
+    { format: "excel", label: "Excel", icon: FileSpreadsheet },
+    { format: "pdf", label: "PDF", icon: FileText },
+];
 
 /* =========================================================
    DATE FORMATTER
 ========================================================= */
+
+const SKELETON_ROWS = 6;
+
+const ALIGN_CLASS = {
+    left: "text-left",
+    center: "text-center",
+    right: "text-right tabular-nums",
+} as const;
 
 const formatDateTime = (
     value: unknown,
@@ -257,13 +335,13 @@ const parseWeight = (
         : 0;
 };
 
-const formatWeight = (
+export const formatWeight = (
     value: number,
 ): string => {
     return value.toLocaleString(
         "en-IN",
         {
-            minimumFractionDigits: 0,
+            minimumFractionDigits: 3,
             maximumFractionDigits: 3,
         },
     );
@@ -281,6 +359,9 @@ const CommonTable = <
 
     loading = false,
 
+    error = null,
+    onRetry,
+
     searchable = true,
     searchPlaceholder = "Search...",
     searchKeys,
@@ -289,11 +370,14 @@ const CommonTable = <
 
     filterValues,
     onFilterChange,
+    filterContent,
 
     searchValue,
     onSearchChange,
 
     onRowClick,
+    getRowKey,
+    rowClassName,
 
     rowModal = false,
     rowModalTitle = "Details",
@@ -322,6 +406,10 @@ const CommonTable = <
 
     onRefresh,
     refreshing = false,
+
+    exportable = false,
+    exportFileName = "export",
+    exportColumns,
 }: CommonTableProps<T>) => {
     /* =====================================================
        STATE
@@ -646,27 +734,95 @@ const CommonTable = <
 
 
     /* =====================================================
-       CLEAR FILTERS
+       EXPORT
     ===================================================== */
 
-    const clearFilters = () => {
-        handleSearchChange("");
+    const [
+        exportMenuOpen,
+        setExportMenuOpen,
+    ] = useState(false);
 
-        if (onFilterChange) {
-            filters.forEach(
-                (filter) => {
-                    onFilterChange(
-                        filter.key,
-                        "",
-                    );
-                },
-            );
-        } else {
-            setActiveFilters({});
+    const [
+        exporting,
+        setExporting,
+    ] = useState(false);
+
+    const exportMenuRef =
+        useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!exportMenuOpen) {
+            return;
         }
 
-        setCurrentPage(1);
-        setExpandedRowIndex(null);
+        const handleOutside = (
+            event: MouseEvent,
+        ) => {
+            if (
+                !exportMenuRef.current?.contains(
+                    event.target as Node,
+                )
+            ) {
+                setExportMenuOpen(false);
+            }
+        };
+
+        const handleEscape = (
+            event: KeyboardEvent,
+        ) => {
+            if (event.key === "Escape") {
+                setExportMenuOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutside);
+        document.addEventListener("keydown", handleEscape);
+
+        return () => {
+            document.removeEventListener("mousedown", handleOutside);
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, [exportMenuOpen]);
+
+    const handleExport = async (
+        format: ExportFormat,
+    ) => {
+        setExportMenuOpen(false);
+
+        const resolvedColumns: ExportColumn<T>[] =
+            exportColumns ??
+            columns
+                .filter(
+                    (column) =>
+                        column.key !== "action",
+                )
+                .map((column) => ({
+                    label: column.label,
+                    value: (row: T) => {
+                        const value =
+                            row[column.key as keyof T];
+
+                        return typeof value === "number" ||
+                            typeof value === "string"
+                            ? value
+                            : "";
+                    },
+                }));
+
+        try {
+            setExporting(true);
+
+            await exportTable(format, {
+                columns: resolvedColumns,
+                rows: filteredData,
+                fileName: exportFileName,
+            });
+        } catch (exportError) {
+            console.error("Export failed:", exportError);
+            toast.error("Export failed. Please try again.");
+        } finally {
+            setExporting(false);
+        }
     };
 
     /* =====================================================
@@ -726,34 +882,27 @@ const CommonTable = <
     };
 
     /* =====================================================
-       LOADING
+       PHONE LAYOUT
     ===================================================== */
 
-    if (loading) {
-        return (
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                <div className="flex min-h-[250px] items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                        <div
-                            className="
-                                h-8
-                                w-8
-                                animate-spin
-                                rounded-full
-                                border-4
-                                border-orange-100
-                                border-t-orange-500
-                            "
-                        />
-
-                        <p className="text-sm font-medium text-gray-500">
-                            Loading data...
-                        </p>
-                    </div>
-                </div>
-            </div>
+    /*
+     * First column still visible below `sm`. On phones it
+     * sticks to the left edge while the table scrolls
+     * sideways, and it carries the "Total" label.
+     */
+    const mobileFirstColumnIndex =
+        columns.findIndex(
+            (column) => !column.hideOnMobile,
         );
-    }
+
+    // No sticky column with the expand column in front of it.
+    const stickyColumnIndex =
+        expandable
+            ? -1
+            : mobileFirstColumnIndex;
+
+    const STICKY_CELL_CLASS =
+        "sticky left-0 z-10 bg-inherit shadow-[inset_-1px_0_0_var(--color-gray-200)] sm:static sm:shadow-none";
 
     /* =====================================================
        RENDER
@@ -768,11 +917,13 @@ const CommonTable = <
             {(
                 searchable ||
                 filters.length > 0 ||
+                filterContent ||
                 headerContent ||
                 onRefresh ||
-                onAdd
+                onAdd ||
+                exportable
             ) && (
-                    <div className="w-full border-b border-orange-100 bg-white">
+<div className="w-full border-b border-gray-200 bg-white">
                         <div className="w-full p-3 sm:p-4">
                             <div className="flex w-full flex-col gap-3">
                                 <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center">
@@ -784,22 +935,7 @@ const CommonTable = <
                                         {searchable && (
                                             <div className="relative w-full min-w-0 sm:flex-1 lg:max-w-md">
                                                 <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        strokeWidth={
-                                                            1.8
-                                                        }
-                                                        stroke="currentColor"
-                                                        className="h-4 w-4"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"
-                                                        />
-                                                    </svg>
+                                                    <Search className="h-4 w-4" aria-hidden="true" />
                                                 </div>
 
                                                 <input
@@ -828,8 +964,9 @@ const CommonTable = <
                                                     border-gray-300
                                                     bg-white
                                                     pl-9
-                                                    pr-9
-                                                    text-sm
+                                                    pr-10
+                                                    text-base
+                                                    sm:text-sm
                                                     text-gray-700
                                                     outline-none
                                                     transition
@@ -844,25 +981,26 @@ const CommonTable = <
                                                 {searchText && (
                                                     <button
                                                         type="button"
-                                                        onClick={() =>
+onClick={() =>
                                                             handleSearchChange(
                                                                 "",
                                                             )
                                                         }
+                                                        aria-label="Clear search"
                                                         className="
                                                         absolute
-                                                        right-2
+                                                        right-1
                                                         top-1/2
                                                         -translate-y-1/2
                                                         rounded-md
-                                                        p-1
+                                                        p-2
                                                         text-gray-400
                                                         transition
                                                         hover:bg-orange-50
                                                         hover:text-orange-500
                                                     "
                                                     >
-                                                        ✕
+                                                        <X className="h-4 w-4" aria-hidden="true" />
                                                     </button>
                                                 )}
                                             </div>
@@ -874,9 +1012,15 @@ const CommonTable = <
                                             (
                                                 filter,
                                             ) => (
-                                                <select
+                                                <div
                                                     key={
                                                         filter.key
+                                                    }
+                                                    className="relative w-full min-w-0 sm:w-auto sm:min-w-[160px] sm:flex-1 lg:flex-none"
+                                                >
+                                                <select
+                                                    aria-label={
+                                                        filter.label
                                                     }
                                                     value={
                                                         filterValues?.[
@@ -909,7 +1053,8 @@ const CommonTable = <
                                                     border-gray-300
                                                     bg-white
                                                     px-3
-                                                    text-sm
+                                                    text-base
+                                                    sm:text-sm
                                                     font-medium
                                                     text-gray-700
                                                     outline-none
@@ -918,17 +1063,17 @@ const CommonTable = <
                                                     focus:border-orange-500
                                                     focus:ring-2
                                                     focus:ring-orange-100
-                                                    sm:w-auto
-                                                    sm:min-w-[160px]
-                                                    sm:flex-1
-                                                    lg:flex-none
+                                                    appearance-none
+                                                    pr-9
                                                 "
                                                 >
-                                                    <option value="">
-                                                        {
-                                                            filter.label
-                                                        }
-                                                    </option>
+                                                    {!filter.required && (
+                                                        <option value="">
+                                                            {
+                                                                filter.label
+                                                            }
+                                                        </option>
+                                                    )}
 
                                                     {filter.options.map(
                                                         (
@@ -949,38 +1094,16 @@ const CommonTable = <
                                                         ),
                                                     )}
                                                 </select>
+
+                                                <ChevronDown
+                                                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+                                                    aria-hidden="true"
+                                                />
+                                                </div>
                                             ),
                                         )}
 
-                                        {/* ================= CLEAR ================= */}
-
-                                        {hasActiveFilters && (
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    clearFilters
-                                                }
-                                                className="
-                                                h-10
-                                                w-full
-                                                rounded-lg
-                                                border
-                                                border-gray-200
-                                                bg-gray-50
-                                                px-3
-                                                text-sm
-                                                font-medium
-                                                text-gray-600
-                                                transition
-                                                hover:border-orange-200
-                                                hover:bg-orange-50
-                                                hover:text-orange-600
-                                                sm:w-auto
-                                            "
-                                            >
-                                                Clear
-                                            </button>
-                                        )}
+                                        {filterContent}
                                     </div>
 
                                     {/* ================= RIGHT ACTIONS ================= */}
@@ -989,12 +1112,13 @@ const CommonTable = <
                                         className="
                                         flex
                                         w-full
-                                        flex-col
+                                        min-w-0
+                                        flex-wrap
+                                        items-center
                                         gap-2
-                                        sm:flex-row
-                                        sm:items-center
                                         lg:w-auto
                                         lg:flex-shrink-0
+                                        lg:flex-nowrap
                                     "
                                     >
                                         {/* ================= HEADER CONTENT ================= */}
@@ -1004,9 +1128,8 @@ const CommonTable = <
                                                 className="
                                                 flex
                                                 w-full
-                                                sm:w-[160px]
-                                                md:w-[160px]
-                                                lg:w-auto
+                                                min-w-0
+sm:w-auto
                                             "
                                             >
                                                 {
@@ -1018,210 +1141,88 @@ const CommonTable = <
                                         {/* ================= ADD ================= */}
 
                                         {onAdd && (
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    handleAdd
-                                                }
-                                                disabled={
-                                                    adding ||
-                                                    loading
-                                                }
-                                                className="
-                                                inline-flex
-                                                h-10
-                                                w-full
-                                                items-center
-                                                justify-center
-                                                gap-2
-                                                rounded-lg
-                                                bg-orange-500
-                                                px-4
-                                                text-sm
-                                                font-semibold
-                                                text-white
-                                                shadow-sm
-                                                transition-all
-                                                duration-200
-                                                hover:bg-orange-600
-                                                active:scale-[0.98]
-                                                disabled:cursor-not-allowed
-                                                disabled:opacity-50
-                                                sm:w-[160px]
-                                                md:w-[160px]
-                                                lg:w-auto
-                                            "
+                                            <CommonButton
+                                                onClick={handleAdd}
+                                                disabled={loading}
+                                                loading={adding}
+                                                loadingText="Adding..."
+                                                icon={Plus}
+                                                className="flex-1 sm:flex-none"
                                             >
-                                                {adding ? (
-                                                    <>
-                                                        <svg
-                                                            className="h-4 w-4 animate-spin"
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <circle
-                                                                className="opacity-25"
-                                                                cx="12"
-                                                                cy="12"
-                                                                r="10"
-                                                                stroke="currentColor"
-                                                                strokeWidth="4"
-                                                            />
+                                                {addButtonLabel}
+                                            </CommonButton>
+                                        )}
 
-                                                            <path
-                                                                className="opacity-75"
-                                                                fill="currentColor"
-                                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                                            />
-                                                        </svg>
+                                        {/* ================= EXPORT ================= */}
 
-                                                        <span>
-                                                            Adding...
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={
-                                                                2
-                                                            }
-                                                            stroke="currentColor"
-                                                            className="h-5 w-5"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M12 4v16m8-8H4"
-                                                            />
-                                                        </svg>
+                                        {exportable && (
+                                            <div
+                                                ref={exportMenuRef}
+                                                className="relative flex-1 sm:flex-none"
+                                            >
+                                                <CommonButton
+                                                    variant="secondary"
+                                                    onClick={() =>
+                                                        setExportMenuOpen(
+                                                            (open) => !open,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        loading ||
+                                                        filteredData.length === 0
+                                                    }
+                                                    loading={exporting}
+                                                    loadingText="Exporting..."
+                                                    icon={Download}
+                                                    aria-haspopup="menu"
+                                                    aria-expanded={exportMenuOpen}
+                                                    className="w-full"
+                                                >
+                                                    Export
+                                                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                                </CommonButton>
 
-                                                        <span className="whitespace-nowrap">
-                                                            {
-                                                                addButtonLabel
-                                                            }
-                                                        </span>
-                                                    </>
+                                                {exportMenuOpen && (
+                                                    <div
+                                                        role="menu"
+                                                        className="absolute right-0 z-50 mt-1 w-full min-w-[160px] overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg sm:w-auto"
+                                                    >
+                                                        {EXPORT_OPTIONS.map(
+                                                            ({ format, label, icon: Icon }) => (
+                                                                <button
+                                                                    key={format}
+                                                                    type="button"
+                                                                    role="menuitem"
+                                                                    onClick={() =>
+                                                                        handleExport(format)
+                                                                    }
+                                                                    className="flex min-h-10 w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm sm:min-h-0 text-gray-700 transition hover:bg-orange-50 hover:text-orange-700"
+                                                                >
+                                                                    <Icon className="h-4 w-4" aria-hidden="true" />
+                                                                    {label}
+                                                                </button>
+                                                            ),
+                                                        )}
+                                                    </div>
                                                 )}
-                                            </button>
+                                            </div>
                                         )}
 
                                         {/* ================= REFRESH ================= */}
 
                                         {onRefresh && (
-                                            <button
-                                                type="button"
-                                                onClick={
-                                                    handleRefresh
-                                                }
-                                                disabled={
-                                                    refreshing ||
-                                                    loading
-                                                }
+                                            <CommonButton
+                                                variant="secondary"
+                                                onClick={handleRefresh}
+                                                disabled={loading}
+                                                loading={refreshing}
+                                                loadingText="Refreshing..."
+                                                icon={RefreshCw}
                                                 title="Refresh"
-                                                className="
-                                                inline-flex
-                                                h-10
-                                                w-full
-                                                items-center
-                                                justify-center
-                                                gap-2
-                                                rounded-lg
-                                                border
-                                                border-gray-200
-                                                bg-white
-                                                px-4
-                                                text-sm
-                                                font-semibold
-                                                text-gray-600
-                                                shadow-sm
-                                                transition-all
-                                                duration-200
-                                                hover:border-orange-300
-                                                hover:bg-orange-50
-                                                hover:text-orange-600
-                                                active:scale-[0.98]
-                                                disabled:cursor-not-allowed
-                                                disabled:opacity-50
-                                                sm:w-[160px]
-                                                md:w-[160px]
-                                                lg:w-auto
-                                            "
+                                                className="flex-1 sm:flex-none"
                                             >
-                                                {refreshing ? (
-                                                    <>
-                                                        <svg
-                                                            className="h-4 w-4 animate-spin"
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <circle
-                                                                className="opacity-25"
-                                                                cx="12"
-                                                                cy="12"
-                                                                r="10"
-                                                                stroke="currentColor"
-                                                                strokeWidth="4"
-                                                            />
-
-                                                            <path
-                                                                className="opacity-75"
-                                                                fill="currentColor"
-                                                                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                                                            />
-                                                        </svg>
-
-                                                        <span>
-                                                            Refreshing...
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg
-                                                            xmlns="http://www.w3.org/2000/svg"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            strokeWidth={
-                                                                2
-                                                            }
-                                                            stroke="currentColor"
-                                                            className="h-4 w-4"
-                                                        >
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M4.5 12a7.5 7.5 0 0112.8-5.3L19.5 9"
-                                                            />
-
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M19.5 4.5V9h-4.5"
-                                                            />
-
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M19.5 12a7.5 7.5 0 01-12.8 5.3L4.5 15"
-                                                            />
-
-                                                            <path
-                                                                strokeLinecap="round"
-                                                                strokeLinejoin="round"
-                                                                d="M4.5 19.5V15H9"
-                                                            />
-                                                        </svg>
-
-                                                        <span>
-                                                            Refresh
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </button>
+                                                Refresh
+                                            </CommonButton>
                                         )}
                                     </div>
                                 </div>
@@ -1236,6 +1237,7 @@ const CommonTable = <
 
             <div
                 className="
+                    @container
                     w-full
                     overflow-x-auto
                     overflow-y-visible
@@ -1253,7 +1255,7 @@ const CommonTable = <
                     {/* ================= HEAD ================= */}
 
                     <thead>
-                        <tr className="border-b border-orange-600 bg-orange-500">
+<tr className="border-b-2 border-orange-200 bg-orange-50">
                             {/* EXPAND COLUMN */}
 
                             {expandable && (
@@ -1265,7 +1267,7 @@ const CommonTable = <
                                         w-[52px]
                                         min-w-[52px]
                                         max-w-[52px]
-                                        bg-orange-500
+                                        bg-orange-50
                                         px-2
                                         py-3
                                     "
@@ -1282,6 +1284,7 @@ const CommonTable = <
                             {columns.map(
                                 (
                                     column,
+                                    columnIndex,
                                 ) => (
                                     <th
                                         key={String(
@@ -1298,17 +1301,20 @@ const CommonTable = <
                                         className={`
                                             sticky
                                             top-0
-                                            z-20
+                                            ${columnIndex === stickyColumnIndex
+                                                ? "left-0 z-30 shadow-[inset_-1px_0_0_var(--color-orange-200)] sm:left-auto sm:z-20 sm:shadow-none"
+                                                : "z-20"
+                                            }
                                             whitespace-nowrap
-                                            bg-orange-500
+                                            bg-orange-50
                                             px-4
                                             py-3
-                                            text-left
+${ALIGN_CLASS[column.align ?? "left"]}
                                             text-xs
-                                            font-bold
+                                            font-semibold
                                             uppercase
-                                            tracking-wider
-                                            text-white
+                                            tracking-wide
+                                            text-orange-800
                                             ${column.hideOnMobile
                                                 ? "hidden sm:table-cell"
                                                 : ""
@@ -1326,8 +1332,75 @@ const CommonTable = <
 
                     {/* ================= BODY ================= */}
 
-                    <tbody className="divide-y divide-gray-100">
-                        {paginatedData.length ===
+                    <tbody
+                        className="divide-y divide-gray-100"
+                        aria-busy={loading}
+                    >
+                        {loading ? (
+                            Array.from(
+                                { length: SKELETON_ROWS },
+                                (_, rowIndex) => (
+                                    <tr
+                                        key={rowIndex}
+                                        className="animate-pulse bg-white"
+                                    >
+                                        {expandable && (
+                                            <td className="px-2 py-3" />
+                                        )}
+
+{columns.map(
+                                            (column, colIndex) => (
+                                                <td
+                                                    key={colIndex}
+                                                    className={`px-4 py-3 ${column.hideOnMobile ? "hidden sm:table-cell" : ""} ${colIndex === stickyColumnIndex ? STICKY_CELL_CLASS : ""}`}
+                                                >
+                                                    <div
+className={`h-3.5 rounded bg-gray-200 ${column.align === "right" ? "ml-auto" : ""}`}
+                                                        style={{
+                                                            width: `${55 + ((rowIndex + colIndex) % 4) * 12}%`,
+                                                        }}
+                                                    />
+                                                </td>
+                                            ),
+                                        )}
+                                    </tr>
+                                ),
+                            )
+                        ) : error ? (
+                            <tr>
+                                <td
+                                    colSpan={
+                                        columns.length +
+                                        (expandable
+                                            ? 1
+                                            : 0)
+                                    }
+                                    className="p-0"
+                                >
+                                    {/* Pinned to the visible width, so it stays on screen when the table is wider (phones) */}
+                                    <div className="sticky left-0 w-[100cqw] px-4 py-16">
+                                    <CommonStateMessage
+                                        tone="danger"
+                                        icon={CircleAlert}
+                                        title={error}
+                                        action={
+                                            onRetry && (
+                                                <CommonButton
+                                                    size="sm"
+                                                    icon={RefreshCw}
+                                                    onClick={onRetry}
+                                                    loading={refreshing}
+                                                    loadingText="Retrying..."
+                                                >
+                                                    Retry
+                                                </CommonButton>
+                                            )
+                                        }
+                                    />
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : paginatedData.length ===
                             0 ? (
                             <tr>
                                 <td
@@ -1337,44 +1410,18 @@ const CommonTable = <
                                             ? 1
                                             : 0)
                                     }
-                                    className="px-4 py-16 text-center"
+                                    className="p-0"
                                 >
-                                    <div className="flex flex-col items-center justify-center">
-                                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-orange-400">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                strokeWidth={
-                                                    1.5
-                                                }
-                                                stroke="currentColor"
-                                                className="h-6 w-6"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    d="M20.25 6.75v10.5a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6.75m16.5 0A2.25 2.25 0 0018 4.5H6a2.25 2.25 0 00-2.25 2.25m16.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0l-7.5-4.615A2.25 2.25 0 013.75 6.993V6.75"
-                                                />
-                                            </svg>
-                                        </div>
-
-                                        <p className="text-sm font-semibold text-gray-700">
-                                            {
-                                                emptyMessage
-                                            }
-                                        </p>
-
-                                        {hasActiveFilters && (
-                                            <p className="mt-1 text-xs text-gray-400">
-                                                Try
-                                                changing
-                                                your
-                                                search
-                                                or
-                                                filters.
-                                            </p>
-                                        )}
+                                    <div className="sticky left-0 w-[100cqw] px-4 py-16">
+                                    <CommonStateMessage
+                                        icon={Inbox}
+                                        title={emptyMessage}
+                                        description={
+                                            hasActiveFilters
+                                                ? "Try changing your search or filters."
+                                                : undefined
+                                        }
+                                    />
                                     </div>
                                 </td>
                             </tr>
@@ -1391,6 +1438,7 @@ const CommonTable = <
                                     return (
                                         <React.Fragment
                                             key={
+                                                getRowKey?.(row) ??
                                                 rowIndex
                                             }
                                         >
@@ -1413,6 +1461,7 @@ const CommonTable = <
                                                         ? "cursor-pointer hover:bg-orange-50"
                                                         : "hover:bg-gray-50"
                                                     }
+                                                    ${rowClassName?.(row) || "bg-white"}
                                                 `}
                                             >
                                                 {/* ================= EXPAND ================= */}
@@ -1470,31 +1519,7 @@ const CommonTable = <
                                                                 hover:text-orange-600
                                                             "
                                                         >
-                                                            <svg
-                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                                strokeWidth={
-                                                                    2
-                                                                }
-                                                                stroke="currentColor"
-                                                                className={`
-                                                                    h-4
-                                                                    w-4
-                                                                    transition-transform
-                                                                    duration-200
-                                                                    ${isExpanded
-                                                                        ? "rotate-180 text-orange-500"
-                                                                        : ""
-                                                                    }
-                                                                `}
-                                                            >
-                                                                <path
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                    d="m19 9-7 7-7-7"
-                                                                />
-                                                            </svg>
+                                                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? "rotate-180 text-orange-500" : "" }`} aria-hidden="true" />
                                                         </button>
                                                     </td>
                                                 )}
@@ -1519,15 +1544,20 @@ const CommonTable = <
                                                                     column.width,
                                                             }}
                                                             className={`
-                                                                whitespace-nowrap
+whitespace-nowrap
                                                                 overflow-hidden
                                                                 text-ellipsis
                                                                 px-4
                                                                 py-3
                                                                 text-sm
                                                                 text-gray-700
+                                                                ${ALIGN_CLASS[column.align ?? "left"]}
                                                                 ${column.hideOnMobile
                                                                     ? "hidden sm:table-cell"
+                                                                    : ""
+                                                                }
+                                                                ${columnIndex === stickyColumnIndex
+                                                                    ? STICKY_CELL_CLASS
                                                                     : ""
                                                                 }
                                                             `}
@@ -1611,84 +1641,69 @@ const CommonTable = <
 
                     {/* =================================================
                         TOTAL WEIGHT ROW
+                        "Total" label goes in the first column,
+                        the summed weight under netWeight.
                     ================================================= */}
 
-                    <tfoot>
-                        <tr className="border-t-2 border-orange-200 bg-orange-50">
-                            {expandable && (
-                                <td
-                                    className="
-                                        w-[52px]
-                                        min-w-[52px]
-                                        max-w-[52px]
-                                        px-2
-                                        py-3
-                                    "
-                                    style={{
-                                        width: "52px",
-                                        minWidth: "52px",
-                                        maxWidth: "52px",
-                                    }}
-                                />
-                            )}
-
-                            {columns.map(
-                                (column, columnIndex) => (
+                    {!loading && !error && (
+                        <tfoot>
+                            <tr className="border-t border-gray-200 bg-gray-50">
+                                {expandable && (
                                     <td
-                                        key={`total-${String(
-                                            column.key,
-                                        )}`}
+                                        className="w-[52px] min-w-[52px] max-w-[52px] px-2 py-3"
                                         style={{
-                                            width:
-                                                column.width,
-                                            minWidth:
-                                                column.width,
-                                            maxWidth:
-                                                column.width,
+                                            width: "52px",
+                                            minWidth: "52px",
+                                            maxWidth: "52px",
                                         }}
-                                        className={`
-                                            px-4
-                                            py-3
-                                            text-left
-                                            text-sm
-                                            font-bold
-                                            text-gray-800
-                                            ${column.hideOnMobile
-                                                ? "hidden sm:table-cell"
-                                                : ""
-                                            }
-                                        `}
-                                    >
-                                        {columnIndex === 0 &&
-                                            column.key === "sno" ? (
-                                            <span>
-                                                Total
-                                            </span>
-                                        ) : column.key ===
-                                            "netWeight" ? (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-orange-700">
-                                                    {formatWeight(
-                                                        totalWeight,
-                                                    )}
-                                                </span>
+                                    />
+                                )}
 
-                                                <span className="rounded-full bg-orange-500 px-2.5 py-1 text-[11px] font-bold text-white">
-                                                    MT
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            columnIndex === 0 ? (
+                                {columns.map(
+                                    (column, columnIndex) => (
+                                        <td
+                                            key={`total-${String(column.key)}`}
+                                            style={{
+                                                width: column.width,
+                                                minWidth: column.width,
+                                                maxWidth: column.width,
+                                            }}
+                                            className={`
+                                                px-4
+                                                py-3
+                                                ${ALIGN_CLASS[column.align ?? "left"]}
+                                                text-sm
+                                                font-semibold
+                                                text-gray-900
+                                                ${column.hideOnMobile
+                                                    ? "hidden sm:table-cell"
+                                                    : ""
+                                                }
+                                                ${columnIndex === stickyColumnIndex
+                                                    ? STICKY_CELL_CLASS
+                                                    : ""
+                                                }
+                                            `}
+                                        >
+                                            {column.key === "netWeight" ? (
                                                 <span>
-                                                    Total
+                                                    {formatWeight(totalWeight)}{" "}
+                                                    <span className="text-xs font-medium text-gray-500">
+                                                        MT
+                                                    </span>
                                                 </span>
-                                            ) : null
-                                        )}
-                                    </td>
-                                ),
-                            )}
-                        </tr>
-                    </tfoot>
+                                            ) : columnIndex === 0 ? (
+                                                <span>Total</span>
+                                            ) : columnIndex === mobileFirstColumnIndex ? (
+                                                // Column 0 is hidden on phones
+                                                <span className="sm:hidden">Total</span>
+                                            ) : null}
+                                        </td>
+                                    ),
+                                )}
+                            </tr>
+                        </tfoot>
+                    )}
 
                 </table>
             </div>
@@ -1697,11 +1712,11 @@ const CommonTable = <
                 PAGINATION
             ================================================= */}
 
-            {pagination && (
-                <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            {pagination && !loading && !error && (
+                <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
                     {/* ================= LEFT ================= */}
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start">
                         <p className="text-sm text-gray-500">
                             Showing{" "}
                             <span className="font-semibold text-gray-800">
@@ -1751,8 +1766,10 @@ const CommonTable = <
                                         ),
                                     )
                                 }
+                                aria-label="Rows per page"
                                 className="
-                                    h-9
+                                    h-10
+                                    sm:h-9
                                     min-w-[70px]
                                     cursor-pointer
                                     rounded-lg
@@ -1760,7 +1777,8 @@ const CommonTable = <
                                     border-gray-200
                                     bg-white
                                     px-2
-                                    text-sm
+                                    text-base
+                                    sm:text-sm
                                     font-medium
                                     text-gray-700
                                     outline-none
@@ -1793,10 +1811,13 @@ const CommonTable = <
 
                     {/* ================= RIGHT ================= */}
 
-                    <div className="flex flex-wrap items-center gap-1">
+                    {/* Phones: Previous / "Page X of Y" / Next. sm+: numbered pages */}
+                    <div className="flex items-center justify-between gap-2 sm:flex-wrap sm:justify-start sm:gap-1">
                         {/* PREVIOUS */}
 
-                        <button
+                        <CommonButton
+                            variant="secondary"
+                            size="sm"
                             type="button"
                             disabled={
                                 currentPage ===
@@ -1818,29 +1839,27 @@ const CommonTable = <
                                     null,
                                 );
                             }}
-                            className="
-                                cursor-pointer
-                                rounded-lg
-                                border
-                                border-gray-200
-                                bg-white
-                                px-3
-                                py-1.5
-                                text-sm
-                                font-medium
-                                text-gray-600
-                                transition
-                                hover:border-orange-300
-                                hover:bg-orange-50
-                                hover:text-orange-600
-                                disabled:cursor-not-allowed
-                                disabled:opacity-40
-                            "
                         >
                             Previous
-                        </button>
+                        </CommonButton>
 
-                        {/* PAGE NUMBERS */}
+                        {/* PAGE X OF Y (phones) */}
+
+                        <span
+                            className="text-sm text-gray-500 sm:hidden"
+                            aria-live="polite"
+                        >
+                            Page{" "}
+                            <span className="font-semibold text-gray-800">
+                                {totalPages === 0 ? 0 : currentPage}
+                            </span>{" "}
+                            of{" "}
+                            <span className="font-semibold text-gray-800">
+                                {totalPages}
+                            </span>
+                        </span>
+
+                        {/* PAGE NUMBERS (sm+) */}
 
                         {totalPages >
                             0 &&
@@ -1873,7 +1892,14 @@ const CommonTable = <
                                                 null,
                                             );
                                         }}
+                                        aria-current={
+                                            currentPage === page
+                                                ? "page"
+                                                : undefined
+                                        }
                                         className={`
+                                            hidden
+                                            sm:inline-block
                                             min-w-8
                                             cursor-pointer
                                             rounded-lg
@@ -1898,7 +1924,9 @@ const CommonTable = <
 
                         {/* NEXT */}
 
-                        <button
+                        <CommonButton
+                            variant="secondary"
+                            size="sm"
                             type="button"
                             disabled={
                                 currentPage ===
@@ -1922,27 +1950,9 @@ const CommonTable = <
                                     null,
                                 );
                             }}
-                            className="
-                                cursor-pointer
-                                rounded-lg
-                                border
-                                border-gray-200
-                                bg-white
-                                px-3
-                                py-1.5
-                                text-sm
-                                font-medium
-                                text-gray-600
-                                transition
-                                hover:border-orange-300
-                                hover:bg-orange-50
-                                hover:text-orange-600
-                                disabled:cursor-not-allowed
-                                disabled:opacity-40
-                            "
                         >
                             Next
-                        </button>
+                        </CommonButton>
                     </div>
                 </div>
             )}
@@ -1968,41 +1978,14 @@ const CommonTable = <
                         closeOnOutsideClick
                         footer={
                             <div className="flex justify-end gap-3">
-                                <button
-                                    type="button"
+                                <CommonButton
+                                    variant="secondary"
                                     onClick={
                                         handleCloseModal
                                     }
-                                    className="
-                    rounded-lg
-                    border
-                    border-gray-300
-                    px-4
-                    py-2
-                    text-sm
-                    font-medium
-                    text-gray-700
-                    hover:bg-gray-50
-                "
                                 >
                                     Close
-                                </button>
-
-                                <button
-                                    type="button"
-                                    className="
-                    rounded-lg
-                    bg-orange-500
-                    px-4
-                    py-2
-                    text-sm
-                    font-medium
-                    text-white
-                    hover:bg-orange-600
-                "
-                                >
-                                    Save
-                                </button>
+                                </CommonButton>
                             </div>
                         }
                     >

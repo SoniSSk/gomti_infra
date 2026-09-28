@@ -8,18 +8,30 @@ export default function ScrollToTop() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setVisible(window.scrollY > 400);
+      const { scrollY, innerHeight } = window;
+      const distanceFromBottom =
+        document.documentElement.scrollHeight - (scrollY + innerHeight);
+
+      // Hide near the page end so it doesn't cover pagination (Next) or footer actions
+      setVisible(scrollY > 400 && distanceFromBottom > 160);
     };
 
-    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
 
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
   }, []);
 
   if (!visible) return null;
 
   return (
     <button
+      type="button"
+      aria-label="Scroll to top"
       onClick={() =>
         window.scrollTo({
           top: 0,
@@ -28,19 +40,22 @@ export default function ScrollToTop() {
       }
       className="
         fixed
-        bottom-6
-        left-1/2
-        -translate-x-1/2
+        bottom-[calc(1rem+env(safe-area-inset-bottom))]
+        right-4
+        lg:bottom-6
+        lg:right-6
         cursor-pointer
         z-50
         orange-gradient
         orange-hover
-        p-4
+        p-2.5
+        lg:p-4
         rounded-full
         text-white
+        shadow-lg
       "
     >
-      <ChevronUp />
+      <ChevronUp className="size-5 lg:size-6" />
     </button>
   );
 }

@@ -7,6 +7,8 @@ interface FileUploadProps {
   url?: string;
   label: string;
   onUpload: (url: string) => void;
+  /** Called with true when an upload starts and false when it finishes. */
+  onUploadingChange?: (uploading: boolean) => void;
   disabled?: boolean;
 }
 
@@ -14,6 +16,7 @@ export default function FileUpload({
   url,
   label,
   onUpload,
+  onUploadingChange,
   disabled = false,
 }: FileUploadProps) {
   const [fileUrl, setFileUrl] = useState(url || "");
@@ -42,6 +45,7 @@ export default function FileUpload({
 
     try {
       setLoading(true);
+      onUploadingChange?.(true);
 
       const formData = new FormData();
       formData.append("file", file);
@@ -69,6 +73,7 @@ export default function FileUpload({
       toast.error("Upload failed");
     } finally {
       setLoading(false);
+      onUploadingChange?.(false);
     }
   };
 

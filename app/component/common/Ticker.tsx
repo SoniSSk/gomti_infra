@@ -17,7 +17,7 @@ export default function Ticker({
 
     return (
         <div
-            className={`rounded-md mb-4 w-full overflow-hidden bg-[#ff6b00] text-white ${className}`}
+            className={`rounded-md mb-4 w-full overflow-hidden bg-orange-600 text-white ${className}`}
         >
             <div
                 className="flex w-max animate-ticker whitespace-nowrap"

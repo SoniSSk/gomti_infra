@@ -2,67 +2,35 @@
 
 import {
   FormEvent,
-  useEffect,
+  Suspense,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, getSession } from "next-auth/react";
+import Logo from "../component/common/Logo";
 
 type Mode = "login" | "signup";
+
+/** Shown when SessionExpiryWatcher redirects here after the 8-hour session. */
+function SessionExpiredNotice() {
+  const searchParams = useSearchParams();
+
+  if (searchParams.get("expired") !== "1") return null;
+
+  return (
+    <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+      <span>⚠</span>
+      <span>Your session has expired. Please log in again.</span>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // =====================================================
-  // SESSION
-  // =====================================================
-
-  // Session expires automatically after 8 hours
-  const SESSION_DURATION = 8 * 60 * 60 * 1000;
-
-  // =====================================================
-  // LOGOUT
-  // =====================================================
-
-  const logoutUser = () => {
-    // Clear EVERYTHING from localStorage
-    localStorage.clear();
-
-    router.replace("/login");
-  };
-
-  // =====================================================
-  // CHECK EXISTING SESSION
-  // =====================================================
-
-  useEffect(() => {
-    const isLoggedIn =
-      localStorage.getItem("isLoggedIn");
-
-    const sessionExpiry =
-      localStorage.getItem("sessionExpiry");
-
-    // No active session
-    if (
-      isLoggedIn !== "true" ||
-      !sessionExpiry
-    ) {
-      return;
-    }
-
-    const expiryTime = Number(sessionExpiry);
-
-    // Invalid or expired session
-    if (
-      !Number.isFinite(expiryTime) ||
-      Date.now() >= expiryTime
-    ) {
-      logoutUser();
-      return;
-    }
-
-    // Existing valid session
-    router.replace("/");
-  }, [router]);
+  // Auth state (login redirect for /login vs protected pages) is now
+  // enforced server-side by middleware.ts, based on the real NextAuth
+  // session cookie — no client-side session bookkeeping needed here.
 
   // =====================================================
   // STATE
@@ -189,102 +157,62 @@ export default function LoginPage() {
         await getCurrentLocation();
 
       // =================================================
-      // LOGIN API
+      // LOGIN VIA NEXTAUTH
       // =================================================
 
-      const response = await fetch(
-        "/api/auth/login",
-        {
-          method: "POST",
+      const result = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        redirect: false,
+      });
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            email: email
-              .trim()
-              .toLowerCase(),
-
-            password,
-
-            latitude:
-              location.latitude,
-
-            longitude:
-              location.longitude,
-          }),
-        }
-      );
-
-      const data =
-        await response.json();
+      console.log("[login] signIn result:", result);
 
       // =================================================
       // LOGIN ERROR
       // =================================================
 
-      if (!response.ok) {
-        setError(
-          data.message ||
-          "Invalid email or password"
-        );
-
+      if (!result || result.error) {
+        console.log("[login] signIn failed, aborting redirect");
+        setError("Invalid email or password");
         return;
       }
 
       // =================================================
-      // SAVE NEW USER SESSION
+      // SAVE DISPLAY-ONLY USER INFO
       // =================================================
+      //
+      // The real session lives in an httpOnly cookie managed by
+      // NextAuth. These localStorage values are only read by a few
+      // components to render the signed-in user's name/role — they
+      // are not used for access control anymore.
 
-      const loginTime = Date.now();
+      const session = await getSession();
 
-      const sessionExpiry =
-        loginTime +
-        SESSION_DURATION;
+      console.log("[login] getSession() ->", session);
 
-      // Login status
-      localStorage.setItem(
-        "isLoggedIn",
-        "true"
-      );
-
-      // User role
-      localStorage.setItem(
-        "userRole",
-        data.user.role
-      );
-
-      // User name
-      localStorage.setItem(
-        "userName",
-        data.user.name
-      );
-
-      // User email
-      localStorage.setItem(
-        "userEmail",
-        data.user.email
-      );
-
-      // Login timestamp
-      localStorage.setItem(
-        "loginTime",
-        String(loginTime)
-      );
-
-      // 8-hour expiry timestamp
-      localStorage.setItem(
-        "sessionExpiry",
-        String(sessionExpiry)
-      );
+      if (session?.user) {
+        localStorage.setItem("userRole", session.user.role || "");
+        localStorage.setItem("userName", session.user.name || "");
+        localStorage.setItem("userEmail", session.user.email || "");
+        console.log("[login] localStorage set:", {
+          userRole: localStorage.getItem("userRole"),
+          userName: localStorage.getItem("userName"),
+          userEmail: localStorage.getItem("userEmail"),
+        });
+      } else {
+        console.warn("[login] session has no user, localStorage NOT set");
+      }
 
       // =================================================
       // LOGIN SUCCESS
       // =================================================
 
+      console.log("[login] calling router.replace('/dispatch/vehicle')");
       router.replace("/dispatch/vehicle");
+      console.log("[login] router.replace() call returned");
     } catch (error) {
       console.error(
         "Login Error:",
@@ -475,8 +403,8 @@ export default function LoginPage() {
 
             {/* Logo */}
 
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500 text-2xl font-bold text-white shadow-lg shadow-orange-200">
-              G
+            <div className="mb-5 flex justify-center">
+              <Logo height={72} priority />
             </div>
 
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
@@ -528,6 +456,10 @@ export default function LoginPage() {
 
           </div> */}
 
+
+          <Suspense fallback={null}>
+            <SessionExpiredNotice />
+          </Suspense>
 
           {/* =================================================
               ERROR

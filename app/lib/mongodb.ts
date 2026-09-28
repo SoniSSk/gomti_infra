@@ -1,64 +1,43 @@
-import { MongoClient } from "mongodb";
-import mongoose from "mongoose";
-
+import { MongoClient, MongoClientOptions } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
-
-
-const MONGODB_URI = process.env.MONGODB_URI!;
-
-if (!MONGODB_URI) {
-  throw new Error("Please define MONGODB_URI in .env.local");
-}
-
-let cached = (global as any).mongoose;
-
-if (!cached) {
-  cached = (global as any).mongoose = {
-    conn: null,
-    promise: null,
-  };
-}
-
-export async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      dbName: "gomti_infra",
-    });
-  }
-
-  cached.conn = await cached.promise;
-  return cached.conn;
-}
-
 
 if (!uri) {
   throw new Error("Please add MONGODB_URI to .env.local");
 }
 
-const options = {};
-
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+/*
+ * Fail fast instead of the driver's 30s default, so a DB blip
+ * returns an error to the page rather than a hung request.
+ */
+const options: MongoClientOptions = {
+  serverSelectionTimeoutMS: 5_000,
+  connectTimeoutMS: 10_000,
+};
 
 declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
-if (process.env.NODE_ENV === "development") {
+/*
+ * One shared connection, kept on globalThis so dev hot reloads
+ * reuse it. A failed connect is dropped, so the next request
+ * retries instead of reusing the rejected promise until restart.
+ */
+const getMongoClient = (): Promise<MongoClient> => {
   if (!global._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    global._mongoClientPromise = client.connect();
+    const promise = new MongoClient(uri, options).connect();
+
+    global._mongoClientPromise = promise;
+
+    promise.catch(() => {
+      if (global._mongoClientPromise === promise) {
+        global._mongoClientPromise = undefined;
+      }
+    });
   }
 
-  clientPromise = global._mongoClientPromise;
-} else {
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
-}
+  return global._mongoClientPromise;
+};
 
-export default clientPromise;
+export default getMongoClient;

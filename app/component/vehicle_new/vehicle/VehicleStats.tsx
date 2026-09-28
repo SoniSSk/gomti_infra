@@ -2,9 +2,13 @@
 
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 
+import CommonButton from "../common/CommonButton";
 import CommonCard from "../common/CommonCard";
+import CommonStateMessage from "../common/CommonStateMessage";
+import { getStatusMeta } from "../common/vehicleStatus";
 import CommonVehicleStatusCard from "../common/CommonVehicleStatusCard";
 
 import ViewModal from "./ViewModal";
@@ -12,6 +16,7 @@ import EditModal from "./EditModal";
 
 import { Vehicle } from "@/app/types/vehicle";
 import { Vehicle_new } from "@/app/types/vehicle_new";
+import { fetchJson } from "@/app/lib/fetchJson";
 
 /* =========================================================
    VEHICLE STATS
@@ -39,6 +44,8 @@ interface VehicleStats {
 ========================================================= */
 
 interface VehicleAlertCounts {
+    ON_HOLD: number;
+    ETP_GENERATING: number;
     ETP_DONE: number;
     LOADING_SLIP_SENT: number;
     INVOICE_GENERATING: number;
@@ -57,7 +64,7 @@ interface VehicleStatsResponse {
 
     vehicleAlerts?: {
         total: number;
-        counts: VehicleAlertCounts;
+        counts: Partial<VehicleAlertCounts>;
         vehicles: Vehicle[];
     };
 
@@ -90,6 +97,8 @@ const DEFAULT_STATS: VehicleStats = {
 ========================================================= */
 
 const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
+    ON_HOLD: 0,
+    ETP_GENERATING: 0,
     ETP_DONE: 0,
     LOADING_SLIP_SENT: 0,
     INVOICE_GENERATING: 0,
@@ -104,6 +113,9 @@ const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
 interface StatCard {
     heading: string;
     key: keyof VehicleStats;
+
+    /** Accent bar colour (matches the status palette). */
+    accent: string;
 
     /**
      * Value adjustment for display only.
@@ -121,27 +133,44 @@ interface StatCard {
    STAT CARDS
 ========================================================= */
 
+const ALERT_CHIPS: {
+    key: keyof VehicleAlertCounts;
+    label: string;
+}[] = [
+    { key: "ON_HOLD", label: "On Hold" },
+    { key: "ETP_GENERATING", label: "ETP Generating" },
+    { key: "ETP_DONE", label: "ETP Done" },
+    { key: "LOADING_SLIP_SENT", label: "Loading Slip Sent" },
+    { key: "INVOICE_GENERATING", label: "Invoice Generating" },
+    { key: "ETP_INVOICE_DONE", label: "ETP Invoice Done" },
+    { key: "NOT_REGISTERED", label: "Not Registered" },
+];
+
 const STAT_CARDS: StatCard[] = [
     {
         heading: "Today's Vehicles",
-        key: "todayVehicles",
+key: "todayVehicles",
+        accent: "bg-orange-500",
     },
 
     {
         heading: "Previous Day Vehicles",
-        key: "previousPendingVehicles",
+key: "previousPendingVehicles",
+        accent: "bg-amber-500",
         // offset: -4,
     },
 
     {
         heading: "Dispatched",
-        key: "dispatchDone",
+key: "dispatchDone",
+        accent: "bg-green-500",
         offset: 0,
     },
 
     {
         heading: "Waiting For Details",
-        key: "waitingForDetails",
+key: "waitingForDetails",
+        accent: "bg-red-500",
     },
 ];
 
@@ -159,18 +188,15 @@ const NO_ALERT_ROLES = [
    GET USER ROLE
 ========================================================= */
 
+const normalizeRole = (role?: string | null): string =>
+    role?.trim().toLowerCase().replace(/\s+/g, "") ?? "";
+
 const getUserRole = (): string => {
     if (typeof window === "undefined") {
         return "";
     }
 
-    return (
-        localStorage
-            .getItem("userRole")
-            ?.trim()
-            .toLowerCase()
-            .replace(/\s+/g, "") ?? ""
-    );
+    return normalizeRole(localStorage.getItem("userRole"));
 };
 
 /* =========================================================
@@ -206,7 +232,23 @@ const convertVehicleToVehicleNew = (
    COMPONENT
 ========================================================= */
 
-const VehicleStats = () => {
+interface VehicleStatsProps {
+    /** Change this value to force a refetch (e.g. after adding a vehicle). */
+    refreshKey?: number;
+    /** Change this value for a background refetch (auto refresh): no skeleton, keeps stats on failure. */
+    pollKey?: number;
+    /** Role from the session; falls back to localStorage when omitted. */
+    userRole?: string;
+    /** Called after a vehicle is saved from the alert edit modal. */
+    onVehicleUpdated?: () => void;
+}
+
+const VehicleStats = ({
+    refreshKey = 0,
+    pollKey = 0,
+    userRole: sessionRole,
+    onVehicleUpdated,
+}: VehicleStatsProps) => {
     /* =====================================================
        STATS
     ===================================================== */
@@ -237,12 +279,37 @@ const VehicleStats = () => {
     const [loading, setLoading] =
         useState(true);
 
+    const [error, setError] =
+        useState<string | null>(null);
+
+    // Stats + alerts from the last successful load
+    const hasStatsRef = useRef(false);
+
+    // Last pollKey seen, to tell a poll from other refetches
+    const lastPollKeyRef = useRef(pollKey);
+
+const [retryKey, setRetryKey] =
+        useState(0);
+
+    /* =====================================================
+       ALERT PANEL UI STATE
+    ===================================================== */
+
+    const [alertFilter, setAlertFilter] =
+        useState<keyof VehicleAlertCounts | null>(null);
+
+    const [alertsCollapsed, setAlertsCollapsed] =
+        useState(false);
+
     /* =====================================================
        ROLE READY
     ===================================================== */
 
     const [userRole, setUserRole] =
-        useState("");
+        useState(() => normalizeRole(sessionRole));
+
+    const [roleReady, setRoleReady] =
+        useState(() => Boolean(normalizeRole(sessionRole)));
 
     /* =====================================================
        SELECTED VEHICLE
@@ -270,7 +337,9 @@ const VehicleStats = () => {
     ===================================================== */
 
     useEffect(() => {
-        const role = getUserRole();
+        const role =
+            normalizeRole(sessionRole) ||
+            getUserRole();
 
         console.log(
             "VehicleStats User Role:",
@@ -278,7 +347,13 @@ const VehicleStats = () => {
         );
 
         setUserRole(role);
-    }, []);
+
+        /*
+         * Fetch even when no role is known, so the cards never
+         * wait forever; alerts stay hidden in that case.
+         */
+        setRoleReady(true);
+    }, [sessionRole]);
 
     /* =====================================================
        CHECK ALERT PERMISSION
@@ -295,20 +370,27 @@ const VehicleStats = () => {
     useEffect(() => {
         let cancelled = false;
 
+        const isPoll =
+            pollKey !== lastPollKeyRef.current &&
+            hasStatsRef.current;
+
+        lastPollKeyRef.current = pollKey;
+
         const fetchStats = async () => {
             try {
-                setLoading(true);
+                if (!isPoll) {
+                    setLoading(true);
+                    setError(null);
+                }
 
-                const response = await fetch(
-                    "/api/vehicles/stats",
-                    {
-                        method: "GET",
-                        cache: "no-store",
-                    },
-                );
-
-                const result: VehicleStatsResponse =
-                    await response.json();
+                const { response, data: result } =
+                    await fetchJson<VehicleStatsResponse>(
+                        "/api/vehicles/stats",
+                        {
+                            method: "GET",
+                            cache: "no-store",
+                        },
+                    );
 
                 if (!response.ok) {
                     throw new Error(
@@ -343,11 +425,10 @@ const VehicleStats = () => {
                                 ?.vehicles || [],
                         );
 
-                        setAlertCounts(
-                            result.vehicleAlerts
-                                ?.counts ||
-                            DEFAULT_ALERT_COUNTS,
-                        );
+                        setAlertCounts({
+                            ...DEFAULT_ALERT_COUNTS,
+                            ...(result.vehicleAlerts?.counts || {}),
+                        });
                     } else {
                         setAlertVehicles([]);
 
@@ -355,6 +436,10 @@ const VehicleStats = () => {
                             DEFAULT_ALERT_COUNTS,
                         );
                     }
+
+                    hasStatsRef.current = true;
+
+                    setError(null);
                 }
             } catch (error) {
                 console.error(
@@ -362,7 +447,12 @@ const VehicleStats = () => {
                     error,
                 );
 
-                if (!cancelled) {
+                // Background poll failed: keep current stats
+                if (!cancelled && !isPoll) {
+                    setError(
+                        "Couldn't load vehicle stats.",
+                    );
+
                     setStats(
                         DEFAULT_STATS,
                     );
@@ -374,7 +464,7 @@ const VehicleStats = () => {
                     );
                 }
             } finally {
-                if (!cancelled) {
+                if (!cancelled && !isPoll) {
                     setLoading(false);
                 }
             }
@@ -385,14 +475,14 @@ const VehicleStats = () => {
          * loaded before fetching stats.
          */
 
-        if (userRole !== "") {
+        if (roleReady) {
             fetchStats();
         }
 
         return () => {
             cancelled = true;
         };
-    }, [userRole, showVehicleAlerts]);
+    }, [roleReady, showVehicleAlerts, refreshKey, pollKey, retryKey]);
 
     /* =====================================================
        GET CARD DISPLAY VALUE
@@ -518,14 +608,20 @@ const VehicleStats = () => {
     ===================================================== */
 
     const handleEditSuccess = () => {
-        console.log(
-            "Vehicle updated successfully",
-        );
-
         setIsEditModalOpen(false);
 
         setSelectedVehicle(null);
+
+        onVehicleUpdated?.();
     };
+
+    const filteredAlertVehicles = alertFilter
+        ? alertVehicles.filter(
+            (vehicle) =>
+                String(vehicle.status ?? "").toUpperCase() ===
+                alertFilter,
+        )
+        : alertVehicles;
 
     /* =====================================================
        RENDER
@@ -533,35 +629,28 @@ const VehicleStats = () => {
 
     return (
         <>
-            <div className="w-full space-y-5">
+            <div className="w-full space-y-6">
 
                 {/* =================================================
                     MAIN STAT CARDS
                 ================================================= */}
 
-                <div
-                    className="
-                        grid
-                        w-full
-                        grid-cols-1
-                        gap-3
-                        sm:grid-cols-2
-                        lg:grid-cols-4
-                        xl:gap-4
-                    "
-                >
+                <div className="grid w-full grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                     {STAT_CARDS.map(
                         ({
                             heading,
                             key,
                             offset,
+                            accent,
                         }) => (
                             <CommonCard
                                 key={key}
                                 heading={heading}
+                                accent={accent}
+                                loading={loading}
                                 number={
-                                    loading
-                                        ? 0
+                                    error
+                                        ? "—"
                                         : getCardValue(
                                             key,
                                             offset,
@@ -571,6 +660,28 @@ const VehicleStats = () => {
                         ),
                     )}
                 </div>
+
+                {error && !loading && (
+                    <div
+                        role="alert"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+                    >
+                        <p className="min-w-0 text-sm font-medium text-red-700">
+                            {error}
+                        </p>
+
+                        <CommonButton
+                            variant="danger"
+                            size="sm"
+                            icon={RefreshCw}
+                            onClick={() =>
+                                setRetryKey((key) => key + 1)
+                            }
+                        >
+                            Retry
+                        </CommonButton>
+                    </div>
+                )}
 
                 {/* =================================================
                     VEHICLE ALERTS
@@ -584,234 +695,170 @@ const VehicleStats = () => {
                 ================================================= */}
 
                 {showVehicleAlerts && (
-                    <div className="w-full">
+                    <section
+                        aria-labelledby="vehicle-alerts-heading"
+                        className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                    >
+                        {/* ================= PANEL HEADER ================= */}
 
-                        {/* =============================================
-                            ALERT HEADER
-                        ============================================= */}
-
-                        <div
-                            className="
-                                mb-4
-                                flex
-                                flex-wrap
-                                items-center
-                                justify-between
-                                gap-3
-                            "
-                        >
-                            <div>
-                                <h2 className="text-lg font-bold text-gray-900">
+                        <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                            <div className="flex min-w-0 items-center gap-2.5">
+                                <h2
+                                    id="vehicle-alerts-heading"
+                                    className="shrink-0 whitespace-nowrap text-base font-semibold text-gray-900"
+                                >
                                     Vehicle Alerts
                                 </h2>
 
-                                <p className="text-xs text-gray-500">
+                                {!loading && (
+                                    <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-orange-700 ring-1 ring-inset ring-orange-600/15">
+                                        {alertVehicles.length}
+                                    </span>
+                                )}
+
+                                <p className="hidden truncate text-sm text-gray-500 sm:block">
                                     Vehicles requiring attention
                                 </p>
                             </div>
 
-                            <div
-                                className="
-                                    rounded-full
-                                    bg-orange-50
-                                    px-3
-                                    py-1.5
-                                    text-xs
-                                    font-bold
-                                    text-orange-600
-                                "
+                            <CommonButton
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                    setAlertsCollapsed(
+                                        (collapsed) => !collapsed,
+                                    )
+                                }
+                                aria-expanded={!alertsCollapsed}
+                                aria-controls="vehicle-alerts-body"
                             >
-                                Total:{" "}
-                                {loading
-                                    ? 0
-                                    : alertVehicles.length}
-                            </div>
+                                {alertsCollapsed ? "Show" : "Hide"}
+
+                                <ChevronDown
+                                    className={`h-4 w-4 transition-transform duration-200 ${alertsCollapsed ? "" : "rotate-180"}`}
+                                    aria-hidden="true"
+                                />
+                            </CommonButton>
                         </div>
 
-                        {/* =============================================
-                            ALERT COUNTS
-                        ============================================= */}
+                        {!alertsCollapsed && (
+                            <div
+                                id="vehicle-alerts-body"
+                                className="space-y-4 border-t border-gray-100 px-4 py-4 sm:px-5"
+                            >
+                                {/* ================= FILTER CHIPS ================= */}
 
-                        <div
-                            className="
-                                mb-4
-                                flex
-                                flex-wrap
-                                gap-2
-                            "
-                        >
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-yellow-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-yellow-700
-                                "
-                            >
-                                ETP Done:{" "}
-                                {alertCounts.ETP_DONE}
-                            </div>
+                                <div
+                                    className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:snap-none sm:flex-wrap sm:overflow-visible sm:px-0 sm:py-0 [&::-webkit-scrollbar]:hidden"
+                                    role="group"
+                                    aria-label="Filter alerts by status"
+                                >
+                                    {ALERT_CHIPS.map(({ key, label }) => {
+                                        const active = alertFilter === key;
+                                        const meta = getStatusMeta(key);
 
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-indigo-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-indigo-700
-                                "
-                            >
-                                Loading Slip:{" "}
-                                {
-                                    alertCounts.LOADING_SLIP_SENT
-                                }
-                            </div>
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                aria-pressed={active}
+                                                onClick={() =>
+                                                    setAlertFilter(
+                                                        active ? null : key,
+                                                    )
+                                                }
+                                                className={`inline-flex h-10 shrink-0 snap-start cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition sm:h-8 focus:outline-none focus:ring-2 focus:ring-orange-200 ${active
+                                                    ? "border-gray-900 bg-gray-900 text-white"
+                                                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
+                                                    }`}
+                                            >
+                                                <span
+                                                    className={`h-2 w-2 rounded-full ${meta.dot}`}
+                                                    aria-hidden="true"
+                                                />
+                                                {label}
+                                                <span
+                                                    className={`tabular-nums ${active ? "text-white/80" : "text-gray-400"}`}
+                                                >
+                                                    {loading ? "–" : alertCounts[key]}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
 
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-sky-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-sky-700
-                                "
-                            >
-                                Invoice Generating:{" "}
-                                {
-                                    alertCounts.INVOICE_GENERATING
-                                }
-                            </div>
+                                {/* ================= CARDS ================= */}
 
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-gray-100
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-gray-700
-                                "
-                            >
-                                Not Registered:{" "}
-                                {
-                                    alertCounts.NOT_REGISTERED
-                                }
-                            </div>
-
-                            <div
-                                className="
-                                    rounded-lg
-                                    bg-cyan-50
-                                    px-3
-                                    py-2
-                                    text-xs
-                                    font-semibold
-                                    text-cyan-700
-                                "
-                            >
-                                ETP Invoice Done:{" "}
-                                {
-                                    alertCounts.ETP_INVOICE_DONE
-                                }
-                            </div>
-                        </div>
-
-                        {/* =============================================
-                            VEHICLE CARDS
-                        ============================================= */}
-
-                        {loading ? (
-                            <div
-                                className="
-                                    rounded-xl
-                                    border
-                                    border-gray-100
-                                    bg-gray-50
-                                    px-4
-                                    py-10
-                                    text-center
-                                "
-                            >
-                                <p className="text-sm text-gray-500">
-                                    Loading vehicle alerts...
-                                </p>
-                            </div>
-                        ) : alertVehicles.length === 0 ? (
-                            <div
-                                className="
-                                    rounded-xl
-                                    border
-                                    border-dashed
-                                    border-gray-200
-                                    bg-gray-50
-                                    px-4
-                                    py-10
-                                    text-center
-                                "
-                            >
-                                <p className="text-sm font-medium text-gray-500">
-                                    No vehicle alerts
-                                </p>
-                            </div>
-                        ) : (
-                            <div
-                                className="
-                                    grid
-                                    grid-cols-1
-                                    gap-3
-                                    md:grid-cols-2
-                                    xl:grid-cols-3
-                                "
-                            >
-                                {alertVehicles.map(
-                                    (
-                                        vehicle,
-                                        index,
-                                    ) => (
-                                        <CommonVehicleStatusCard
-                                            key={
-                                                vehicle._id ||
-                                                `${vehicle.vehicleNo}-${index}`
-                                            }
-                                            sno={
-                                                vehicle.sno ??
-                                                index + 1
-                                            }
-                                            tokenNo={
-                                                vehicle.tokenNo
-                                            }
-                                            vehicleNo={
-                                                vehicle.vehicleNo
-                                            }
-                                            status={
-                                                vehicle.status
-                                            }
-                                            vehicle={
-                                                vehicle
-                                            }
-                                            onClick={() =>
-                                                handleVehicleClick(
-                                                    vehicle,
-                                                )
-                                            }
-                                            showEdit={false}
-                                            showGoogleChat={
-                                                false
-                                            }
-                                        />
-                                    ),
+                                {loading ? (
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {Array.from({ length: 3 }, (_, index) => (
+                                            <div
+                                                key={index}
+                                                className="h-[104px] animate-pulse rounded-lg border border-gray-100 bg-gray-50"
+                                            />
+                                        ))}
+                                    </div>
+                                ) : filteredAlertVehicles.length === 0 ? (
+                                    <CommonStateMessage
+                                        className="rounded-lg border border-dashed border-gray-200 px-4 py-8"
+                                        title={
+                                            alertFilter
+                                                ? "No vehicles with this status"
+                                                : "All clear — no vehicles need attention"
+                                        }
+                                        action={
+                                            alertFilter && (
+                                                <CommonButton
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setAlertFilter(null)}
+                                                >
+                                                    Show all alerts
+                                                </CommonButton>
+                                            )
+                                        }
+                                    />
+                                ) : (
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {filteredAlertVehicles.map(
+                                            (
+                                                vehicle,
+                                                index,
+                                            ) => (
+                                                <CommonVehicleStatusCard
+                                                    key={
+                                                        vehicle._id ||
+                                                        `${vehicle.vehicleNo}-${index}`
+                                                    }
+                                                    tokenNo={
+                                                        vehicle.tokenNo
+                                                    }
+                                                    vehicleNo={
+                                                        vehicle.vehicleNo
+                                                    }
+                                                    status={
+                                                        vehicle.status
+                                                    }
+                                                    vehicle={
+                                                        vehicle
+                                                    }
+                                                    onClick={() =>
+                                                        handleVehicleClick(
+                                                            vehicle,
+                                                        )
+                                                    }
+                                                    showEdit={false}
+                                                    showGoogleChat={
+                                                        false
+                                                    }
+                                                />
+                                            ),
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )}
-                    </div>
+                    </section>
                 )}
             </div>
 

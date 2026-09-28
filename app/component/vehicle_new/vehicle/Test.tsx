@@ -5,6 +5,7 @@ import React, {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 
@@ -12,11 +13,21 @@ import CommonTable, {
     TableFilter,
 } from "../common/CommonTable";
 
+import toast from "react-hot-toast";
+import { ChevronDown, RefreshCw, Timer } from "lucide-react";
+
+import CommonDateRangePicker from "../common/CommonDateRangePicker";
+
 import { Vehicle_new } from "@/app/types/vehicle_new";
 
 import ViewModal from "./ViewModal";
 import EditVehicleModal from "./EditModal";
-import { vehicleColumns } from "./TableColumn";
+import { vehicleColumns, vehicleExportColumns } from "./TableColumn";
+
+import PulseDot from "../../common/PulseDot";
+import { useAutoRefresh } from "@/app/hooks/useAutoRefresh";
+import { fetchJson } from "@/app/lib/fetchJson";
+import { getStoredUserRole, isReadOnlyRole } from "@/app/utils/vehiclePermissions";
 
 /* =========================================================
    TYPES
@@ -31,7 +42,8 @@ type DateFilter =
 interface VehicleTableProps {
     filters?: TableFilter[];
     initialDateFilter?: DateFilter;
-    initialCustomDate?: string;
+    initialCustomStartDate?: string;
+    initialCustomEndDate?: string;
     apiEndpoint?: string;
     onDataChange?: (vehicles: Vehicle_new[]) => void;
     onRowClick?: (vehicle: Vehicle_new) => void;
@@ -40,7 +52,77 @@ interface VehicleTableProps {
     pagination?: boolean;
     pageSize?: number;
     emptyMessage?: string;
+    /** Change this value to force a refetch (e.g. after adding a vehicle). */
+    refreshKey?: number;
+    /** Called on every auto refresh tick, e.g. to refresh stats too. */
+    onAutoRefresh?: () => void;
+    /** Change this value for a background refetch (e.g. after an edit elsewhere). */
+    syncKey?: number;
+    /** Called after a vehicle is saved from the edit modal. */
+    onVehicleUpdated?: () => void;
 }
+
+/* =========================================================
+   AUTO REFRESH
+========================================================= */
+
+const AUTO_REFRESH_OPTIONS = [
+    { label: "Off", short: "Off", value: 0 },
+    { label: "Every 30 seconds", short: "30s", value: 30_000 },
+    { label: "Every 1 minute", short: "1m", value: 60_000 },
+    { label: "Every 2 minutes", short: "2m", value: 120_000 },
+    { label: "Every 5 minutes", short: "5m", value: 300_000 },
+];
+
+const DEFAULT_AUTO_REFRESH_MS = 60_000;
+
+const AUTO_REFRESH_STORAGE_KEY = "vehicleAutoRefreshMs";
+
+/* =========================================================
+   CHANGE HIGHLIGHTS
+========================================================= */
+
+// How long new / updated rows stay highlighted
+const HIGHLIGHT_MS = 2 * 60_000;
+
+type Highlight = {
+    type: "new" | "updated";
+    expiresAt: number;
+};
+
+const getVehicleKey = (
+    vehicle: Vehicle_new,
+): string =>
+    vehicle._id ??
+    `${vehicle.sno ?? ""}-${vehicle.tokenNo ?? ""}-${vehicle.vehicleNo}`;
+
+// Rows missing from `prev` are new,
+// rows with a changed updatedAt are updated
+const diffVehicles = (
+    prev: Vehicle_new[],
+    next: Vehicle_new[],
+): Record<string, Highlight> => {
+    const prevByKey = new Map(
+        prev.map((v) => [getVehicleKey(v), v]),
+    );
+
+    const expiresAt = Date.now() + HIGHLIGHT_MS;
+
+    const changes: Record<string, Highlight> = {};
+
+    for (const vehicle of next) {
+        const key = getVehicleKey(vehicle);
+        const old = prevByKey.get(key);
+
+        if (!old) {
+            changes[key] = { type: "new", expiresAt };
+        } else if (old.updatedAt !== vehicle.updatedAt) {
+            changes[key] = { type: "updated", expiresAt };
+        }
+    }
+
+    return changes;
+};
 
 /* =========================================================
    GET TODAY
@@ -108,7 +190,8 @@ const sortVehiclesByLatest = (
 export default function Test({
     filters = [],
     initialDateFilter = "today",
-    initialCustomDate = getToday(),
+    initialCustomStartDate = getToday(),
+    initialCustomEndDate = getToday(),
     apiEndpoint = "/api/vehicles",
     onDataChange,
     onRowClick,
@@ -117,6 +200,10 @@ export default function Test({
     pagination = true,
     pageSize = 50,
     emptyMessage = "No vehicles found",
+    refreshKey = 0,
+    onAutoRefresh,
+    syncKey = 0,
+    onVehicleUpdated,
 }: VehicleTableProps) {
     /* =====================================================
        STATE
@@ -131,6 +218,9 @@ export default function Test({
     const [refreshing, setRefreshing] =
         useState(false);
 
+    const [error, setError] =
+        useState<string | null>(null);
+
     const [search, setSearch] =
         useState("");
 
@@ -139,8 +229,18 @@ export default function Test({
             initialDateFilter,
         );
 
-    const [customDate, setCustomDate] =
-        useState(initialCustomDate);
+    const [customStartDate, setCustomStartDate] =
+        useState(initialCustomStartDate);
+
+    const [customEndDate, setCustomEndDate] =
+        useState(initialCustomEndDate);
+
+    const [openRangePicker, setOpenRangePicker] =
+        useState(false);
+
+    const hasCustomRange =
+        Boolean(customStartDate && customEndDate) &&
+        customStartDate <= customEndDate;
 
     /* =====================================================
        VIEW / EDIT MODAL STATE
@@ -156,13 +256,107 @@ export default function Test({
         useState(false);
 
     /* =====================================================
+       REQUEST TRACKING
+
+       Latest request id, so a slow response can't
+       overwrite a newer one (e.g. after a filter change).
+    ===================================================== */
+
+    const requestIdRef = useRef(0);
+
+    const inFlightRef = useRef(false);
+
+    const [lastUpdated, setLastUpdated] =
+        useState<Date | null>(null);
+
+    // Spins the refresh icon during auto refresh
+    const [backgroundRefreshing, setBackgroundRefreshing] =
+        useState(false);
+
+    /* =====================================================
+       CHANGE HIGHLIGHTS
+    ===================================================== */
+
+    const [highlights, setHighlights] =
+        useState<Record<string, Highlight>>({});
+
+    // Last loaded list + its URL, to diff only
+    // between loads of the same filter
+    const lastVehiclesRef =
+        useRef<Vehicle_new[]>([]);
+
+    const lastLoadUrlRef =
+        useRef<string | null>(null);
+
+    // Drop highlights as they expire
+    useEffect(() => {
+        const expiries = Object.values(
+            highlights,
+        ).map((h) => h.expiresAt);
+
+        if (!expiries.length) return;
+
+        const timer = setTimeout(() => {
+            const now = Date.now();
+
+            setHighlights((prev) =>
+                Object.fromEntries(
+                    Object.entries(prev).filter(
+                        ([, h]) => h.expiresAt > now,
+                    ),
+                ),
+            );
+        }, Math.max(0, Math.min(...expiries) - Date.now()));
+
+        return () => clearTimeout(timer);
+    }, [highlights]);
+
+    /* =====================================================
+       AUTO REFRESH INTERVAL
+    ===================================================== */
+
+    const [autoRefreshMs, setAutoRefreshMs] =
+        useState(DEFAULT_AUTO_REFRESH_MS);
+
+    useEffect(() => {
+        const saved = localStorage.getItem(
+            AUTO_REFRESH_STORAGE_KEY,
+        );
+
+        const option = AUTO_REFRESH_OPTIONS.find(
+            (o) => String(o.value) === saved,
+        );
+
+        if (option) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setAutoRefreshMs(option.value);
+        }
+    }, []);
+
+    const handleAutoRefreshChange = (
+        value: number,
+    ) => {
+        setAutoRefreshMs(value);
+
+        try {
+            localStorage.setItem(
+                AUTO_REFRESH_STORAGE_KEY,
+                String(value),
+            );
+        } catch {
+            // Storage unavailable: keep it for this session
+        }
+    };
+
+    /* =====================================================
        API URL
     ===================================================== */
 
     const buildApiUrl = useCallback(
         (
             selectedFilter: DateFilter,
-            selectedDate?: string,
+            startDate?: string,
+            endDate?: string,
         ) => {
             const params =
                 new URLSearchParams();
@@ -179,17 +373,73 @@ export default function Test({
 
             if (
                 apiFilter === "custom" &&
-                selectedDate
+                startDate &&
+                endDate
             ) {
                 params.set(
-                    "date",
-                    selectedDate,
+                    "startDate",
+                    startDate,
+                );
+
+                params.set(
+                    "endDate",
+                    endDate,
                 );
             }
 
             return `${apiEndpoint}?${params.toString()}`;
         },
         [apiEndpoint],
+    );
+
+    /* =====================================================
+       APPLY FETCHED VEHICLES
+
+       Sorts, and highlights what changed since the
+       last load of the same URL.
+    ===================================================== */
+
+    const applyVehicles = useCallback(
+        (
+            url: string,
+            fetchedVehicles: Vehicle_new[],
+        ) => {
+            const sortedVehicles =
+                sortVehiclesByLatest(
+                    fetchedVehicles,
+                );
+
+            if (lastLoadUrlRef.current === url) {
+                const changes = diffVehicles(
+                    lastVehiclesRef.current,
+                    sortedVehicles,
+                );
+
+                if (Object.keys(changes).length) {
+                    setHighlights((prev) => ({
+                        ...prev,
+                        ...changes,
+                    }));
+                }
+            } else {
+                // Filter changed: nothing is "new"
+                setHighlights({});
+            }
+
+            lastLoadUrlRef.current = url;
+            lastVehiclesRef.current = sortedVehicles;
+
+            setVehicles(
+                sortedVehicles,
+            );
+
+            setLastUpdated(new Date());
+
+            onDataChange?.(
+                sortedVehicles,
+            );
+        },
+        [onDataChange],
     );
 
     /* =====================================================
@@ -205,21 +455,25 @@ export default function Test({
         const loadData = async () => {
             if (
                 dateFilter === "custom" &&
-                !customDate
+                !hasCustomRange
             ) {
                 return;
             }
 
+            const requestId =
+                ++requestIdRef.current;
+
             try {
+                inFlightRef.current = true;
+
                 setLoading(true);
+                setError(null);
 
                 const url =
                     buildApiUrl(
                         dateFilter,
-                        dateFilter ===
-                            "custom"
-                            ? customDate
-                            : undefined,
+                        customStartDate,
+                        customEndDate,
                     );
 
                 console.log(
@@ -227,22 +481,23 @@ export default function Test({
                     url,
                 );
 
-                const response =
-                    await fetch(url, {
-                        method: "GET",
-                        cache: "no-store",
-                        signal:
-                            controller.signal,
-                    });
+                const {
+                    response,
+                    data: result,
+                } = await fetchJson<{
+                    vehicles?: Vehicle_new[];
+                }>(url, {
+                    method: "GET",
+                    cache: "no-store",
+                    signal:
+                        controller.signal,
+                });
 
                 if (!response.ok) {
                     throw new Error(
                         "Failed to fetch vehicles",
                     );
                 }
-
-                const result =
-                    await response.json();
 
                 const fetchedVehicles:
                     Vehicle_new[] =
@@ -252,26 +507,16 @@ export default function Test({
                         ? result.vehicles
                         : [];
 
-                if (cancelled) {
+                if (
+                    cancelled ||
+                    requestId !== requestIdRef.current
+                ) {
                     return;
                 }
 
-                /* =========================================
-                   SORT
-                   Latest added first
-                ========================================= */
-
-                const sortedVehicles =
-                    sortVehiclesByLatest(
-                        fetchedVehicles,
-                    );
-
-                setVehicles(
-                    sortedVehicles,
-                );
-
-                onDataChange?.(
-                    sortedVehicles,
+                applyVehicles(
+                    url,
+                    fetchedVehicles,
                 );
             } catch (error) {
                 if (
@@ -294,8 +539,20 @@ export default function Test({
 
                 setVehicles([]);
 
+                // Don't diff the next load against
+                // an emptied list
+                lastLoadUrlRef.current = null;
+
+                setError(
+                    "Couldn't load vehicles. Check your connection and try again.",
+                );
+
                 onDataChange?.([]);
             } finally {
+                if (requestId === requestIdRef.current) {
+                    inFlightRef.current = false;
+                }
+
                 if (!cancelled) {
                     setLoading(false);
                 }
@@ -310,9 +567,13 @@ export default function Test({
         };
     }, [
         dateFilter,
-        customDate,
+        customStartDate,
+        customEndDate,
+        hasCustomRange,
         buildApiUrl,
+        applyVehicles,
         onDataChange,
+        refreshKey,
     ]);
 
     /* =====================================================
@@ -326,6 +587,7 @@ export default function Test({
                 {
                     key: "dateFilter",
                     label: "Date",
+                    required: true,
                     options: [
                         {
                             label: "Today",
@@ -340,7 +602,7 @@ export default function Test({
                             value: "all",
                         },
                         {
-                            label: "Custom Date",
+                            label: "Custom Range",
                             value: "custom",
                         },
                     ],
@@ -493,12 +755,80 @@ export default function Test({
 
                     onEdit:
                         handleEditVehicle,
+                }).map((column) => {
+                    if (column.key !== "vehicleNo") {
+                        return column;
+                    }
+
+                    // Pulse badge on new / updated rows
+                    return {
+                        ...column,
+                        render: (row: Vehicle_new) => {
+                            const highlight =
+                                highlights[getVehicleKey(row)];
+
+                            return (
+                                // Badge stacks under the vehicle on phones
+                                // to keep the sticky column narrow
+                                <div className="flex flex-col items-start gap-1 sm:flex-row sm:gap-2">
+                                    {column.render
+                                        ? column.render(row)
+                                        : row.vehicleNo}
+
+                                    {highlight && (
+                                        <span
+                                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${highlight.type === "new"
+                                                ? "bg-green-100 text-green-700"
+                                                : "bg-amber-100 text-amber-700"
+                                                }`}
+                                        >
+                                            <PulseDot
+                                                tone={
+                                                    highlight.type === "new"
+                                                        ? "green"
+                                                        : "amber"
+                                                }
+                                            />
+
+                                            {highlight.type === "new"
+                                                ? "New"
+                                                : "Updated"}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        },
+                    };
                 }),
             [
                 handleViewVehicle,
                 handleEditVehicle,
+                highlights,
             ],
         );
+
+    /* =====================================================
+       CHANGE COUNTS (visible rows only)
+    ===================================================== */
+
+    const highlightCounts =
+        useMemo(() => {
+            let newCount = 0;
+            let updatedCount = 0;
+
+            for (const vehicle of vehicles) {
+                const type =
+                    highlights[getVehicleKey(vehicle)]?.type;
+
+                if (type === "new") newCount++;
+                else if (type === "updated") updatedCount++;
+            }
+
+            return { newCount, updatedCount };
+        }, [
+            vehicles,
+            highlights,
+        ]);
 
     /* =====================================================
        DATE FILTER CHANGE
@@ -515,19 +845,24 @@ export default function Test({
                 nextFilter,
             );
 
-            if (
-                nextFilter !==
-                "custom"
-            ) {
-                setCustomDate("");
-            }
+            // Open the picker when the user picks
+            // "Custom Range", not on first render.
+            setOpenRangePicker(
+                nextFilter === "custom",
+            );
 
+            // Start the range on today so the first
+            // fetch happens immediately.
             if (
                 nextFilter ===
                 "custom" &&
-                !customDate
+                !hasCustomRange
             ) {
-                setCustomDate(
+                setCustomStartDate(
+                    getToday(),
+                );
+
+                setCustomEndDate(
                     getToday(),
                 );
             }
@@ -553,52 +888,62 @@ export default function Test({
         };
 
     /* =====================================================
-       CUSTOM DATE
-    ===================================================== */
-
-    const handleCustomDateChange =
-        (
-            value: string,
-        ) => {
-            setCustomDate(value);
-        };
-
-    /* =====================================================
        REFRESH
     ===================================================== */
 
-    const handleRefresh =
+    /*
+     * silent: background refresh. No spinner, no toast,
+     * and existing rows stay if it fails.
+     */
+    const refetch =
         useCallback(
-            async () => {
+            async (
+                { silent = false }: { silent?: boolean } = {},
+            ) => {
+                const requestId =
+                    ++requestIdRef.current;
+
                 try {
-                    setRefreshing(
-                        true,
-                    );
+                    inFlightRef.current = true;
+
+                    if (silent) {
+                        setBackgroundRefreshing(true);
+                    } else {
+                        setRefreshing(
+                            true,
+                        );
+                    }
 
                     const url =
                         buildApiUrl(
                             dateFilter,
-                            dateFilter ===
-                                "custom"
-                                ? customDate
-                                : undefined,
+                            customStartDate,
+                            customEndDate,
                         );
 
                     console.log(
-                        "Vehicle Refresh API:",
+                        silent
+                            ? "Vehicle Auto Refresh API:"
+                            : "Vehicle Refresh API:",
                         url,
                     );
 
-                    const response =
-                        await fetch(
-                            url,
-                            {
-                                method:
-                                    "GET",
-                                cache:
-                                    "no-store",
-                            },
-                        );
+                    // Times out so a stalled request can't
+                    // hold inFlightRef and stop auto refresh
+                    const {
+                        response,
+                        data: result,
+                    } = await fetchJson<{
+                        vehicles?: Vehicle_new[];
+                    }>(
+                        url,
+                        {
+                            method:
+                                "GET",
+                            cache:
+                                "no-store",
+                        },
+                    );
 
                     if (
                         !response.ok
@@ -608,95 +953,194 @@ export default function Test({
                         );
                     }
 
-                    const result =
-                        await response.json();
+                    if (
+                        requestId !==
+                        requestIdRef.current
+                    ) {
+                        return;
+                    }
 
-                    const refreshedVehicles:
-                        Vehicle_new[] =
+                    applyVehicles(
+                        url,
                         Array.isArray(
                             result?.vehicles,
                         )
-                            ? result
-                                .vehicles
-                            : [];
-
-                    /* =====================================
-                       SORT
-                       Latest added first
-                    ===================================== */
-
-                    const sortedVehicles =
-                        sortVehiclesByLatest(
-                            refreshedVehicles,
-                        );
-
-                    setVehicles(
-                        sortedVehicles,
+                            ? result.vehicles
+                            : [],
                     );
 
-                    onDataChange?.(
-                        sortedVehicles,
-                    );
+                    setError(null);
                 } catch (error) {
                     console.error(
                         "Vehicle Refresh Error:",
                         error,
                     );
+
+                    if (!silent) {
+                        toast.error(
+                            "Couldn't refresh vehicles. Please try again.",
+                        );
+                    }
                 } finally {
-                    setRefreshing(
-                        false,
-                    );
+                    if (requestId === requestIdRef.current) {
+                        inFlightRef.current = false;
+                    }
+
+                    if (silent) {
+                        setBackgroundRefreshing(false);
+                    } else {
+                        setRefreshing(
+                            false,
+                        );
+                    }
                 }
             },
             [
                 buildApiUrl,
+                applyVehicles,
                 dateFilter,
-                customDate,
-                onDataChange,
+                customStartDate,
+                customEndDate,
             ],
         );
 
+    const handleRefresh =
+        useCallback(
+            () => refetch(),
+            [refetch],
+        );
+
+    /*
+     * Background refetch when syncKey changes (e.g. after
+     * an edit), keeping rows, filters and scroll in place.
+     */
+    const lastSyncKeyRef = useRef(syncKey);
+
+    useEffect(() => {
+        if (syncKey === lastSyncKeyRef.current) return;
+
+        lastSyncKeyRef.current = syncKey;
+
+        void refetch({ silent: true });
+    }, [syncKey, refetch]);
+
     /* =====================================================
-       CUSTOM DATE HEADER
+       AUTO REFRESH
+
+       Paused while editing or with an incomplete
+       custom range, and while the tab is hidden.
     ===================================================== */
 
-    const headerContent =
-        dateFilter ===
-            "custom" ? (
-            <div className="w-full">
-                <input
-                    type="date"
-                    value={
-                        customDate
-                    }
-                    onChange={(
-                        event,
-                    ) =>
-                        handleCustomDateChange(
-                            event
-                                .target
-                                .value,
+    useAutoRefresh(
+        () => {
+            onAutoRefresh?.();
+
+            if (inFlightRef.current) return;
+
+            void refetch({ silent: true });
+        },
+        {
+            intervalMs: autoRefreshMs,
+            enabled:
+                !isEditModalOpen &&
+                !(
+                    dateFilter === "custom" &&
+                    !hasCustomRange
+                ),
+        },
+    );
+
+    const autoRefreshOption =
+        AUTO_REFRESH_OPTIONS.find(
+            (o) => o.value === autoRefreshMs,
+        ) ?? AUTO_REFRESH_OPTIONS[0];
+
+    const autoRefreshOn = autoRefreshMs > 0;
+
+    const refreshBusy =
+        refreshing || backgroundRefreshing;
+
+    /*
+     * Split button: left refreshes now, right picks the
+     * auto refresh interval (transparent native select
+     * on top handles input). Styled like CommonButton
+     * "secondary".
+     */
+    const refreshContent = (
+        <div
+            title={
+                lastUpdated
+                    ? `Last updated ${lastUpdated.toLocaleTimeString()}`
+                    : undefined
+            }
+            className="inline-flex h-10 w-full shrink-0 items-stretch overflow-hidden whitespace-nowrap rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm sm:w-auto"
+        >
+            <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={loading || refreshing}
+                className="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 px-4 transition duration-150 hover:bg-orange-50 hover:text-orange-700 focus:outline-none focus-visible:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+                <RefreshCw
+                    className={`h-4 w-4 ${refreshBusy ? "animate-spin" : ""}`}
+                    aria-hidden="true"
+                />
+
+                {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+
+            <div className="relative inline-flex items-center gap-1.5 border-l border-gray-200 px-3 transition duration-150 focus-within:bg-orange-50 hover:bg-orange-50 hover:text-orange-700">
+                {autoRefreshOn ? (
+                    <PulseDot />
+                ) : (
+                    <Timer className="h-4 w-4" aria-hidden="true" />
+                )}
+
+                <span>{autoRefreshOption.short}</span>
+
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
+
+                <select
+                    aria-label="Auto refresh interval"
+                    value={autoRefreshMs}
+                    onChange={(event) =>
+                        handleAutoRefreshChange(
+                            Number(event.target.value),
                         )
                     }
-                    className="
-                        h-10
-                        w-full
-                        rounded-lg
-                        border
-                        border-gray-300
-                        bg-white
-                        px-3
-                        text-sm
-                        text-gray-700
-                        outline-none
-                        transition
-                        hover:border-orange-400
-                        focus:border-orange-500
-                        focus:ring-1
-                        focus:ring-orange-100
-                    "
-                />
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                >
+                    {AUTO_REFRESH_OPTIONS.map((option) => (
+                        <option
+                            key={option.value}
+                            value={option.value}
+                        >
+                            {option.value
+                                ? `Auto refresh: ${option.label.toLowerCase()}`
+                                : "Auto refresh: off"}
+                        </option>
+                    ))}
+                </select>
             </div>
+        </div>
+    );
+
+    /* =====================================================
+       CUSTOM RANGE FILTER
+    ===================================================== */
+
+    const customRangeContent =
+        dateFilter ===
+            "custom" ? (
+            <CommonDateRangePicker
+                startDate={customStartDate}
+                endDate={customEndDate}
+                defaultOpen={openRangePicker}
+                onChange={(start, end) => {
+                    setCustomStartDate(start);
+                    setCustomEndDate(end);
+                }}
+            />
         ) : null;
 
     /* =====================================================
@@ -767,10 +1211,15 @@ export default function Test({
                     null,
                 );
 
-                await handleRefresh();
+                if (onVehicleUpdated) {
+                    onVehicleUpdated();
+                } else {
+                    await refetch({ silent: true });
+                }
             },
             [
-                handleRefresh,
+                onVehicleUpdated,
+                refetch,
             ],
         );
 
@@ -780,9 +1229,57 @@ export default function Test({
 
     return (
         <>
+            <div className="space-y-3">
+            {/* CHANGE BANNER */}
+
+            {(highlightCounts.newCount > 0 ||
+                highlightCounts.updatedCount > 0) && (
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 sm:px-4">
+                        <span className="inline-flex min-w-0 items-center gap-2 font-medium">
+                            <PulseDot />
+
+                            {[
+                                highlightCounts.newCount > 0 &&
+                                `${highlightCounts.newCount} new vehicle${highlightCounts.newCount > 1 ? "s" : ""}`,
+                                highlightCounts.updatedCount > 0 &&
+                                `${highlightCounts.updatedCount} updated`,
+                            ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={() => setHighlights({})}
+                            className="-my-2 -mr-2 shrink-0 cursor-pointer px-2 py-3 text-xs font-medium text-green-700 hover:underline sm:my-0 sm:mr-0 sm:px-0 sm:py-0"
+                        >
+                            Clear
+                        </button>
+                    </div>
+                )}
+
             <CommonTable<Vehicle_new>
                 columns={
                     vehicleColumnss
+                }
+
+                getRowKey={
+                    getVehicleKey
+                }
+
+                rowClassName={(row) => {
+                    const highlight =
+                        highlights[getVehicleKey(row)];
+
+                    if (!highlight) return "";
+
+                    return highlight.type === "new"
+                        ? "bg-green-50"
+                        : "bg-amber-50";
+                }}
+
+                headerContent={
+                    refreshContent
                 }
 
                 data={
@@ -791,6 +1288,19 @@ export default function Test({
 
                 loading={
                     loading
+                }
+
+                error={
+                    error
+                }
+
+                onRetry={
+                    handleRefresh
+                }
+
+                // Spinner for the error state's Retry button
+                refreshing={
+                    refreshing
                 }
 
                 searchable
@@ -829,13 +1339,6 @@ export default function Test({
                     pageSize
                 }
 
-                onRefresh={
-                    handleRefresh
-                }
-
-                refreshing={
-                    refreshing
-                }
 
                 onAdd={
                     onAdd
@@ -845,10 +1348,19 @@ export default function Test({
                     addButtonLabel
                 }
 
-                headerContent={
-                    headerContent
+                filterContent={
+                    customRangeContent
+                }
+
+                exportable
+
+                exportFileName="vehicles"
+
+                exportColumns={
+                    vehicleExportColumns
                 }
             />
+            </div>
 
             {/* =================================================
                 VIEW MODAL
@@ -868,7 +1380,10 @@ export default function Test({
                 }
 
                 onEdit={
-                    handleViewToEdit
+                    // Customers get a read-only view
+                    isReadOnlyRole(getStoredUserRole())
+                        ? undefined
+                        : handleViewToEdit
                 }
             />
 

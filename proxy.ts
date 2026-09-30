@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
-import { canAccessLab } from "./app/utils/vehiclePermissions";
+import {
+  canAccessLab,
+  canAccessVehicles,
+  canManageUsers,
+} from "./app/utils/vehiclePermissions";
 
 // Edge-safe: authConfig has no providers, so this only decodes the
 // session cookie — it never touches MongoDB.
@@ -29,8 +33,29 @@ export default auth((req) => {
     pathname === "/api/lab" ||
     pathname.startsWith("/api/lab/");
 
+  const isVehiclesRoute =
+    pathname.startsWith("/dispatch/") ||
+    pathname === "/api/vehicles" ||
+    pathname.startsWith("/api/vehicles/") ||
+    pathname.startsWith("/api/google-chat/vehicle");
+
+  // /api/users/verify stays open to every signed-in user.
+  const isUsersRoute =
+    pathname === "/users" ||
+    pathname.startsWith("/users/") ||
+    pathname === "/api/users" ||
+    (pathname.startsWith("/api/users/") && pathname !== "/api/users/verify");
+
   const isLabForbidden =
     isLoggedIn && isLabRoute && !canAccessLab(req.auth?.user?.role);
+
+  const isUsersForbidden =
+    isLoggedIn && isUsersRoute && !canManageUsers(req.auth?.user?.role);
+
+  const isVehiclesForbidden =
+    isLoggedIn && isVehiclesRoute && !canAccessVehicles(req.auth?.user?.role);
+
+  const isForbidden = isLabForbidden || isUsersForbidden || isVehiclesForbidden;
 
   if (isApiRoute) {
     if (!isLoggedIn) {
@@ -40,8 +65,8 @@ export default auth((req) => {
         { status: 401 },
       );
     }
-    if (isLabForbidden) {
-      console.log(`[proxy] blocking lab API route ${pathname} -> 403`);
+    if (isForbidden) {
+      console.log(`[proxy] blocking API route ${pathname} -> 403`);
       return NextResponse.json(
         { success: false, message: "Forbidden" },
         { status: 403 },
@@ -50,7 +75,7 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  if (isLabForbidden) {
+  if (isForbidden) {
     console.log(
       `[proxy] role=${req.auth?.user?.role} can't open ${pathname}, redirecting -> /dashboard`,
     );

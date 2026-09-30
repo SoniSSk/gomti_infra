@@ -8,6 +8,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import Logo from "../component/common/Logo";
+import { INACTIVE_USER_CODE } from "@/app/types/user";
 
 type Mode = "login" | "signup";
 
@@ -176,7 +177,11 @@ export default function LoginPage() {
 
       if (!result || result.error) {
         console.log("[login] signIn failed, aborting redirect");
-        setError("Invalid email or password");
+        setError(
+          result?.code === INACTIVE_USER_CODE
+            ? "Your account is inactive. Contact your administrator."
+            : "Invalid email or password",
+        );
         return;
       }
 

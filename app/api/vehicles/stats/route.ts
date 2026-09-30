@@ -359,7 +359,10 @@ export async function GET() {
 
     const session = await auth();
 
-    const customerFilter = customerVehicleFilter(session?.user?.role);
+    const customerFilter = customerVehicleFilter(
+      session?.user?.role,
+      session?.user?.buyer,
+    );
 
     const [vehicles, rawAlertVehicles] = await Promise.all([
       collection

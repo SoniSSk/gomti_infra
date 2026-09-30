@@ -1,9 +1,15 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { UAParser } from "ua-parser-js";
 import getMongoClient from "@/app/lib/mongodb";
 import { authConfig } from "./auth.config";
+import { INACTIVE_USER_CODE, isUserActive } from "@/app/types/user";
+
+/* Lets the login page tell a deactivated account from a wrong password. */
+class InactiveUserError extends CredentialsSignin {
+  code = INACTIVE_USER_CODE;
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -56,6 +62,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!passwordMatch) {
           return null;
+        }
+
+        // Checked after the password so it doesn't reveal which emails exist
+        if (!isUserActive(user.active)) {
+          console.warn("[authorize] user is deactivated");
+          throw new InactiveUserError();
         }
 
         // ---- login logging (moved from the old /api/auth/login route) ----
@@ -125,6 +137,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          buyer: typeof user.buyer === "string" ? user.buyer : undefined,
         };
       },
     }),

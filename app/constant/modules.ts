@@ -1,7 +1,12 @@
-import { canAccessLab } from "@/app/utils/vehiclePermissions";
+import {
+    canAccessLab,
+    canAccessVehicles,
+    canManageUsers,
+} from "@/app/utils/vehiclePermissions";
 import {
     FlaskConical,
     Truck,
+    UserCog,
     type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +34,7 @@ export const APP_MODULES: AppModule[] = [
             "Manage vehicle entry, loading, ETP, documents and dispatch operations.",
         path: "/dispatch/vehicle",
         icon: Truck,
+        canAccess: canAccessVehicles,
     },
     // {
     //     title: "Rake Dispatch",
@@ -54,6 +60,15 @@ export const APP_MODULES: AppModule[] = [
         path: "/lab",
         icon: FlaskConical,
         canAccess: canAccessLab,
+    },
+    {
+        title: "User Management",
+        shortTitle: "Users",
+        description:
+            "Add and edit user accounts, their roles and access.",
+        path: "/users",
+        icon: UserCog,
+        canAccess: canManageUsers,
     },
     // {
     //     title: "Screening",

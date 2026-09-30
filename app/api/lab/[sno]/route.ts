@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import getMongoClient from "@/app/lib/mongodb";
 import { auth } from "@/auth";
-import { canAccessLab } from "@/app/utils/vehiclePermissions";
+import { canAccessLab, isSuperAdminRole } from "@/app/utils/vehiclePermissions";
 import { NextRequest, NextResponse } from "next/server";
 
 const DB_NAME = "gomti_infra";
@@ -154,6 +154,57 @@ export async function PUT(
 
     return NextResponse.json(
       { success: false, message: error?.message || "Failed to update lab record" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ sno: string }> },
+) {
+  try {
+    const session = await auth();
+
+    if (!isSuperAdminRole(session?.user?.role)) {
+      return NextResponse.json(
+        { success: false, message: "Only a super admin can delete lab records" },
+        { status: 403 },
+      );
+    }
+
+    const { sno } = await params;
+    const labSno = Number(sno);
+
+    if (!Number.isFinite(labSno)) {
+      return NextResponse.json(
+        { success: false, message: "Invalid lab S.No" },
+        { status: 400 },
+      );
+    }
+
+    const client = await getMongoClient();
+    const result = await client
+      .db(DB_NAME)
+      .collection(COLLECTION)
+      .deleteOne({ sno: labSno });
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { success: false, message: "Lab record not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Lab report deleted",
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/lab/[sno] error:", error);
+
+    return NextResponse.json(
+      { success: false, message: error?.message || "Failed to delete lab record" },
       { status: 500 },
     );
   }

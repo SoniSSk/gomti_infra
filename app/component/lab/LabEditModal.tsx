@@ -10,6 +10,8 @@ import {
     FlaskConical,
     Microscope,
     Save,
+    Trash2,
+    TriangleAlert,
 } from "lucide-react";
 
 import type {
@@ -27,6 +29,7 @@ import { formatStatus } from "../vehicle_new/common/vehicleStatus";
 import { LAB_STATUS_META, LabStatusBadge } from "./labStatus";
 import { REPORT_FIELDS, reportFieldLabel } from "./LabColumns";
 import { LAB_DOCUMENTS } from "./LabViewModal";
+import { getStoredUserRole, isSuperAdminRole } from "@/app/utils/vehiclePermissions";
 
 interface LabEditModalProps {
     lab: LabObject | null;
@@ -112,10 +115,22 @@ export default function LabEditModal({
 
     const [uploading, setUploading] = useState<Record<string, boolean>>({});
 
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    const [deleting, setDeleting] = useState(false);
+
+    // Role lives in localStorage, so read it after mount
+    useEffect(() => {
+        setIsSuperAdmin(isSuperAdminRole(getStoredUserRole()));
+    }, []);
+
     useEffect(() => {
         if (isOpen && lab) {
             setFormData(toFormData(lab));
             setUploading({});
+            setShowDeleteConfirm(false);
         }
     }, [isOpen, lab]);
 
@@ -220,6 +235,40 @@ export default function LabEditModal({
     };
 
     /* =======================================================
+       DELETE
+    ======================================================= */
+
+    const handleDelete = async () => {
+        if (deleting) return;
+
+        try {
+            setDeleting(true);
+
+            const response = await fetch(`/api/lab/${lab.sno}`, {
+                method: "DELETE",
+            });
+
+            const result = await response.json().catch(() => null);
+
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || "Failed to delete lab report");
+            }
+
+            toast.success(result?.message || "Lab report deleted");
+            setShowDeleteConfirm(false);
+            onSuccess();
+        } catch (error) {
+            console.error("DELETE lab error:", error);
+
+            toast.error(
+                error instanceof Error ? error.message : "Failed to delete lab report",
+            );
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    /* =======================================================
        UI
     ======================================================= */
 
@@ -256,6 +305,7 @@ export default function LabEditModal({
     );
 
     return (
+        <>
         <CommonModal
             isOpen={isOpen}
             onClose={onClose}
@@ -273,26 +323,45 @@ export default function LabEditModal({
             }
             description="Update lot details, status, report values and documents"
             footer={
-                <div className="flex gap-2 sm:justify-end">
-                    <CommonButton
-                        variant="secondary"
-                        onClick={onClose}
-                        disabled={saving}
-                        className="flex-1 sm:flex-none"
-                    >
-                        Cancel
-                    </CommonButton>
+                <div className="flex items-center gap-2 sm:justify-between sm:gap-3">
+                    {/* Icon-only on phones so Cancel / Save share one row */}
+                    <div className="flex items-center gap-3 empty:hidden">
+                        {isSuperAdmin && (
+                            <CommonButton
+                                variant="danger"
+                                icon={Trash2}
+                                onClick={() => setShowDeleteConfirm(true)}
+                                disabled={saving}
+                                aria-label="Delete lab report"
+                                title="Delete lab report"
+                                className="max-sm:w-10 max-sm:px-0"
+                            >
+                                <span className="hidden sm:inline">Delete</span>
+                            </CommonButton>
+                        )}
+                    </div>
 
-                    <CommonButton
-                        icon={Save}
-                        onClick={handleSave}
-                        disabled={isUploading}
-                        loading={saving}
-                        loadingText="Saving..."
-                        className="flex-1 sm:flex-none"
-                    >
-                        {isUploading ? "Uploading..." : "Save changes"}
-                    </CommonButton>
+                    <div className="flex min-w-0 flex-1 gap-2 sm:flex-none sm:justify-end">
+                        <CommonButton
+                            variant="secondary"
+                            onClick={onClose}
+                            disabled={saving}
+                            className="flex-1 sm:flex-none"
+                        >
+                            Cancel
+                        </CommonButton>
+
+                        <CommonButton
+                            icon={Save}
+                            onClick={handleSave}
+                            disabled={isUploading}
+                            loading={saving}
+                            loadingText="Saving..."
+                            className="flex-1 sm:flex-none"
+                        >
+                            {isUploading ? "Uploading..." : "Save changes"}
+                        </CommonButton>
+                    </div>
                 </div>
             }
         >
@@ -422,5 +491,54 @@ export default function LabEditModal({
                 </ModalSection>
             </div>
         </CommonModal>
+
+        {/* ================= DELETE CONFIRMATION ================= */}
+
+        <CommonModal
+            isOpen={showDeleteConfirm && isSuperAdmin}
+            onClose={() => setShowDeleteConfirm(false)}
+            size="sm"
+            showCloseButton={false}
+            closeOnOutsideClick={!deleting}
+            footer={
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <CommonButton
+                        variant="secondary"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        disabled={deleting}
+                        className="w-full sm:w-auto"
+                    >
+                        Cancel
+                    </CommonButton>
+
+                    <CommonButton
+                        variant="destructive"
+                        icon={Trash2}
+                        onClick={handleDelete}
+                        loading={deleting}
+                        loadingText="Deleting..."
+                        className="w-full sm:w-auto"
+                    >
+                        Delete lab report
+                    </CommonButton>
+                </div>
+            }
+        >
+            <div className="flex gap-3 p-4 sm:gap-4 sm:p-6">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                    <TriangleAlert className="h-5 w-5" aria-hidden="true" />
+                </span>
+
+                <div className="min-w-0">
+                    <h3 className="break-words text-base font-semibold text-gray-900">
+                        Delete {lab.lot}?
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                        This permanently removes the lab report, its documents and update history. This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+        </CommonModal>
+        </>
     );
 }

@@ -16,10 +16,11 @@ import CommonTable, {
 import CommonButton from "../vehicle_new/common/CommonButton";
 import CommonDateRangePicker from "../vehicle_new/common/CommonDateRangePicker";
 
-import type { LabObject } from "@/app/types/lab";
+import type { LabObject, LabStatus } from "@/app/types/lab";
 import { labColumns, labExportColumns } from "./LabColumns";
 import LabViewModal from "./LabViewModal";
 import LabEditModal from "./LabEditModal";
+import LabStats from "./LabStats";
 
 import { useAutoRefresh } from "@/app/hooks/useAutoRefresh";
 import { fetchJson } from "@/app/lib/fetchJson";
@@ -95,6 +96,8 @@ export default function LabTable({
     const [error, setError] = useState<string | null>(null);
 
     const [search, setSearch] = useState("");
+
+    const [statusFilter, setStatusFilter] = useState<LabStatus | null>(null);
 
     const [dateFilter, setDateFilter] = useState<DateFilter>("today");
 
@@ -249,11 +252,18 @@ export default function LabTable({
     const tableData = useMemo(() => {
         const searchText = search.trim().toLowerCase();
 
+        const byStatus = statusFilter
+            ? labs.filter(
+                (lab) =>
+                    String(lab.status ?? "").toUpperCase() === statusFilter,
+            )
+            : labs;
+
         if (!searchText) {
-            return labs;
+            return byStatus;
         }
 
-        return labs.filter((lab) =>
+        return byStatus.filter((lab) =>
             [
                 lab.sno,
                 lab.lot,
@@ -270,7 +280,7 @@ export default function LabTable({
                 .toLowerCase()
                 .includes(searchText),
         );
-    }, [labs, search]);
+    }, [labs, search, statusFilter]);
 
     /* =====================================================
        VIEW / EDIT
@@ -333,7 +343,15 @@ export default function LabTable({
     ===================================================== */
 
     return (
-        <>
+        <div className="w-full space-y-6">
+            <LabStats
+                labs={labs}
+                loading={loading}
+                error={Boolean(error)}
+                activeStatus={statusFilter}
+                onStatusChange={setStatusFilter}
+            />
+
             <CommonTable<LabObject>
                 columns={columns}
                 getRowKey={getLabKey}
@@ -373,7 +391,11 @@ export default function LabTable({
                         />
                     ) : null
                 }
-                emptyMessage="No lab records found"
+                emptyMessage={
+                    statusFilter
+                        ? "No lab records with this status"
+                        : "No lab records found"
+                }
                 pagination
                 pageSize={pageSize}
                 showTotal={false}
@@ -395,6 +417,6 @@ export default function LabTable({
                 onClose={handleCloseModal}
                 onSuccess={handleEditSuccess}
             />
-        </>
+        </div>
     );
 }

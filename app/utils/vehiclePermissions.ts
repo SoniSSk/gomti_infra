@@ -11,8 +11,12 @@ export const isEmployeeRole = (role?: string | null): boolean =>
     normalizeRole(role) === "employee";
 
 /** Admin or super admin. */
-const isAdminRole = (role?: string | null): boolean =>
+export const isAdminRole = (role?: string | null): boolean =>
     ["admin", "superadmin"].includes(normalizeRole(role));
+
+/** The lab module is limited to admins and super admins. */
+export const canAccessLab = (role?: string | null): boolean =>
+    isAdminRole(role);
 
 /** Employees, admins and super admins can register new vehicles. */
 export const canAddVehicle = (role?: string | null): boolean =>

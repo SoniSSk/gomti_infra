@@ -1,6 +1,7 @@
 "use client";
 
 import React, {
+    ReactNode,
     useCallback,
     useState,
     useSyncExternalStore,
@@ -12,6 +13,7 @@ import { signOut } from "next-auth/react";
 import CommonButton from "./CommonButton";
 import CommonModal from "./CommonModal";
 import CommonUserMenu from "./CommonUserMenu";
+import CommonModuleNav from "./CommonModuleNav";
 import AddVehicle from "../vehicle/AddVehicle";
 import Logo from "../../common/Logo";
 import { canAddVehicle } from "@/app/utils/vehiclePermissions";
@@ -25,6 +27,8 @@ export interface CommonHeaderProps {
     onLogout?: () => void;
     /** Called after a vehicle is added, e.g. to refresh the table. */
     onVehicleAdded?: () => void;
+    /** Page-specific buttons shown before the account menu (e.g. Add Lab Report). */
+    actions?: ReactNode;
     loading?: boolean;
 }
 
@@ -47,6 +51,7 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
     userRole,
     onLogout,
     onVehicleAdded,
+    actions,
     loading = false,
 }) => {
     const storedUserName = useSyncExternalStore(
@@ -60,7 +65,9 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
 
     const hasUser = Boolean(displayUserName);
 
-    const showAddVehicle = canAddVehicle(userRole);
+    // Only pages that handle onVehicleAdded (vehicle dispatch) get the button
+    const showAddVehicle =
+        Boolean(onVehicleAdded) && canAddVehicle(userRole);
 
     const [isAddVehicleOpen, setIsAddVehicleOpen] =
         useState(false);
@@ -176,6 +183,19 @@ className="
                             sm:gap-3
                         "
                     >
+                        {/* Page actions */}
+
+                        {actions && (
+                            <>
+                                {actions}
+
+                                <span
+                                    className="mx-1 hidden h-6 w-px bg-gray-200 sm:block"
+                                    aria-hidden="true"
+                                />
+                            </>
+                        )}
+
                         {/* Add Vehicle (employees, admins and super admins) */}
 
                         {showAddVehicle && (
@@ -226,6 +246,10 @@ className="
                         )}
                     </div>
                 </div>
+
+                {/* ================= MODULE NAV ================= */}
+
+                <CommonModuleNav userRole={userRole} />
             </header>
 
             {/* ================= ADD VEHICLE MODAL ================= */}

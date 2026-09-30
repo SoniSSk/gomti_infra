@@ -231,6 +231,9 @@ export interface CommonTableProps<T> {
      * (minus "action"), using the raw row value.
      */
     exportColumns?: ExportColumn<T>[];
+
+    /** Show the footer row with the summed netWeight. */
+    showTotal?: boolean;
 }
 
 const EXPORT_OPTIONS: {
@@ -410,6 +413,7 @@ const CommonTable = <
     exportable = false,
     exportFileName = "export",
     exportColumns,
+    showTotal = true,
 }: CommonTableProps<T>) => {
     /* =====================================================
        STATE
@@ -1645,7 +1649,7 @@ whitespace-nowrap
                         the summed weight under netWeight.
                     ================================================= */}
 
-                    {!loading && !error && (
+                    {showTotal && !loading && !error && (
                         <tfoot>
                             <tr className="border-t border-gray-200 bg-gray-50">
                                 {expandable && (

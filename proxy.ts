@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
+import { canAccessLab } from "./app/utils/vehiclePermissions";
 
 // Edge-safe: authConfig has no providers, so this only decodes the
 // session cookie — it never touches MongoDB.
@@ -22,6 +23,15 @@ export default auth((req) => {
 
   const isApiRoute = pathname.startsWith("/api");
 
+  const isLabRoute =
+    pathname === "/lab" ||
+    pathname.startsWith("/lab/") ||
+    pathname === "/api/lab" ||
+    pathname.startsWith("/api/lab/");
+
+  const isLabForbidden =
+    isLoggedIn && isLabRoute && !canAccessLab(req.auth?.user?.role);
+
   if (isApiRoute) {
     if (!isLoggedIn) {
       console.log(`[proxy] blocking API route ${pathname} -> 401`);
@@ -30,7 +40,21 @@ export default auth((req) => {
         { status: 401 },
       );
     }
+    if (isLabForbidden) {
+      console.log(`[proxy] blocking lab API route ${pathname} -> 403`);
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
+    }
     return NextResponse.next();
+  }
+
+  if (isLabForbidden) {
+    console.log(
+      `[proxy] role=${req.auth?.user?.role} can't open ${pathname}, redirecting -> /dashboard`,
+    );
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
   const isLoginPage = pathname === "/login";
@@ -45,9 +69,9 @@ export default auth((req) => {
 
   if (isLoggedIn && isLoginPage) {
     console.log(
-      `[proxy] already logged in, redirecting /login -> /dispatch/vehicle`,
+      `[proxy] already logged in, redirecting /login -> /dashboard`,
     );
-    return NextResponse.redirect(new URL("/dispatch/vehicle", req.nextUrl));
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
   return NextResponse.next();

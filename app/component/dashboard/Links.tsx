@@ -2,78 +2,18 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import {
-    Truck,
-    TrainFront,
-    Scale,
-    Factory,
-    Construction,
-    ClipboardCheck,
-    Pickaxe,
-    ArrowUpRight,
-} from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
-interface LinkCard {
-    title: string;
-    description: string;
-    path: string;
-    icon: React.ReactNode;
+import { getModulesForRole } from "@/app/constant/modules";
+
+interface LinksProps {
+    userRole?: string;
 }
 
-const Links = () => {
+const Links = ({ userRole }: LinksProps) => {
     const router = useRouter();
 
-    const links: LinkCard[] = [
-        {
-            title: "Vehicle Dispatch",
-            description:
-                "Manage vehicle entry, loading, ETP, documents and dispatch operations.",
-            path: "/dispatch/vehicle",
-            icon: <Truck size={28} strokeWidth={2} />,
-        },
-        // {
-        //     title: "Rake Dispatch",
-        //     description:
-        //         "Manage railway rake loading, lots, wagons and dispatch details.",
-        //     path: "/dispatch/rake",
-        //     icon: <TrainFront size={28} strokeWidth={2} />,
-        // },
-        {
-            title: "Weighbridge",
-            description:
-                "Manage vehicle weighing, weight slips and weighbridge records.",
-            path: "/weighbridge",
-            icon: <Scale size={28} strokeWidth={2} />,
-        },
-        // {
-        //     title: "Screening",
-        //     description:
-        //         "Manage screening production, material processing and stock.",
-        //     path: "/screening",
-        //     icon: <Factory size={28} strokeWidth={2} />,
-        // },
-        // {
-        //     title: "Machine Hiring",
-        //     description:
-        //         "Manage machine hiring, operating hours, hourly rates and records.",
-        //     path: "/hiring",
-        //     icon: <Construction size={28} strokeWidth={2} />,
-        // },
-        // {
-        //     title: "Attendance",
-        //     description:
-        //         "Manage employee attendance, working hours and attendance records.",
-        //     path: "/attendance",
-        //     icon: <ClipboardCheck size={28} strokeWidth={2} />,
-        // },
-        // {
-        //     title: "Mining Plan",
-        //     description:
-        //         "Manage mining targets, production plans, excavation, material and daily progress.",
-        //     path: "/mining-plan",
-        //     icon: <Pickaxe size={28} strokeWidth={2} />,
-        // },
-    ];
+    const modules = getModulesForRole(userRole);
 
     const handleNavigate = (path: string) => {
         router.push(path);
@@ -101,7 +41,7 @@ const Links = () => {
 
             {/* Cards */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                {links.map((item) => (
+                {modules.map(({ icon: Icon, ...item }) => (
                     <button
                         key={item.path}
                         type="button"
@@ -166,7 +106,7 @@ const Links = () => {
                                     group-hover:shadow-lg
                                 "
                             >
-                                {item.icon}
+                                <Icon size={28} strokeWidth={2} />
                             </div>
 
                             {/* Arrow */}

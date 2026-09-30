@@ -210,8 +210,8 @@ export default function LoginPage() {
       // LOGIN SUCCESS
       // =================================================
 
-      console.log("[login] calling router.replace('/dispatch/vehicle')");
-      router.replace("/dispatch/vehicle");
+      console.log("[login] calling router.replace('/dashboard')");
+      router.replace("/dashboard");
       console.log("[login] router.replace() call returned");
     } catch (error) {
       console.error(

@@ -25,6 +25,7 @@ export const authConfig = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.buyer = user.buyer;
         token.loginAt = Date.now();
       }
 
@@ -46,6 +47,7 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.buyer = token.buyer as string | undefined;
       }
       session.expiresAt = new Date(
         (token.loginAt as number) + SESSION_MAX_AGE_SECONDS * 1000,

@@ -333,7 +333,7 @@ export async function GET(request: NextRequest) {
 
     const vehicles = await db
       .collection("vehicles")
-      .find({ $and: [query, customerVehicleFilter(session?.user?.role)] })
+      .find({ $and: [query, customerVehicleFilter(session?.user?.role, session?.user?.buyer)] })
       .sort({ createdAt: -1 })
       .toArray();
 

@@ -6,7 +6,6 @@ import {
     Check,
     Clock,
     Copy,
-    ExternalLink,
     FileText,
     FileX,
     MapPin,
@@ -373,7 +372,6 @@ const ViewModal = ({
 
     // Flat API document fields -> vehicle.documents
     const v = normalizeVehicle(vehicle);
-    const location = v.currentLocation;
     const tracking = (v.tracking ?? []).slice().reverse();
     const lastStatusChange = getLastStatusChange(v);
     // Dispatched vehicles: super admin only
@@ -411,12 +409,6 @@ const ViewModal = ({
         { label: "Route", value: v.route },
     ];
 
-    const mapsUrl =
-        location &&
-            Number.isFinite(location.latitude) &&
-            Number.isFinite(location.longitude)
-            ? `https://www.google.com/maps?q=${location.latitude},${location.longitude}`
-            : null;
 
     return (
         <CommonModal
@@ -547,50 +539,6 @@ const ViewModal = ({
                                 <DetailItem label="Created" value={formatDateTime(v.createdAt)} />
                                 <DetailItem label="Last updated" value={formatDateTime(v.updatedAt)} />
                             </dl>
-                        </ModalSection>
-
-                        <ModalSection
-                            title="Current location"
-                            icon={MapPin}
-                            action={
-                                mapsUrl && (
-                                    <a
-                                        href={mapsUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="-my-2 inline-flex min-h-10 shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-orange-600 hover:text-orange-700"
-                                    >
-                                        Open map
-                                        <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                                    </a>
-                                )
-                            }
-                        >
-                            {location ? (
-                                <dl className="space-y-3">
-                                    <DetailItem label="Address" value={location.address} />
-                                    <DetailItem
-                                        label="Coordinates"
-                                        mono
-                                        value={
-                                            Number.isFinite(location.latitude)
-                                                ? `${location.latitude}, ${location.longitude}`
-                                                : ""
-                                        }
-                                    />
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <DetailItem label="Speed" value={location.speed} />
-                                        <DetailItem label="Heading" value={location.heading} />
-                                        <DetailItem label="Accuracy" value={location.accuracy} />
-                                    </div>
-                                    <DetailItem
-                                        label="Recorded"
-                                        value={formatDateTime(location.recordedAt)}
-                                    />
-                                </dl>
-                            ) : (
-                                <EmptyNote>Location not available</EmptyNote>
-                            )}
                         </ModalSection>
 
                         <ModalSection title="People" icon={Users}>

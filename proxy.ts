@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
+import {
+  canAccessLab,
+  canAccessVehicles,
+  canManageUsers,
+} from "./app/utils/vehiclePermissions";
 
 // Edge-safe: authConfig has no providers, so this only decodes the
 // session cookie — it never touches MongoDB.
@@ -22,6 +27,36 @@ export default auth((req) => {
 
   const isApiRoute = pathname.startsWith("/api");
 
+  const isLabRoute =
+    pathname === "/lab" ||
+    pathname.startsWith("/lab/") ||
+    pathname === "/api/lab" ||
+    pathname.startsWith("/api/lab/");
+
+  const isVehiclesRoute =
+    pathname.startsWith("/dispatch/") ||
+    pathname === "/api/vehicles" ||
+    pathname.startsWith("/api/vehicles/") ||
+    pathname.startsWith("/api/google-chat/vehicle");
+
+  // /api/users/verify stays open to every signed-in user.
+  const isUsersRoute =
+    pathname === "/users" ||
+    pathname.startsWith("/users/") ||
+    pathname === "/api/users" ||
+    (pathname.startsWith("/api/users/") && pathname !== "/api/users/verify");
+
+  const isLabForbidden =
+    isLoggedIn && isLabRoute && !canAccessLab(req.auth?.user?.role);
+
+  const isUsersForbidden =
+    isLoggedIn && isUsersRoute && !canManageUsers(req.auth?.user?.role);
+
+  const isVehiclesForbidden =
+    isLoggedIn && isVehiclesRoute && !canAccessVehicles(req.auth?.user?.role);
+
+  const isForbidden = isLabForbidden || isUsersForbidden || isVehiclesForbidden;
+
   if (isApiRoute) {
     if (!isLoggedIn) {
       console.log(`[proxy] blocking API route ${pathname} -> 401`);
@@ -30,7 +65,21 @@ export default auth((req) => {
         { status: 401 },
       );
     }
+    if (isForbidden) {
+      console.log(`[proxy] blocking API route ${pathname} -> 403`);
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
+    }
     return NextResponse.next();
+  }
+
+  if (isForbidden) {
+    console.log(
+      `[proxy] role=${req.auth?.user?.role} can't open ${pathname}, redirecting -> /dashboard`,
+    );
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
   const isLoginPage = pathname === "/login";
@@ -45,9 +94,9 @@ export default auth((req) => {
 
   if (isLoggedIn && isLoginPage) {
     console.log(
-      `[proxy] already logged in, redirecting /login -> /dispatch/vehicle`,
+      `[proxy] already logged in, redirecting /login -> /dashboard`,
     );
-    return NextResponse.redirect(new URL("/dispatch/vehicle", req.nextUrl));
+    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
   }
 
   return NextResponse.next();

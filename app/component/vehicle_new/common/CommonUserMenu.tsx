@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useId, useRef, useState } from "react";
-import { ChevronDown, LoaderCircle, LogOut } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronDown, LayoutGrid, LoaderCircle, LogOut } from "lucide-react";
 
 export interface CommonUserMenuProps {
     name: string;
@@ -43,6 +45,7 @@ const CommonUserMenu = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuId = useId();
+    const pathname = usePathname();
 
     const displayName = toTitleCase(name);
     const displayRole = role ? formatRole(role) : "";
@@ -144,6 +147,20 @@ const CommonUserMenu = ({
                             )}
                         </div>
                     </div>
+
+                    {pathname !== "/dashboard" && (
+                        <div className="border-t border-gray-100 p-1">
+                            <Link
+                                href="/dashboard"
+                                role="menuitem"
+                                onClick={() => setOpen(false)}
+                                className="flex w-full cursor-pointer items-center gap-2.5 min-h-10 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-orange-50 hover:text-orange-700 focus:outline-none focus-visible:bg-orange-50 focus-visible:text-orange-700"
+                            >
+                                <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+                                Dashboard
+                            </Link>
+                        </div>
+                    )}
 
                     <div className="border-t border-gray-100 p-1">
                         <button

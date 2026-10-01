@@ -2,17 +2,16 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { canAccessVehicles } from "@/app/utils/vehiclePermissions";
-import VehicleDashboard from "./VehicleDashboard";
+import { canAccessLab } from "@/app/utils/vehiclePermissions";
+import LabDashboard from "./LabDashboard";
 
 export const metadata: Metadata = {
-    title: "Vehicle Dispatch",
+    title: "Lab",
 };
 
 /*
- * Access is enforced by proxy.ts (lab staff are kept out); the
+ * Admins and super admins only. proxy.ts enforces this too; the
  * check here keeps the page safe if the proxy matcher changes.
- * The session also renders the user's name/role on the first paint.
  */
 const Page = async () => {
     const session = await auth();
@@ -21,12 +20,12 @@ const Page = async () => {
         redirect("/login");
     }
 
-    if (!canAccessVehicles(session.user.role)) {
+    if (!canAccessLab(session.user.role)) {
         redirect("/dashboard");
     }
 
     return (
-        <VehicleDashboard
+        <LabDashboard
             userName={session.user.name ?? ""}
             userRole={session.user.role ?? ""}
         />

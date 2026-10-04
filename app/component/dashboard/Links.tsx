@@ -4,16 +4,18 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 
-import { getModulesForRole } from "@/app/constant/modules";
+import { getModulesForUser } from "@/app/constant/modules";
 
 interface LinksProps {
     userRole?: string;
+    /** Granted dashboards; only these get a card. */
+    dashboards?: string[];
 }
 
-const Links = ({ userRole }: LinksProps) => {
+const Links = ({ userRole, dashboards }: LinksProps) => {
     const router = useRouter();
 
-    const modules = getModulesForRole(userRole);
+    const modules = getModulesForUser(userRole, dashboards);
 
     const handleNavigate = (path: string) => {
         router.push(path);

@@ -28,6 +28,10 @@ import PulseDot from "../../common/PulseDot";
 import { useAutoRefresh } from "@/app/hooks/useAutoRefresh";
 import { fetchJson } from "@/app/lib/fetchJson";
 import { getStoredUserRole, isReadOnlyRole } from "@/app/utils/vehiclePermissions";
+import {
+    VEHICLE_STAT_FILTERS,
+    VehicleStatFilter,
+} from "../common/vehicleStatFilters";
 
 /* =========================================================
    TYPES
@@ -60,6 +64,8 @@ interface VehicleTableProps {
     syncKey?: number;
     /** Called after a vehicle is saved from the edit modal. */
     onVehicleUpdated?: () => void;
+    /** Summary card picked above the table; narrows the rows. */
+    statFilter?: VehicleStatFilter | null;
 }
 
 /* =========================================================
@@ -204,6 +210,7 @@ export default function Test({
     onAutoRefresh,
     syncKey = 0,
     onVehicleUpdated,
+    statFilter = null,
 }: VehicleTableProps) {
     /* =====================================================
        STATE
@@ -628,21 +635,50 @@ export default function Test({
         );
 
     /* =====================================================
+       STAT CARD FILTER
+
+       The cards count against today, so a card picked
+       while viewing 7 days / a custom range switches the
+       table back to Today (a superset of every card).
+    ===================================================== */
+
+    useEffect(() => {
+        if (
+            statFilter &&
+            (dateFilter === "7days" ||
+                dateFilter === "custom")
+        ) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setDateFilter("today");
+            setOpenRangePicker(false);
+        }
+        // Only when a card is picked, so the user can still
+        // change the date afterwards
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [statFilter]);
+
+    /* =====================================================
        SEARCH
     ===================================================== */
 
     const searchableVehicles =
         useMemo(() => {
+            const byStat = statFilter
+                ? vehicles.filter(
+                    VEHICLE_STAT_FILTERS[statFilter],
+                )
+                : vehicles;
+
             const searchText =
                 search
                     .trim()
                     .toLowerCase();
 
             if (!searchText) {
-                return vehicles;
+                return byStat;
             }
 
-            return vehicles.filter(
+            return byStat.filter(
                 (vehicle) => {
                     const searchableText = [
                         vehicle.tokenNo,
@@ -674,6 +710,7 @@ export default function Test({
         }, [
             vehicles,
             search,
+            statFilter,
         ]);
 
     /* =====================================================
@@ -1328,7 +1365,9 @@ export default function Test({
                 }
 
                 emptyMessage={
-                    emptyMessage
+                    statFilter
+                        ? "No vehicles match this card"
+                        : emptyMessage
                 }
 
                 pagination={

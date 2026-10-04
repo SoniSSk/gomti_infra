@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import getMongoClient from "@/app/lib/mongodb";
 import { auth } from "@/auth";
-import { canAccessLab } from "@/app/utils/vehiclePermissions";
+import { canOpenDashboard } from "@/app/lib/users";
+import { LAB_DASHBOARD } from "@/app/constant/dashboards";
 import { NextRequest, NextResponse } from "next/server";
 
 const DB_NAME = "gomti_infra";
@@ -99,7 +100,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!canAccessLab(session?.user?.role)) {
+    if (!(await canOpenDashboard(session?.user, LAB_DASHBOARD))) {
       return forbidden("You don't have permission to view lab records");
     }
 
@@ -215,7 +216,7 @@ export async function POST(req: Request) {
   try {
     const session = await auth();
 
-    if (!canAccessLab(session?.user?.role)) {
+    if (!(await canOpenDashboard(session?.user, LAB_DASHBOARD))) {
       return forbidden("You don't have permission to add lab records");
     }
 

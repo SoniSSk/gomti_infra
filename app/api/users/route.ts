@@ -6,6 +6,7 @@ import getMongoClient from "@/app/lib/mongodb";
 import { auth } from "@/auth";
 import { canManageUsers } from "@/app/utils/vehiclePermissions";
 import { MIN_PASSWORD_LENGTH, toUserRole } from "@/app/types/user";
+import { toDashboardKeys } from "@/app/constant/dashboards";
 import {
   USERS_COLLECTION,
   USERS_DB,
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
       role === "customer" && typeof body.buyer === "string"
         ? body.buyer.trim()
         : "";
+    // No dashboards unless the super admin ticks them
+    const dashboards = toDashboardKeys(body.dashboards);
 
     if (!name || !email || !password || !role) {
       return NextResponse.json(
@@ -106,6 +109,7 @@ export async function POST(req: NextRequest) {
       password: await bcrypt.hash(password, 12),
       role,
       ...(buyer && { buyer }),
+      dashboards,
       active: body.active !== false,
       createdAt: now,
       createdBy: session?.user?.name ?? session?.user?.email ?? "",
@@ -128,6 +132,7 @@ export async function POST(req: NextRequest) {
           email,
           role,
           ...(buyer && { buyer }),
+          dashboards,
           active: body.active !== false,
           createdAt: now,
         },

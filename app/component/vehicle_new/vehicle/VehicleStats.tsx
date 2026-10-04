@@ -10,6 +10,7 @@ import CommonCard from "../common/CommonCard";
 import CommonStateMessage from "../common/CommonStateMessage";
 import { getStatusMeta } from "../common/vehicleStatus";
 import CommonVehicleStatusCard from "../common/CommonVehicleStatusCard";
+import type { VehicleStatFilter } from "../common/vehicleStatFilters";
 
 import ViewModal from "./ViewModal";
 import EditModal from "./EditModal";
@@ -112,7 +113,7 @@ const DEFAULT_ALERT_COUNTS: VehicleAlertCounts = {
 
 interface StatCard {
     heading: string;
-    key: keyof VehicleStats;
+    key: VehicleStatFilter;
 
     /** Accent bar colour (matches the status palette). */
     accent: string;
@@ -173,6 +174,8 @@ key: "waitingForDetails",
         accent: "bg-red-500",
     },
 ];
+
+const ACTIVE_CARD = "border-orange-400 ring-2 ring-orange-200";
 
 /* =========================================================
    READ ONLY ROLES
@@ -241,6 +244,13 @@ interface VehicleStatsProps {
     userRole?: string;
     /** Called after a vehicle is saved from the alert edit modal. */
     onVehicleUpdated?: () => void;
+
+    /** Card currently filtering the table (null = Total). */
+    activeFilter?: VehicleStatFilter | null;
+    onFilterChange?: (filter: VehicleStatFilter | null) => void;
+
+    /** Rows loaded in the table for its date filter; null while loading. */
+    totalCount?: number | null;
 }
 
 const VehicleStats = ({
@@ -248,6 +258,9 @@ const VehicleStats = ({
     pollKey = 0,
     userRole: sessionRole,
     onVehicleUpdated,
+    activeFilter = null,
+    onFilterChange,
+    totalCount = null,
 }: VehicleStatsProps) => {
     /* =====================================================
        STATS
@@ -635,29 +648,55 @@ const [retryKey, setRetryKey] =
                     MAIN STAT CARDS
                 ================================================= */}
 
-                <div className="grid w-full grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                {/* Click a card to filter the table; Total
+                    (or the active card again) clears it */}
+
+                <div
+                    className="grid w-full grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5"
+                    role="group"
+                    aria-label="Filter vehicles by summary"
+                >
+                    <CommonCard
+                        heading="Total"
+                        accent="bg-gray-400"
+                        loading={totalCount === null}
+                        number={totalCount ?? 0}
+                        onClick={() => onFilterChange?.(null)}
+                        className={`col-span-2 lg:col-span-1 ${activeFilter === null ? ACTIVE_CARD : ""}`}
+                    />
+
                     {STAT_CARDS.map(
                         ({
                             heading,
                             key,
                             offset,
                             accent,
-                        }) => (
-                            <CommonCard
-                                key={key}
-                                heading={heading}
-                                accent={accent}
-                                loading={loading}
-                                number={
-                                    error
-                                        ? "—"
-                                        : getCardValue(
-                                            key,
-                                            offset,
+                        }) => {
+                            const active = activeFilter === key;
+
+                            return (
+                                <CommonCard
+                                    key={key}
+                                    heading={heading}
+                                    accent={accent}
+                                    loading={loading}
+                                    number={
+                                        error
+                                            ? "—"
+                                            : getCardValue(
+                                                key,
+                                                offset,
+                                            )
+                                    }
+                                    onClick={() =>
+                                        onFilterChange?.(
+                                            active ? null : key,
                                         )
-                                }
-                            />
-                        ),
+                                    }
+                                    className={active ? ACTIVE_CARD : ""}
+                                />
+                            );
+                        },
                     )}
                 </div>
 

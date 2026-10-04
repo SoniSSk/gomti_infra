@@ -20,7 +20,11 @@ import { Vehicle } from "../../types/vehicle";
 import VehicleDetailsModal from "./VehicleDetailsModal";
 import EditVehicleModal from "./EditVehicleModal";
 
-import { useVehicleStats } from "@/app/hooks/useVehicleStats";
+import {
+  useVehicleStats,
+  VEHICLE_STAT_FILTERS,
+  VehicleStatFilter,
+} from "@/app/hooks/useVehicleStats";
 import StatCard from "../common/StatCard";
 
 import {
@@ -204,6 +208,20 @@ export default function VehicleTable() {
 
   const [search, setSearch] =
     useState("");
+
+  // =====================================
+  // SUMMARY CARD FILTER
+  // =====================================
+
+  const [statFilter, setStatFilter] =
+    useState<VehicleStatFilter | null>(null);
+
+  const toggleStatFilter = (
+    filter: VehicleStatFilter
+  ) =>
+    setStatFilter((prev) =>
+      prev === filter ? null : filter
+    );
 
   // =====================================
   // DATE FILTER
@@ -611,13 +629,19 @@ export default function VehicleTable() {
   );
 
   // =====================================
-  // TABLE SEARCH
+  // TABLE SEARCH + SUMMARY CARD FILTER
   //
   // DATE FILTER IS NOW HANDLED BY API
   // =====================================
 
   const filteredData =
     useMemo(() => {
+      const byStat = statFilter
+        ? roleFilteredVehicles.filter(
+          VEHICLE_STAT_FILTERS[statFilter]
+        )
+        : roleFilteredVehicles;
+
       const searchText =
         search
           .toLowerCase()
@@ -625,10 +649,10 @@ export default function VehicleTable() {
 
       // No search
       if (!searchText) {
-        return roleFilteredVehicles;
+        return byStat;
       }
 
-      return roleFilteredVehicles.filter(
+      return byStat.filter(
         (vehicle) => {
           const searchableText = [
             vehicle.tokenNo,
@@ -654,6 +678,7 @@ export default function VehicleTable() {
     }, [
       roleFilteredVehicles,
       search,
+      statFilter,
     ]);
 
   // Only count rows this role can see
@@ -982,12 +1007,34 @@ export default function VehicleTable() {
             STAT CARDS
         ================================= */}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {/* Click a card to filter the table,
+            Total (or the active card) clears it */}
+
+        <div
+          className="grid grid-cols-1 gap-4 md:grid-cols-5"
+          role="group"
+          aria-label="Filter vehicles by summary"
+        >
+
+          <StatCard
+            title="Total"
+            value={
+              roleFilteredVehicles.length
+            }
+            active={statFilter === null}
+            onClick={() =>
+              setStatFilter(null)
+            }
+          />
 
           <StatCard
             title="Today's Vehicles"
             value={
               todayVehicles
+            }
+            active={statFilter === "today"}
+            onClick={() =>
+              toggleStatFilter("today")
             }
           />
 
@@ -996,6 +1043,10 @@ export default function VehicleTable() {
             value={
               previousPendingVehicles
             }
+            active={statFilter === "previousPending"}
+            onClick={() =>
+              toggleStatFilter("previousPending")
+            }
           />
 
           <StatCard
@@ -1003,12 +1054,20 @@ export default function VehicleTable() {
             value={
               dispatchDone
             }
+            active={statFilter === "dispatchToday"}
+            onClick={() =>
+              toggleStatFilter("dispatchToday")
+            }
           />
 
           <StatCard
             title="Waiting"
             value={
               waitingForDetails
+            }
+            active={statFilter === "waiting"}
+            onClick={() =>
+              toggleStatFilter("waiting")
             }
           />
 

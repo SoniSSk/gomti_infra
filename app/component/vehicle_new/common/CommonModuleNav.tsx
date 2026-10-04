@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid } from "lucide-react";
 
-import { getModulesForRole } from "@/app/constant/modules";
+import { getModulesForUser } from "@/app/constant/modules";
 
 /*
  * Module tabs under the page header, so users can jump between
@@ -24,12 +24,13 @@ const isActivePath = (pathname: string, path: string) =>
 
 interface CommonModuleNavProps {
     userRole?: string;
+    dashboards?: string[];
 }
 
-const CommonModuleNav = ({ userRole }: CommonModuleNavProps) => {
+const CommonModuleNav = ({ userRole, dashboards }: CommonModuleNavProps) => {
     const pathname = usePathname();
 
-    const navItems = [DASHBOARD_ITEM, ...getModulesForRole(userRole)];
+    const navItems = [DASHBOARD_ITEM, ...getModulesForUser(userRole, dashboards)];
 
     return (
         <nav

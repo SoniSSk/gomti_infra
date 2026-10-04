@@ -23,6 +23,8 @@ export interface CommonHeaderProps {
     subtitle?: string;
     userName?: string;
     userRole?: string;
+    /** Granted dashboards; the module nav shows only these. */
+    dashboards?: string[];
     /** Overrides the default logout (clear localStorage + next-auth signOut). */
     onLogout?: () => void;
     /** Called after a vehicle is added, e.g. to refresh the table. */
@@ -49,6 +51,7 @@ const CommonHeader: React.FC<CommonHeaderProps> = ({
     subtitle,
     userName,
     userRole,
+    dashboards,
     onLogout,
     onVehicleAdded,
     actions,
@@ -249,7 +252,7 @@ className="
 
                 {/* ================= MODULE NAV ================= */}
 
-                <CommonModuleNav userRole={userRole} />
+                <CommonModuleNav userRole={userRole} dashboards={dashboards} />
             </header>
 
             {/* ================= ADD VEHICLE MODAL ================= */}

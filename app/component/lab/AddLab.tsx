@@ -6,11 +6,6 @@ import { CalendarClock, FlaskConical, Plus } from "lucide-react";
 
 import { useAppDispatch } from "@/app/redux/hooks";
 import { hideLoader, showLoader } from "@/app/redux/loaderSlice";
-import {
-    canAccessLab,
-    getStoredUserRole,
-} from "@/app/utils/vehiclePermissions";
-
 import CommonButton from "../vehicle_new/common/CommonButton";
 import { FIELD_CLASS, FormField, ModalSection } from "../vehicle_new/common/ModalParts";
 import { LabStatusBadge } from "./labStatus";
@@ -21,8 +16,6 @@ interface AddLabProps {
     onSuccess: () => void;
     /** Session name, shown as Assigned by; falls back to the name saved at login. */
     userName?: string;
-    /** Session role; falls back to the role saved at login. */
-    userRole?: string;
 }
 
 /* =========================================================
@@ -71,13 +64,8 @@ const getStoredUserName = (): string => {
 export default function AddLab({
     onSuccess,
     userName: sessionName,
-    userRole: sessionRole,
 }: AddLabProps) {
-    const role = sessionRole || getStoredUserRole();
-
     const assignedBy = sessionName || getStoredUserName();
-
-    const showSubmit = canAccessLab(role);
 
     const dispatch = useAppDispatch();
 
@@ -105,10 +93,6 @@ export default function AddLab({
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-
-        if (!showSubmit) {
-            return;
-        }
 
         if (!isFormValid) {
             toast.error(`${missingFields[0].label} is required`);
@@ -270,18 +254,16 @@ export default function AddLab({
                         </p>
                     )}
 
-                    {showSubmit && (
-                        <CommonButton
-                            type="submit"
-                            icon={Plus}
-                            disabled={!isFormValid}
-                            loading={submitting}
-                            loadingText="Saving report..."
-                            className="w-full sm:w-auto"
-                        >
-                            Add lab report
-                        </CommonButton>
-                    )}
+                    <CommonButton
+                        type="submit"
+                        icon={Plus}
+                        disabled={!isFormValid}
+                        loading={submitting}
+                        loadingText="Saving report..."
+                        className="w-full sm:w-auto"
+                    >
+                        Add lab report
+                    </CommonButton>
                 </div>
             </div>
         </form>

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { canAccessVehicles } from "@/app/utils/vehiclePermissions";
+import { getSessionDashboards } from "@/app/lib/users";
+import { VEHICLES_DASHBOARD } from "@/app/constant/dashboards";
 import VehicleDashboard from "./VehicleDashboard";
 
 export const metadata: Metadata = {
@@ -10,8 +11,8 @@ export const metadata: Metadata = {
 };
 
 /*
- * Access is enforced by proxy.ts (lab staff are kept out); the
- * check here keeps the page safe if the proxy matcher changes.
+ * Users granted the Vehicle Dispatch dashboard only. proxy.ts enforces
+ * this too; the check here keeps the page safe if the matcher changes.
  * The session also renders the user's name/role on the first paint.
  */
 const Page = async () => {
@@ -21,7 +22,9 @@ const Page = async () => {
         redirect("/login");
     }
 
-    if (!canAccessVehicles(session.user.role)) {
+    const dashboards = await getSessionDashboards(session.user);
+
+    if (!dashboards.includes(VEHICLES_DASHBOARD)) {
         redirect("/dashboard");
     }
 
@@ -29,6 +32,7 @@ const Page = async () => {
         <VehicleDashboard
             userName={session.user.name ?? ""}
             userRole={session.user.role ?? ""}
+            dashboards={dashboards}
         />
     );
 };

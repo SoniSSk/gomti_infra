@@ -7,6 +7,7 @@ import getMongoClient from "@/app/lib/mongodb";
 import { auth } from "@/auth";
 import { canManageUsers } from "@/app/utils/vehiclePermissions";
 import { MIN_PASSWORD_LENGTH, isUserActive, toUserRole } from "@/app/types/user";
+import { toDashboardKeys } from "@/app/constant/dashboards";
 import {
   USERS_COLLECTION,
   USERS_DB,
@@ -136,6 +137,24 @@ export async function PUT(
         }
 
         updates.active = body.active;
+      }
+    }
+
+    if ("dashboards" in body) {
+      if (!Array.isArray(body.dashboards)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid dashboards value" },
+          { status: 400 },
+        );
+      }
+
+      const dashboards = toDashboardKeys(body.dashboards);
+
+      if (
+        dashboards.join() !== toDashboardKeys(existing.dashboards).join() ||
+        !Array.isArray(existing.dashboards)
+      ) {
+        updates.dashboards = dashboards;
       }
     }
 

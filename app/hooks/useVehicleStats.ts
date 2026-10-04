@@ -1,67 +1,99 @@
 import { useMemo } from "react";
 import { Vehicle } from "@/app/types/vehicle";
 
+/**
+ * Check if date is today
+ *
+ * Supports:
+ * 08-09-2026 10:25 AM
+ * 2026-09-08T10:25:00
+ */
+export const isToday = (dateString?: string) => {
+  if (!dateString) return false;
+
+  const today = new Date();
+
+  let date: Date;
+
+  const ddmmyyyyMatch = dateString.match(
+    /^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?$/i,
+  );
+
+  if (ddmmyyyyMatch) {
+    const [, day, month, year, hour, minute, ampm] = ddmmyyyyMatch;
+
+    let hours = hour ? Number(hour) : 0;
+    const minutes = minute ? Number(minute) : 0;
+
+    if (ampm) {
+      const period = ampm.toUpperCase();
+
+      if (period === "PM" && hours !== 12) {
+        hours += 12;
+      }
+
+      if (period === "AM" && hours === 12) {
+        hours = 0;
+      }
+    }
+
+    date = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      hours,
+      minutes,
+    );
+  } else {
+    date = new Date(dateString);
+  }
+
+  if (Number.isNaN(date.getTime())) {
+    console.warn("Invalid date:", dateString);
+    return false;
+  }
+
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+};
+
+// ==========================================
+// SUMMARY CARD FILTERS
+//
+// Shared by the counts below and the
+// vehicle table, so a card's number always
+// matches the rows it filters to.
+// ==========================================
+
+export type VehicleStatFilter =
+  | "today"
+  | "previousPending"
+  | "dispatchToday"
+  | "waiting";
+
+export const VEHICLE_STAT_FILTERS: Record<
+  VehicleStatFilter,
+  (vehicle: Vehicle) => boolean
+> = {
+  today: (vehicle) => isToday(vehicle.dateTime),
+
+  // Older vehicles still pending, or
+  // older vehicles dispatched today
+  previousPending: (vehicle) =>
+    !isToday(vehicle.dateTime) &&
+    (vehicle.status !== "DISPATCH_DONE" || isToday(vehicle.outTime)),
+
+  dispatchToday: (vehicle) =>
+    vehicle.status === "DISPATCH_DONE" && isToday(vehicle.outTime),
+
+  waiting: (vehicle) => vehicle.status === "WAITING_FOR_DETAILS",
+};
+
 export const useVehicleStats = (vehicles: Vehicle[]) => {
   return useMemo(() => {
-    const today = new Date();
-
-    /**
-     * Check if date is today
-     *
-     * Supports:
-     * 08-09-2026 10:25 AM
-     * 2026-09-08T10:25:00
-     */
-    const isToday = (dateString?: string) => {
-      if (!dateString) return false;
-
-      let date: Date;
-
-      const ddmmyyyyMatch = dateString.match(
-        /^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{1,2}):(\d{2})\s*(AM|PM)?)?$/i,
-      );
-
-      if (ddmmyyyyMatch) {
-        const [, day, month, year, hour, minute, ampm] = ddmmyyyyMatch;
-
-        let hours = hour ? Number(hour) : 0;
-        const minutes = minute ? Number(minute) : 0;
-
-        if (ampm) {
-          const period = ampm.toUpperCase();
-
-          if (period === "PM" && hours !== 12) {
-            hours += 12;
-          }
-
-          if (period === "AM" && hours === 12) {
-            hours = 0;
-          }
-        }
-
-        date = new Date(
-          Number(year),
-          Number(month) - 1,
-          Number(day),
-          hours,
-          minutes,
-        );
-      } else {
-        date = new Date(dateString);
-      }
-
-      if (Number.isNaN(date.getTime())) {
-        console.warn("Invalid date:", dateString);
-        return false;
-      }
-
-      return (
-        date.getDate() === today.getDate() &&
-        date.getMonth() === today.getMonth() &&
-        date.getFullYear() === today.getFullYear()
-      );
-    };
-
     // ==========================================
     // TOTAL VEHICLES
     // ==========================================
@@ -72,9 +104,7 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
     // TODAY'S VEHICLES
     // ==========================================
 
-    const todayVehicles = vehicles.filter((vehicle) =>
-      isToday(vehicle.dateTime),
-    ).length;
+    const todayVehicles = vehicles.filter(VEHICLE_STAT_FILTERS.today).length;
 
     // ==========================================
     // PREVIOUS DAY VEHICLES
@@ -97,11 +127,7 @@ export const useVehicleStats = (vehicles: Vehicle[]) => {
     // ==========================================
 
     const previousPendingVehicles = vehicles.filter(
-      (vehicle) =>
-        (!isToday(vehicle.dateTime) && vehicle.status !== "DISPATCH_DONE") ||
-        (!isToday(vehicle.dateTime) &&
-          isToday(vehicle.outTime) &&
-          vehicle.status === "DISPATCH_DONE"),
+      VEHICLE_STAT_FILTERS.previousPending,
     ).length;
 
     // ==========================================

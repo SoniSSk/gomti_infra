@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { canManageUsers } from "@/app/utils/vehiclePermissions";
+import { getSessionDashboards } from "@/app/lib/users";
 import UsersDashboard from "./UsersDashboard";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ const Page = async () => {
             userName={session.user.name ?? ""}
             userRole={session.user.role ?? ""}
             currentUserId={session.user.id ?? ""}
+            dashboards={await getSessionDashboards(session.user)}
         />
     );
 };

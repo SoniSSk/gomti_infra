@@ -8,11 +8,14 @@ import VehicleTables from "../../component/vehicle_new/vehicle/VehicleTable";
 interface VehicleDashboardProps {
     userName: string;
     userRole: string;
+    /** Granted dashboards, for the module nav. */
+    dashboards: string[];
 }
 
 const VehicleDashboard = ({
     userName,
     userRole,
+    dashboards,
 }: VehicleDashboardProps) => {
     /*
      * Bumped after a vehicle is added so the stats and table
@@ -31,6 +34,7 @@ const VehicleDashboard = ({
                 subtitle="Track and manage vehicle movement"
                 userName={userName}
                 userRole={userRole}
+                dashboards={dashboards}
                 onVehicleAdded={handleVehicleAdded}
             />
 

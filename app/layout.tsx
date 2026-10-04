@@ -35,7 +35,8 @@ export default function RootLayout({
             {children}
           </ReduxProvider>
         </SessionProvider>
-        <Toaster position="top-right" />
+        {/* Above CommonModal (z-[9999]) so toasts show over open modals */}
+        <Toaster position="top-right" containerStyle={{ zIndex: 10000 }} />
       </body>
     </html>
   );

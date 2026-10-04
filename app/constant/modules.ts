@@ -1,14 +1,19 @@
-import {
-    canAccessLab,
-    canAccessVehicles,
-    canManageUsers,
-} from "@/app/utils/vehiclePermissions";
+import { canManageUsers } from "@/app/utils/vehiclePermissions";
 import {
     FlaskConical,
+    Landmark,
+    Pickaxe,
     Truck,
     UserCog,
     type LucideIcon,
 } from "lucide-react";
+import { ACCOUNT_BOOKS } from "@/app/types/accounts";
+import {
+    LAB_DASHBOARD,
+    MINING_DASHBOARD,
+    VEHICLES_DASHBOARD,
+    accountsDashboardKey,
+} from "./dashboards";
 
 /*
  * Operations modules, shared by the dashboard cards and the
@@ -22,7 +27,9 @@ export interface AppModule {
     description: string;
     path: string;
     icon: LucideIcon;
-    /** Omit when every signed-in user can open the module. */
+    /** Grantable dashboard (see DASHBOARDS) that opens this module. */
+    dashboardKey?: string;
+    /** Role check for modules that aren't granted per user. */
     canAccess?: (role?: string | null) => boolean;
 }
 
@@ -34,7 +41,7 @@ export const APP_MODULES: AppModule[] = [
             "Manage vehicle entry, loading, ETP, documents and dispatch operations.",
         path: "/dispatch/vehicle",
         icon: Truck,
-        canAccess: canAccessVehicles,
+        dashboardKey: VEHICLES_DASHBOARD,
     },
     // {
     //     title: "Rake Dispatch",
@@ -59,8 +66,29 @@ export const APP_MODULES: AppModule[] = [
             "Track lot samples, assignments and lab report results.",
         path: "/lab",
         icon: FlaskConical,
-        canAccess: canAccessLab,
+        dashboardKey: LAB_DASHBOARD,
     },
+    {
+        title: "Mining",
+        shortTitle: "Mining",
+        description:
+            "Track vehicle trips from loading to unloading, with weights and timings.",
+        path: "/mining",
+        icon: Pickaxe,
+        dashboardKey: MINING_DASHBOARD,
+    },
+    // One module per account book: GIMPL, Arvind, Kuldeep
+    ...Object.values(ACCOUNT_BOOKS).map(
+        ({ key, title, path }): AppModule => ({
+            title,
+            shortTitle: title,
+            description:
+                "Track payments, transactions, masters, compliance and their documents.",
+            path,
+            icon: Landmark,
+            dashboardKey: accountsDashboardKey(key),
+        }),
+    ),
     {
         title: "User Management",
         shortTitle: "Users",
@@ -104,6 +132,13 @@ export const APP_MODULES: AppModule[] = [
     // },
 ];
 
-/** Modules this role can open. */
-export const getModulesForRole = (role?: string | null): AppModule[] =>
-    APP_MODULES.filter(({ canAccess }) => !canAccess || canAccess(role));
+/** Modules this user can open, from their role and granted dashboards. */
+export const getModulesForUser = (
+    role?: string | null,
+    dashboards: readonly string[] = [],
+): AppModule[] =>
+    APP_MODULES.filter(({ dashboardKey, canAccess }) =>
+        dashboardKey
+            ? dashboards.includes(dashboardKey)
+            : !canAccess || canAccess(role),
+    );

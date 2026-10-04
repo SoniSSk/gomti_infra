@@ -1,17 +1,66 @@
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
+import { ACCOUNT_BOOKS, getAccountBook } from "./app/types/accounts";
+import { canManageUsers } from "./app/utils/vehiclePermissions";
 import {
-  canAccessLab,
-  canAccessVehicles,
-  canManageUsers,
-} from "./app/utils/vehiclePermissions";
+  LAB_DASHBOARD,
+  MINING_DASHBOARD,
+  VEHICLES_DASHBOARD,
+  accountsDashboardKey,
+} from "./app/constant/dashboards";
+import { getSessionDashboards } from "./app/lib/users";
 
-// Edge-safe: authConfig has no providers, so this only decodes the
-// session cookie — it never touches MongoDB.
+// authConfig has no providers, so this only decodes the session
+// cookie. Granted dashboards are read from MongoDB below, and only
+// for module routes.
 const { auth } = NextAuth(authConfig);
 
-export default auth((req) => {
+const isPathOrChild = (pathname: string, path: string) =>
+  pathname === path || pathname.startsWith(`${path}/`);
+
+/** Dashboard a route belongs to, or null if it isn't granted per user. */
+const getRouteDashboard = (
+  pathname: string,
+  searchParams: URLSearchParams,
+): string | null => {
+  if (isPathOrChild(pathname, "/lab") || isPathOrChild(pathname, "/api/lab")) {
+    return LAB_DASHBOARD;
+  }
+
+  if (
+    isPathOrChild(pathname, "/mining") ||
+    isPathOrChild(pathname, "/api/mining")
+  ) {
+    return MINING_DASHBOARD;
+  }
+
+  const book = Object.values(ACCOUNT_BOOKS).find(({ path }) =>
+    isPathOrChild(pathname, path),
+  );
+
+  if (book) {
+    return accountsDashboardKey(book.key);
+  }
+
+  // Every accounts API call names its book; the route rejects unknown ones
+  if (isPathOrChild(pathname, "/api/accounts")) {
+    const apiBook = getAccountBook(searchParams.get("book"));
+    return apiBook ? accountsDashboardKey(apiBook.key) : null;
+  }
+
+  if (
+    pathname.startsWith("/dispatch/") ||
+    isPathOrChild(pathname, "/api/vehicles") ||
+    pathname.startsWith("/api/google-chat/vehicle")
+  ) {
+    return VEHICLES_DASHBOARD;
+  }
+
+  return null;
+};
+
+export default auth(async (req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth?.user;
 
@@ -27,35 +76,23 @@ export default auth((req) => {
 
   const isApiRoute = pathname.startsWith("/api");
 
-  const isLabRoute =
-    pathname === "/lab" ||
-    pathname.startsWith("/lab/") ||
-    pathname === "/api/lab" ||
-    pathname.startsWith("/api/lab/");
-
-  const isVehiclesRoute =
-    pathname.startsWith("/dispatch/") ||
-    pathname === "/api/vehicles" ||
-    pathname.startsWith("/api/vehicles/") ||
-    pathname.startsWith("/api/google-chat/vehicle");
-
   // /api/users/verify stays open to every signed-in user.
   const isUsersRoute =
-    pathname === "/users" ||
-    pathname.startsWith("/users/") ||
+    isPathOrChild(pathname, "/users") ||
     pathname === "/api/users" ||
     (pathname.startsWith("/api/users/") && pathname !== "/api/users/verify");
-
-  const isLabForbidden =
-    isLoggedIn && isLabRoute && !canAccessLab(req.auth?.user?.role);
 
   const isUsersForbidden =
     isLoggedIn && isUsersRoute && !canManageUsers(req.auth?.user?.role);
 
-  const isVehiclesForbidden =
-    isLoggedIn && isVehiclesRoute && !canAccessVehicles(req.auth?.user?.role);
+  const routeDashboard = getRouteDashboard(pathname, req.nextUrl.searchParams);
 
-  const isForbidden = isLabForbidden || isUsersForbidden || isVehiclesForbidden;
+  const isDashboardForbidden =
+    isLoggedIn &&
+    !!routeDashboard &&
+    !(await getSessionDashboards(req.auth?.user)).includes(routeDashboard);
+
+  const isForbidden = isUsersForbidden || isDashboardForbidden;
 
   if (isApiRoute) {
     if (!isLoggedIn) {

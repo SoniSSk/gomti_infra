@@ -104,7 +104,7 @@ const StackedCell = ({
     </div>
 );
 
-/* Expected on top; Done below, red when it came in late. */
+/* Expected, then Done, each label above its date; Done is red when late. */
 const ReportTimelineCell = ({ row }: { row: LabObject }) => {
     const expected = formatLabDate(row.expectedReportAt);
     const done = formatLabDate(row.reportDoneAt);
@@ -115,15 +115,15 @@ const ReportTimelineCell = ({ row }: { row: LabObject }) => {
         new Date(row.reportDoneAt) > new Date(row.expectedReportAt);
 
     return (
-        <div className="flex flex-col whitespace-nowrap tabular-nums">
-            <span className="text-[11px] leading-4 text-gray-400">
-                <span className="inline-block w-12">Expected</span>
+        <div className="flex flex-col gap-1 whitespace-nowrap tabular-nums text-[11px] leading-4">
+            <div className="flex flex-col">
+                <span className="text-[9px] uppercase leading-3 tracking-wide text-gray-400">Expected</span>
                 <span className={expected ? "text-gray-900" : "text-gray-300"}>
                     {expected || "—"}
                 </span>
-            </span>
-            <span className="text-[11px] leading-4 text-gray-400">
-                <span className="inline-block w-12">Done</span>
+            </div>
+            <div className="flex flex-col">
+                <span className="text-[9px] uppercase leading-3 tracking-wide text-gray-400">Done</span>
                 <span
                     className={
                         !done
@@ -135,7 +135,7 @@ const ReportTimelineCell = ({ row }: { row: LabObject }) => {
                 >
                     {done || "—"}
                 </span>
-            </span>
+            </div>
         </div>
     );
 };

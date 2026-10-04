@@ -11,6 +11,8 @@ import UserFormModal from "../component/users/UserFormModal";
 interface UsersDashboardProps {
     userName: string;
     userRole: string;
+    /** Granted dashboards, for the module nav. */
+    dashboards: string[];
     currentUserId: string;
 }
 
@@ -18,6 +20,7 @@ const UsersDashboard = ({
     userName,
     userRole,
     currentUserId,
+    dashboards,
 }: UsersDashboardProps) => {
     const [isAddUserOpen, setIsAddUserOpen] = useState(false);
 
@@ -36,6 +39,7 @@ const UsersDashboard = ({
                 subtitle="Add, edit and deactivate user accounts"
                 userName={userName}
                 userRole={userRole}
+                dashboards={dashboards}
                 actions={
                     <CommonButton
                         icon={UserPlus}

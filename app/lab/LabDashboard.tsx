@@ -8,19 +8,19 @@ import CommonButton from "../component/vehicle_new/common/CommonButton";
 import CommonModal from "../component/vehicle_new/common/CommonModal";
 import LabTable from "../component/lab/LabTable";
 import AddLab from "../component/lab/AddLab";
-import { canAccessLab } from "@/app/utils/vehiclePermissions";
 
 interface LabDashboardProps {
     userName: string;
     userRole: string;
+    /** Granted dashboards, for the module nav. */
+    dashboards: string[];
 }
 
 const LabDashboard = ({
     userName,
     userRole,
+    dashboards,
 }: LabDashboardProps) => {
-    const showAddLab = canAccessLab(userRole);
-
     const [isAddLabOpen, setIsAddLabOpen] = useState(false);
 
     /*
@@ -41,20 +41,19 @@ const LabDashboard = ({
                 subtitle="Track samples and lab reports"
                 userName={userName}
                 userRole={userRole}
+                dashboards={dashboards}
                 actions={
-                    showAddLab && (
-                        <CommonButton
-                            icon={Plus}
-                            onClick={() => setIsAddLabOpen(true)}
-                            aria-label="Add lab report"
-                            title="Add lab report"
-                            className="max-sm:w-10 max-sm:px-0"
-                        >
-                            <span className="hidden sm:inline">
-                                Add Lab Report
-                            </span>
-                        </CommonButton>
-                    )
+                    <CommonButton
+                        icon={Plus}
+                        onClick={() => setIsAddLabOpen(true)}
+                        aria-label="Add lab report"
+                        title="Add lab report"
+                        className="max-sm:w-10 max-sm:px-0"
+                    >
+                        <span className="hidden sm:inline">
+                            Add Lab Report
+                        </span>
+                    </CommonButton>
                 }
             />
 
@@ -63,7 +62,7 @@ const LabDashboard = ({
             </main>
 
             <CommonModal
-                isOpen={showAddLab && isAddLabOpen}
+                isOpen={isAddLabOpen}
                 onClose={() => setIsAddLabOpen(false)}
                 title="Add lab report"
                 description="Register a new sample for lab testing."
@@ -73,7 +72,6 @@ const LabDashboard = ({
                 <div className="bg-gray-50 px-3 pt-3 sm:p-6">
                     <AddLab
                         userName={userName}
-                        userRole={userRole}
                         onSuccess={handleLabAdded}
                     />
                 </div>

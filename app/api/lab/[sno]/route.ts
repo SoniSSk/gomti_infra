@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import getMongoClient from "@/app/lib/mongodb";
 import { auth } from "@/auth";
-import { canAccessLab, isSuperAdminRole } from "@/app/utils/vehiclePermissions";
+import { isSuperAdminRole } from "@/app/utils/vehiclePermissions";
+import { canOpenDashboard } from "@/app/lib/users";
+import { LAB_DASHBOARD } from "@/app/constant/dashboards";
 import { NextRequest, NextResponse } from "next/server";
 
 const DB_NAME = "gomti_infra";
@@ -41,7 +43,7 @@ export async function PUT(
   try {
     const session = await auth();
 
-    if (!canAccessLab(session?.user?.role)) {
+    if (!(await canOpenDashboard(session?.user, LAB_DASHBOARD))) {
       return NextResponse.json(
         { success: false, message: "You don't have permission to edit lab records" },
         { status: 403 },

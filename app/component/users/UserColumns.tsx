@@ -7,6 +7,11 @@ import {
     toUserRole,
     type UserObject,
 } from "@/app/types/user";
+import {
+    ALL_DASHBOARD_KEYS,
+    DASHBOARD_LABELS,
+    getUserDashboardKeys,
+} from "@/app/constant/dashboards";
 import type { ExportColumn } from "@/app/utils/tableExport";
 import { TableColumn } from "../vehicle_new/common/CommonTable";
 import CommonButton from "../vehicle_new/common/CommonButton";
@@ -41,6 +46,16 @@ export const UserRoleBadge = ({ role }: { role?: string }) => (
         {formatUserRole(role) || "—"}
     </span>
 );
+
+/** Granted dashboard names, or "All" / "None". */
+const formatUserDashboards = (user: UserObject): string => {
+    const keys = getUserDashboardKeys(user.role, user.dashboards);
+
+    if (!keys.length) return "None";
+    if (keys.length === ALL_DASHBOARD_KEYS.length) return "All";
+
+    return keys.map((key) => DASHBOARD_LABELS[key]).join(", ");
+};
 
 /* On/off switch; the label says what the current state is. */
 const ActiveToggle = ({
@@ -90,6 +105,7 @@ export const userExportColumns: ExportColumn<UserObject>[] = [
     { label: "Email", value: (row) => row.email },
     { label: "Role", value: (row) => formatUserRole(row.role) },
     { label: "Buyer", value: (row) => row.buyer },
+    { label: "Dashboards", value: formatUserDashboards },
     { label: "Status", value: (row) => (isUserActive(row.active) ? "Active" : "Inactive") },
     { label: "Last Login", value: (row) => formatUserDate(row.lastLoginAt) },
     { label: "Created At", value: (row) => formatUserDate(row.createdAt) },
@@ -152,6 +168,24 @@ export const userColumns = ({
                 )}
             </div>
         ),
+    },
+
+    {
+        key: "dashboards",
+        label: "Access",
+        hideOnMobile: true,
+        render: (row) => {
+            const access = formatUserDashboards(row);
+
+            return (
+                <span
+                    className={`block max-w-[220px] truncate text-sm ${access === "None" ? "text-gray-400" : "text-gray-900"}`}
+                    title={access}
+                >
+                    {access}
+                </span>
+            );
+        },
     },
 
     /* A super admin can't deactivate their own account */

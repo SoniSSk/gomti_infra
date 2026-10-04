@@ -14,6 +14,10 @@ export const isEmployeeRole = (role?: string | null): boolean =>
 export const isLabRole = (role?: string | null): boolean =>
     normalizeRole(role) === "lab";
 
+/** Accounts staff: the accounts module only, no vehicles. */
+export const isAccountsRole = (role?: string | null): boolean =>
+    normalizeRole(role) === "accounts";
+
 /** Generic customer, limited to the buyer saved on their account. */
 export const isCustomerRole = (role?: string | null): boolean =>
     normalizeRole(role) === "customer";
@@ -22,13 +26,15 @@ export const isCustomerRole = (role?: string | null): boolean =>
 export const isAdminRole = (role?: string | null): boolean =>
     ["admin", "superadmin"].includes(normalizeRole(role));
 
-/** The lab module is limited to admins, super admins and lab staff. */
-export const canAccessLab = (role?: string | null): boolean =>
-    isAdminRole(role) || isLabRole(role);
+/*
+ * Which modules a user can open is granted per user by a super
+ * admin (see app/constant/dashboards.ts). The checks below only
+ * decide what a role can do inside a module.
+ */
 
-/** Everyone except lab staff can open vehicle dispatch. */
-export const canAccessVehicles = (role?: string | null): boolean =>
-    !isLabRole(role);
+/** Lab and accounts staff only view vehicles, even when granted dispatch. */
+const isVehicleStaffRole = (role?: string | null): boolean =>
+    !isLabRole(role) && !isAccountsRole(role);
 
 /** User management (add / edit / remove accounts) is super admin only. */
 export const canManageUsers = (role?: string | null): boolean =>
@@ -57,9 +63,9 @@ export const isReadOnlyRole = (role?: string | null): boolean =>
 export const canViewVehicle = (role?: string | null): boolean =>
     !isReadOnlyRole(role);
 
-/** Everyone except customers and lab staff can edit vehicles, employees included. */
+/** Everyone except customers, lab and accounts staff can edit vehicles, employees included. */
 export const canEditVehicles = (role?: string | null): boolean =>
-    canAccessVehicles(role) && !isReadOnlyRole(role);
+    isVehicleStaffRole(role) && !isReadOnlyRole(role);
 
 /** Customers and employees can't delete vehicles. */
 export const canDeleteVehicles = (role?: string | null): boolean =>

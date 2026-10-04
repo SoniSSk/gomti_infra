@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { KeyRound, Save, UserPlus, UserRound } from "lucide-react";
+import { KeyRound, LayoutGrid, Save, UserPlus, UserRound } from "lucide-react";
 
 import {
     MIN_PASSWORD_LENGTH,
@@ -13,6 +13,11 @@ import {
     type UserObject,
     type UserRole,
 } from "@/app/types/user";
+import {
+    ALL_DASHBOARD_KEYS,
+    DASHBOARDS,
+    toDashboardKeys,
+} from "@/app/constant/dashboards";
 
 import CommonButton from "../vehicle_new/common/CommonButton";
 import CommonModal from "../vehicle_new/common/CommonModal";
@@ -33,6 +38,8 @@ interface UserFormData {
     email: string;
     role: UserRole | "";
     buyer: string;
+    /** Granted dashboard keys; ignored for a super admin. */
+    dashboards: string[];
     password: string;
     confirmPassword: string;
 }
@@ -42,6 +49,7 @@ const EMPTY_FORM: UserFormData = {
     email: "",
     role: "employee",
     buyer: "",
+    dashboards: [],
     password: "",
     confirmPassword: "",
 };
@@ -54,6 +62,7 @@ const toFormData = (user: UserObject | null): UserFormData =>
             email: user.email ?? "",
             role: toUserRole(user.role),
             buyer: user.buyer ?? "",
+            dashboards: toDashboardKeys(user.dashboards),
         }
         : EMPTY_FORM;
 
@@ -81,6 +90,21 @@ export default function UserFormModal({
 
     const setField = <K extends keyof UserFormData>(key: K, value: UserFormData[K]) =>
         setFormData((prev) => ({ ...prev, [key]: value }));
+
+    const isSuperAdmin = formData.role === "superadmin";
+
+    const toggleDashboard = (key: string, checked: boolean) =>
+        setFormData((prev) => ({
+            ...prev,
+            dashboards: toDashboardKeys(
+                checked
+                    ? [...prev.dashboards, key]
+                    : prev.dashboards.filter((item) => item !== key),
+            ),
+        }));
+
+    const allDashboardsChecked =
+        formData.dashboards.length === ALL_DASHBOARD_KEYS.length;
 
     const handleSave = async () => {
         const name = formData.name.trim();
@@ -126,6 +150,7 @@ export default function UserFormModal({
             email,
             ...(!isSelf && { role }),
             ...(role === "customer" && { buyer }),
+            dashboards: formData.dashboards,
             ...(password && { password }),
         };
 
@@ -173,7 +198,7 @@ export default function UserFormModal({
             title={isEdit ? `Edit ${user?.name || user?.email}` : "Add user"}
             description={
                 isEdit
-                    ? "Update account details, role or password"
+                    ? "Update account details, role, dashboard access or password"
                     : "Create an account. The user signs in with this email and password."
             }
             footer={
@@ -278,6 +303,69 @@ export default function UserFormModal({
                             </FormField>
                         )}
                     </div>
+                </ModalSection>
+
+                <ModalSection
+                    title="Dashboard access"
+                    description={
+                        isSuperAdmin
+                            ? "Super admins can open every dashboard"
+                            : "Tick the dashboards this user can open"
+                    }
+                    icon={LayoutGrid}
+                    action={
+                        !isSuperAdmin && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setField(
+                                        "dashboards",
+                                        allDashboardsChecked ? [] : ALL_DASHBOARD_KEYS,
+                                    )
+                                }
+                                disabled={saving}
+                                className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-orange-600 transition hover:bg-orange-50 disabled:opacity-50"
+                            >
+                                {allDashboardsChecked ? "Clear all" : "Select all"}
+                            </button>
+                        )
+                    }
+                >
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {DASHBOARDS.map(({ key, label }) => {
+                            const checked =
+                                isSuperAdmin || formData.dashboards.includes(key);
+
+                            return (
+                                <label
+                                    key={key}
+                                    className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-sm transition ${checked
+                                        ? "border-orange-200 bg-orange-50 text-gray-900"
+                                        : "border-gray-200 bg-white text-gray-700"
+                                        } ${isSuperAdmin || saving
+                                            ? "cursor-not-allowed opacity-70"
+                                            : "cursor-pointer hover:border-orange-300"
+                                        }`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={(e) => toggleDashboard(key, e.target.checked)}
+                                        disabled={isSuperAdmin || saving}
+                                        className="h-4 w-4 shrink-0 cursor-pointer accent-orange-500 disabled:cursor-not-allowed"
+                                    />
+                                    {label}
+                                </label>
+                            );
+                        })}
+                    </div>
+
+                    {!isSuperAdmin && !formData.dashboards.length && (
+                        <p className="mt-3 text-xs text-gray-500">
+                            No dashboards ticked: this user can sign in but
+                            can&apos;t open any module.
+                        </p>
+                    )}
                 </ModalSection>
 
                 <ModalSection

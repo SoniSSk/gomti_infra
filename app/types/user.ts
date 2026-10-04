@@ -8,6 +8,8 @@ export interface UserObject {
   buyer?: string;
   /** false blocks sign-in; missing means active (older accounts). */
   active?: boolean;
+  /** Dashboard keys this user can open (see DASHBOARDS); none by default. */
+  dashboards?: string[];
   createdAt?: Date | string;
   updatedAt?: Date | string;
   updatedBy?: string;
@@ -25,6 +27,7 @@ export const USER_ROLES = [
   { value: "admin", label: "Admin" },
   { value: "employee", label: "Employee" },
   { value: "lab", label: "Lab" },
+  { value: "accounts", label: "Accounts" },
   { value: "customer", label: "Customer" },
   { value: "welspun", label: "Welspun" },
   { value: "shreecement", label: "Shree Cement" },

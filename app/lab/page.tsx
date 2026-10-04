@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { canAccessLab } from "@/app/utils/vehiclePermissions";
+import { getSessionDashboards } from "@/app/lib/users";
+import { LAB_DASHBOARD } from "@/app/constant/dashboards";
 import LabDashboard from "./LabDashboard";
 
 export const metadata: Metadata = {
@@ -10,8 +11,8 @@ export const metadata: Metadata = {
 };
 
 /*
- * Admins and super admins only. proxy.ts enforces this too; the
- * check here keeps the page safe if the proxy matcher changes.
+ * Users granted the Lab dashboard only. proxy.ts enforces this too;
+ * the check here keeps the page safe if the proxy matcher changes.
  */
 const Page = async () => {
     const session = await auth();
@@ -20,7 +21,9 @@ const Page = async () => {
         redirect("/login");
     }
 
-    if (!canAccessLab(session.user.role)) {
+    const dashboards = await getSessionDashboards(session.user);
+
+    if (!dashboards.includes(LAB_DASHBOARD)) {
         redirect("/dashboard");
     }
 
@@ -28,6 +31,7 @@ const Page = async () => {
         <LabDashboard
             userName={session.user.name ?? ""}
             userRole={session.user.role ?? ""}
+            dashboards={dashboards}
         />
     );
 };

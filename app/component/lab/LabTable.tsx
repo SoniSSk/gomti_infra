@@ -99,7 +99,7 @@ export default function LabTable({
 
     const [statusFilter, setStatusFilter] = useState<LabStatus | null>(null);
 
-    const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+    const [dateFilter, setDateFilter] = useState<DateFilter>("7days");
 
     const [customStartDate, setCustomStartDate] = useState(getToday());
 

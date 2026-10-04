@@ -192,7 +192,6 @@ export default function AddVehicle({
             formData.transporterName.trim().length > 0) &&
         formData.buyerDetails.trim().length > 0 &&
         formData.materialName.trim().length > 0 &&
-        formData.materialGrade.trim().length > 0 &&
         formData.destination.trim().length > 0;
 
     /* =======================================================
@@ -369,19 +368,6 @@ export default function AddVehicle({
         }
 
         /* -----------------------------------------------
-           MATERIAL GRADE
-        ----------------------------------------------- */
-
-        if (
-            !formData.materialGrade.trim()
-        ) {
-            toast.error(
-                "Material grade is required",
-            );
-            return;
-        }
-
-        /* -----------------------------------------------
            DESTINATION
         ----------------------------------------------- */
 
@@ -476,7 +462,7 @@ export default function AddVehicle({
                     formData.materialName.trim(),
 
                 materialGrade:
-                    formData.materialGrade.trim(),
+                    formData.materialGrade.trim() || undefined,
 
                 destination:
                     formData.destination.trim(),
@@ -755,7 +741,6 @@ export default function AddVehicle({
         ...(transporterLocked ? [] : [formData.transporterName]),
         formData.buyerDetails,
         formData.materialName,
-        formData.materialGrade,
         formData.destination,
     ].filter((value) => !String(value).trim()).length;
 
@@ -881,7 +866,7 @@ export default function AddVehicle({
                     {renderSelect("buyerDetails", "Buyer", BUYERS)}
                     {renderSelect("materialName", "Material", MATERIALS)}
 
-                    <FormField label="Material grade" htmlFor="add-materialGrade" required>
+                    <FormField label="Material grade" htmlFor="add-materialGrade">
                         <input
                             id="add-materialGrade"
                             type="text"
@@ -890,7 +875,6 @@ export default function AddVehicle({
                             onChange={handleChange}
                             className={FIELD_CLASS}
                             placeholder="e.g. 53-60"
-                            required
                             disabled={submitting}
                             autoComplete="off"
                         />

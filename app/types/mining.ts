@@ -62,14 +62,20 @@ export type MiningRequiredField =
   | "unloadedAt";
 
 /** Needed on every trip, whatever the status. Lot and size never are. */
-const ALWAYS_REQUIRED: MiningRequiredField[] = ["vehicleNo", "miningType"];
+const ALWAYS_REQUIRED: MiningRequiredField[] = ["vehicleNo"];
 
 /*
  * Each stage needs what the stages before it did, plus its own.
  * Cancelled / on hold trips only need their reason.
  */
 const EMPTY_STAGE: MiningRequiredField[] = ["emptyWeight"];
-const LOADING_STAGE: MiningRequiredField[] = [...EMPTY_STAGE, "loadingPoint", "loadingPerson"];
+/* The type of mining is decided at loading, so it isn't needed before. */
+const LOADING_STAGE: MiningRequiredField[] = [
+  ...EMPTY_STAGE,
+  "miningType",
+  "loadingPoint",
+  "loadingPerson",
+];
 const LOADED_STAGE: MiningRequiredField[] = [...LOADING_STAGE, "loadedWeight"];
 const TRANSIT_STAGE: MiningRequiredField[] = [...LOADED_STAGE, "unloadingPoint"];
 const UNLOADING_STAGE: MiningRequiredField[] = [...TRANSIT_STAGE, "unloadingPerson", "unloadedAt"];

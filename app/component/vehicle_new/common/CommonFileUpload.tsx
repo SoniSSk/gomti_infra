@@ -87,9 +87,15 @@ const KIND_META: Record<FileKind, { label: string; icon: typeof FileIcon }> = {
 };
 
 /** Last path segment of a URL, without the query string. */
-const fileNameFromUrl = (url: string) =>
-    decodeURIComponent(url.split("?")[0].split("/").pop() || "") ||
-    "Uploaded file";
+const fileNameFromUrl = (url: string) => {
+    const segment = url.split("?")[0].split("/").pop() || "";
+    try {
+        return decodeURIComponent(segment) || "Uploaded file";
+    } catch {
+        // Not valid percent-encoding (e.g. a literal "%" in the name)
+        return segment || "Uploaded file";
+    }
+};
 
 const normalizeRotation = (degrees: number) => ((degrees % 360) + 360) % 360;
 

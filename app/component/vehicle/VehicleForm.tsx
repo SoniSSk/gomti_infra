@@ -22,7 +22,7 @@ const Transporteres = [
   "VEER LOGISTICS",
   "VINAYAK ROADWAYS",
   "LAXMI TRANSPORT CORPORATION",
-  "NEHAL LOGISTIC"
+  "NEHAL LOGISTIC",
 ];
 
 // =========================

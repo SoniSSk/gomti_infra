@@ -21,7 +21,8 @@ const Transporteres = [
   "KRISHNA ROAD LINES",
   "VEER LOGISTICS",
   "VINAYAK ROADWAYS",
-  "LAXMI TRANSPORT CORPORATION"
+  "LAXMI TRANSPORT CORPORATION",
+  "NEHAL LOGISTIC"
 ];
 
 // =========================

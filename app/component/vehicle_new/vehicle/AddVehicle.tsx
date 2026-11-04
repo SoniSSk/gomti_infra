@@ -65,6 +65,7 @@ const BUYERS = [
     "NAVKAR MINERALS",
     "XYLE INDUSTRIES",
     "EVONITH",
+    "PINKS TECHNO",
 ];
 
 /* =========================================================

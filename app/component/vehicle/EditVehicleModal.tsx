@@ -475,6 +475,7 @@ export default function EditVehicleModal({
     "NAVKAR MINERALS",
     "XYLE INDUSTRIES",
     "EVONITH",
+    "PINKS TECHNO",
   ];
 
   // =========================
